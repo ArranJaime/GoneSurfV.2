@@ -1,6 +1,15 @@
-import { createContext, useContext, useState, type ReactNode } from "react"
+import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
 
 export type Size = "S" | "M" | "L" | "XL" | "Única"
+
+export interface CollectionData {
+  id: string
+  category: string
+  subtitle: string
+  title: string
+  image: string
+  active: boolean
+}
 
 export interface Product {
   id: string
@@ -14,6 +23,7 @@ export interface Product {
 
 interface Store {
   products: Product[]
+  collections: CollectionData[]
   cart: any[]
   transactions: any[]
   addToCart: (productId: string, size: Size) => void
@@ -21,19 +31,73 @@ interface Store {
   changeStock: (productId: string, size: Size, delta: number) => void
   completeOrder: (details: any) => { id: string }
   addProduct: (product: Omit<Product, "id">) => void
+  updateProductCollection: (productId: string, collectionName: string) => void
+  addCollection: (col: Omit<CollectionData, "id" | "active">) => void
+  toggleCollection: (id: string) => void
+  deleteCollection: (id: string) => void
+  deleteProduct: (id: string) => void // NUEVA FUNCIÓN PARA ELIMINAR PRODUCTOS
 }
 
 const StoreContext = createContext<Store | null>(null)
 
+// BASE DE DATOS DE FÁBRICA: Solo 2 mockups funcionales
+const initialCollections: CollectionData[] = [
+  { id: "c1", category: "ESENCIALES DE LA COSTA", subtitle: "No plans. Just tides.", title: "The slow days", image: "/assets/underwater.jpg", active: true },
+  { id: "c2", category: "HIGH PERFORMANCE", subtitle: "Born to conquer.", title: "The Blue", image: "/assets/hero-surf.jpg", active: true }
+]
+
+// PRODUCTOS DE FÁBRICA VINCULADOS
+const initialProducts: Product[] = [
+  { id: "p1", name: "Stay Real Tee", price: 109.0, category: "Merch", collectionName: "The slow days", image: "/assets/hero-surf.jpg", stocks: { S: 8, M: 12, L: 9, XL: 4 } },
+  { id: "p2", name: "Stay Real Cap", price: 89.0, category: "Accesorios", collectionName: "Catálogo General", image: "/assets/cap.jpg", stocks: { Única: 18 } },
+  { id: "p3", name: "Gone Surf Leash", price: 119.0, category: "Accesorios", collectionName: "The Blue", image: "/assets/leash.jpg", stocks: { Única: 12 } },
+  { id: "p4", name: "Off Duty Tee", price: 99.0, category: "Merch", collectionName: "The slow days", image: "/assets/story.jpg", stocks: { S: 10, M: 15, L: 15, XL: 5 } },
+]
+
 export function StoreProvider({ children }: { children: ReactNode }) {
-  const [products, setProducts] = useState<Product[]>([
-    { id: "p1", name: "Stay Real Tee", price: 109.0, category: "Merch", collectionName: "The slow days", image: "/assets/hero-surf.jpg", stocks: { S: 8, M: 12, L: 9, XL: 4 } },
-    { id: "p2", name: "Stay Real Cap", price: 89.0, category: "Accesorios", collectionName: "Catálogo General", image: "/assets/cap.jpg", stocks: { Única: 18 } },
-    { id: "p3", name: "Gone Surf Leash", price: 119.0, category: "Accesorios", collectionName: "The Blue", image: "/assets/leash.jpg", stocks: { Única: 12 } },
-    { id: "p4", name: "Off Duty Tee", price: 99.0, category: "Merch", collectionName: "The slow days", image: "/assets/story.jpg", stocks: { S: 10, M: 15, L: 15, XL: 5 } },
-  ])
+  
+  const [collections, setCollections] = useState<CollectionData[]>(() => {
+    try {
+      const saved = localStorage.getItem('gone_collections')
+      if (saved) {
+        const parsed = JSON.parse(saved) as any[]
+        const valid = Array.isArray(parsed) ? parsed.filter(c => c && c.title && c.title.trim() !== "") : []
+        if (valid.length === 0) return initialCollections
+        return valid
+      }
+    } catch (e) { console.error("Error cargando colecciones:", e) }
+    return initialCollections
+  })
+
+  const [products, setProducts] = useState<Product[]>(() => {
+    try {
+      const saved = localStorage.getItem('gone_products')
+      if (saved) {
+        const parsed = JSON.parse(saved) as any[]
+        const valid = Array.isArray(parsed) ? parsed.filter(p => p && p.name && p.name.trim() !== "") : []
+        if (valid.length === 0) return initialProducts
+        return valid
+      }
+    } catch (e) { console.error("Error cargando productos:", e) }
+    return initialProducts
+  })
+
   const [cart, setCart] = useState<any[]>([])
-  const [transactions, setTransactions] = useState<any[]>([])
+  
+  const [transactions, setTransactions] = useState<any[]>(() => {
+    try {
+      const saved = localStorage.getItem('gone_transactions')
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        return Array.isArray(parsed) ? parsed : []
+      }
+    } catch (e) { console.error("Error cargando transacciones:", e) }
+    return []
+  })
+
+  useEffect(() => { localStorage.setItem('gone_collections', JSON.stringify(collections)) }, [collections])
+  useEffect(() => { localStorage.setItem('gone_products', JSON.stringify(products)) }, [products])
+  useEffect(() => { localStorage.setItem('gone_transactions', JSON.stringify(transactions)) }, [transactions])
 
   const addToCart = (productId: string, size: Size) => {
     setCart((prev) => {
@@ -58,7 +122,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const total = cart.reduce((sum, item) => sum + (products.find((p) => p.id === item.productId)?.price || 0) * item.quantity, 0) + details.shipping
     const igv = total - total / 1.18
     const id = `ORD-${Math.floor(Math.random() * 10000)}`
-    setTransactions((prev) => [...prev, { ...details, id, total, igv, date: new Date().toISOString(), detail: cart.map((i) => `${i.quantity}x ${products.find((p) => p.id === i.productId)?.name} (${i.size})`).join(", ") }])
+    
+    const detailString = cart.map((i) => `${i.quantity}x ${products.find((p) => p.id === i.productId)?.name} (${i.size})`).join(", ")
+    
+    setTransactions((prev) => [...prev, { ...details, id, total, igv, date: new Date().toISOString(), detail: detailString }])
     
     cart.forEach(item => changeStock(item.productId, item.size, -item.quantity))
     setCart([])
@@ -70,8 +137,29 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setProducts(prev => [{ ...product, id }, ...prev])
   }
 
+  const updateProductCollection = (productId: string, collectionName: string) => {
+    setProducts(prev => prev.map(p => p.id === productId ? { ...p, collectionName } : p))
+  }
+
+  const addCollection = (col: Omit<CollectionData, "id" | "active">) => {
+    setCollections(prev => [...prev, { ...col, id: `col-${Date.now()}`, active: true }])
+  }
+
+  const toggleCollection = (id: string) => {
+    setCollections(prev => prev.map(c => c.id === id ? { ...c, active: !c.active } : c))
+  }
+
+  const deleteCollection = (id: string) => {
+    setCollections(prev => prev.filter(c => c.id !== id))
+  }
+
+  // LÓGICA DE ELIMINACIÓN DE PRODUCTO
+  const deleteProduct = (id: string) => {
+    setProducts(prev => prev.filter(p => p.id !== id))
+  }
+
   return (
-    <StoreContext.Provider value={{ products, cart, transactions, addToCart, changeQuantity, changeStock, completeOrder, addProduct }}>
+    <StoreContext.Provider value={{ products, collections, cart, transactions, addToCart, changeQuantity, changeStock, completeOrder, addProduct, updateProductCollection, addCollection, toggleCollection, deleteCollection, deleteProduct }}>
       {children}
     </StoreContext.Provider>
   )
