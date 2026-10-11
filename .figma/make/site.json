@@ -1,0 +1,10 @@
+{
+  "description": "Manage a retail store with synchronized catalog and admin panel featuring smart cart, stock control by size, tax calculations, order tracking, and CSV exports.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
