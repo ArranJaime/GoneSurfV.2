@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom"
 import { useStore, type Size } from "./store"
 
 const SIZES: Size[] = ["S", "M", "L", "XL"]
-
 const money = (value: number) => `S/. ${(Number(value) || 0).toFixed(2)}`
 
 function Logo({ dark = false }: { dark?: boolean }) {
@@ -13,13 +12,8 @@ function Logo({ dark = false }: { dark?: boolean }) {
 function ManageCollections() {
   const { collections, addCollection, toggleCollection, deleteCollection } = useStore()
   const [title, setTitle] = useState(""); const [subtitle, setSubtitle] = useState(""); const [category, setCategory] = useState("LIFESTYLE"); const [image, setImage] = useState<string | null>(null); const fileInputRef = useRef<HTMLInputElement>(null)
-
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]; if (file) { const reader = new FileReader(); reader.onloadend = () => setImage(reader.result as string); reader.readAsDataURL(file) }
-  }
-
-  const handleCreate = (e: FormEvent) => {
-    e.preventDefault(); if (!title || !image) { alert("Título e imagen obligatorios."); return }
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => { const file = e.target.files?.[0]; if (file) { const reader = new FileReader(); reader.onloadend = () => setImage(reader.result as string); reader.readAsDataURL(file) } }
+  const handleCreate = (e: FormEvent) => { e.preventDefault(); if (!title || !image) { alert("Título e imagen obligatorios."); return }
     addCollection({ title, subtitle, category, image }); setTitle(""); setSubtitle(""); setImage(null)
   }
 
@@ -61,17 +55,12 @@ function ManageCollections() {
 }
 
 function UploadPrenda() {
-  // EXTRAEMOS LA NUEVA FUNCIÓN deleteProduct AQUÍ
   const { collections, addProduct, products, changeStock, updateProductCollection, deleteProduct } = useStore()
   const [name, setName] = useState(""); const [price, setPrice] = useState(""); const [category, setCategory] = useState("New Arrivals"); const [collection, setCollection] = useState("Catálogo General"); const [image, setImage] = useState<string | null>(null); const [stocks, setStocks] = useState<Record<string, number>>({ Única: 25, S: 10, M: 10, L: 10, XL: 10 }); const [success, setSuccess] = useState(false); const fileInputRef = useRef<HTMLInputElement>(null)
   const isUnique = category === "Accesorios"
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]; if (file) { const reader = new FileReader(); reader.onloadend = () => setImage(reader.result as string); reader.readAsDataURL(file) }
-  }
-
-  const handleSubmit = (e: FormEvent) => {
-    e.preventDefault(); if (!name || !price || !image) { alert("Completa nombre, precio e imagen."); return }
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => { const file = e.target.files?.[0]; if (file) { const reader = new FileReader(); reader.onloadend = () => setImage(reader.result as string); reader.readAsDataURL(file) } }
+  const handleSubmit = (e: FormEvent) => { e.preventDefault(); if (!name || !price || !image) { alert("Completa nombre, precio e imagen."); return }
     const activeStocks: Record<string, number> = isUnique ? { Única: stocks["Única"] } : { S: stocks.S, M: stocks.M, L: stocks.L, XL: stocks.XL }
     addProduct({ name, price: parseFloat(price), category, collectionName: collection, image, stocks: activeStocks })
     setSuccess(true); setName(""); setPrice(""); setImage(null); setTimeout(() => setSuccess(false), 3000)
@@ -106,39 +95,15 @@ function UploadPrenda() {
         <div style={{ padding: '1.5rem', borderBottom: '2px solid #000' }}><h2 style={{ margin: 0, fontSize: '1rem', textTransform: 'uppercase' }}>Inventario Activo</h2></div>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
-            <thead style={{ background: '#0a0a0a', color: '#fff' }}>
-              <tr>
-                <th style={{ padding: '1rem' }}>PRODUCTO</th>
-                <th style={{ padding: '1rem' }}>COLECCIÓN</th>
-                <th style={{ padding: '1rem' }}>PRECIO</th>
-                <th style={{ padding: '1rem' }}>STOCK POR TALLA</th>
-                <th style={{ padding: '1rem' }}></th> {/* NUEVA COLUMNA DE ACCIÓN */}
-              </tr>
-            </thead>
+            <thead style={{ background: '#0a0a0a', color: '#fff' }}><tr><th style={{ padding: '1rem' }}>PRODUCTO</th><th style={{ padding: '1rem' }}>COLECCIÓN</th><th style={{ padding: '1rem' }}>PRECIO</th><th style={{ padding: '1rem' }}>STOCK POR TALLA</th><th style={{ padding: '1rem' }}></th></tr></thead>
             <tbody>
               {products.map(p => (
                 <tr key={p.id} style={{ borderBottom: '1px solid #eee' }}>
                   <td style={{ padding: '1rem', display: 'flex', alignItems: 'center', gap: '1rem' }}><img src={p.image} alt="" style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '4px' }} /><div><strong>{p.name}</strong><span style={{ display: 'block', fontSize: '0.7rem', color: '#888' }}>{p.category}</span></div></td>
                   <td style={{ padding: '1rem' }}>{p.collectionName && p.collectionName !== "Catálogo General" ? <span style={{ background: '#000', padding: '0.3rem 0.6rem', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 'bold', color: '#fff', display: 'inline-flex', alignItems: 'center', gap: '8px' }}>{p.collectionName} <button onClick={() => updateProductCollection(p.id, "Catálogo General")} style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', padding: 0 }}>✕</button></span> : <span style={{ color: '#888', fontStyle: 'italic', fontSize: '0.8rem' }}>Sin colección</span>}</td>
                   <td style={{ padding: '1rem' }}>{money(p.price)}</td>
-                  <td style={{ padding: '1rem' }}>
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>{(p.category === "Accesorios" ? ["Única"] as Size[] : SIZES).map(s => (<div key={s} style={{ display: 'flex', alignItems: 'center', border: '1px solid #ddd', borderRadius: '3px', overflow: 'hidden' }}><b style={{ padding: '0.2rem 0.5rem', background: '#f5f5f5', borderRight: '1px solid #ddd' }}>{s}</b><button onClick={() => changeStock(p.id, s, -1)} style={{ border: 'none', background: 'none', padding: '0.2rem 0.5rem', cursor: 'pointer' }}>−</button><span style={{ padding: '0.2rem 0.2rem' }}>{p.stocks[s] || 0}</span><button onClick={() => changeStock(p.id, s, 1)} style={{ border: 'none', background: 'none', padding: '0.2rem 0.5rem', cursor: 'pointer' }}>+</button></div>))}</div>
-                  </td>
-                  
-                  {/* NUEVO BOTÓN DE ELIMINAR PRODUCTO */}
-                  <td style={{ padding: '1rem', textAlign: 'right' }}>
-                    <button 
-                      onClick={() => {
-                        if(window.confirm(`¿Estás seguro de que deseas eliminar permanentemente el producto "${p.name}" de la tienda?`)) {
-                          deleteProduct(p.id)
-                        }
-                      }}
-                      style={{ background: 'transparent', color: '#ff4d4d', border: '1px solid #ff4d4d', padding: '0.3rem 0.8rem', borderRadius: '20px', cursor: 'pointer', fontSize: '0.7rem', fontWeight: 'bold' }}
-                    >
-                      ELIMINAR
-                    </button>
-                  </td>
-                  
+                  <td style={{ padding: '1rem' }}><div style={{ display: 'flex', gap: '0.5rem' }}>{(p.category === "Accesorios" ? ["Única"] as Size[] : SIZES).map(s => (<div key={s} style={{ display: 'flex', alignItems: 'center', border: '1px solid #ddd', borderRadius: '3px', overflow: 'hidden' }}><b style={{ padding: '0.2rem 0.5rem', background: '#f5f5f5', borderRight: '1px solid #ddd' }}>{s}</b><button onClick={() => changeStock(p.id, s, -1)} style={{ border: 'none', background: 'none', padding: '0.2rem 0.5rem', cursor: 'pointer' }}>−</button><span style={{ padding: '0.2rem 0.2rem' }}>{p.stocks[s] || 0}</span><button onClick={() => changeStock(p.id, s, 1)} style={{ border: 'none', background: 'none', padding: '0.2rem 0.5rem', cursor: 'pointer' }}>+</button></div>))}</div></td>
+                  <td style={{ padding: '1rem', textAlign: 'right' }}><button onClick={() => { if(window.confirm(`¿Seguro que deseas eliminar permanentemente el producto "${p.name}"?`)) { deleteProduct(p.id) } }} style={{ background: 'transparent', color: '#ff4d4d', border: '1px solid #ff4d4d', padding: '0.3rem 0.8rem', borderRadius: '20px', cursor: 'pointer', fontSize: '0.7rem', fontWeight: 'bold' }}>ELIMINAR</button></td>
                 </tr>
               ))}
             </tbody>
@@ -151,142 +116,77 @@ function UploadPrenda() {
 
 function MetricsDashboard() {
   const { transactions } = useStore()
-  const [filter, setFilter] = useState<"today" | "week" | "month" | "custom">("week")
-  const [dates, setDates] = useState({ from: "", to: "" })
-
-  const filtered = useMemo(() => {
-    const start = new Date()
-    if (filter === "today") start.setHours(0, 0, 0, 0)
-    if (filter === "week") start.setDate(start.getDate() - 7)
-    if (filter === "month") start.setDate(start.getDate() - 30)
-    
-    return transactions.filter(t => {
-      const d = new Date(t.date || new Date())
-      if (filter === "custom") {
-        return (!dates.from || d >= new Date(`${dates.from}T00:00:00`)) && (!dates.to || d <= new Date(`${dates.to}T23:59:59`))
-      }
-      return d >= start
-    })
-  }, [transactions, filter, dates])
-
-  const mockTransactions = [
-    {
-      id: "GS-MV44OLF1",
-      date: new Date().toISOString(),
-      customer: "Jaime Monroy",
-      document: "72345678",
-      origin: "Lima (LIM)",
-      destination: "Punta Negra (PTN)",
-      address: "Av. Principal 123",
-      detail: "1x Pola Gone (S)",
-      total: 115.00,
-      method: "Envío Estándar"
-    },
-    {
-      id: "GS-PL99XCQ2",
-      date: new Date(Date.now() - 86400000).toISOString(),
-      customer: "Valeria Roca",
-      document: "45678912",
-      origin: "Lima (LIM)",
-      destination: "San Bartolo (SBT)",
-      address: "Calle Los Pinos 45",
-      detail: "1x Stay Real Cap (Única), 1x Gone Surf Leash (Única)",
-      total: 223.00,
-      method: "Envío Express"
-    }
-  ]
-
-  const displayTransactions = filtered.length > 0 ? filtered : mockTransactions;
-
   return (
     <div style={{ animation: 'fadeIn 0.3s ease' }}>
-      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
-        {(["today", "week", "month", "custom"] as const).map(f => (
-          <button key={f} onClick={() => setFilter(f)} style={{ padding: '0.5rem 1.5rem', background: filter === f ? '#000' : 'transparent', color: filter === f ? '#fff' : '#000', border: '1px solid #ddd', borderRadius: '4px', textTransform: 'uppercase', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 'bold' }}>
-            {f === "today" ? "Hoy" : f === "week" ? "Semana" : f === "month" ? "Mes" : "Personalizado"}
-          </button>
-        ))}
-        {filter === "custom" && (
-          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-            <input type="date" value={dates.from} onChange={e => setDates({...dates, from: e.target.value})} style={{ border: '1px solid #ddd', padding: '0.5rem', borderRadius: '4px' }} />
-            <span>-</span>
-            <input type="date" value={dates.to} onChange={e => setDates({...dates, to: e.target.value})} style={{ border: '1px solid #ddd', padding: '0.5rem', borderRadius: '4px' }} />
-          </div>
-        )}
-      </div>
-
       <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1rem', marginBottom: '3rem' }}>
         <article style={{ background: '#fff', padding: '1.5rem', border: '1px solid #eee', borderRadius: '8px' }}>
-          <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#666', textTransform: 'uppercase' }}>Recaudación</span>
-          <strong style={{ display: 'block', fontSize: '2.5rem', margin: '0.5rem 0' }}>{money(filtered.reduce((s, i) => s + (i.total || 0), 0))}</strong>
-          <small style={{ color: '#888', fontSize: '0.75rem' }}>{filtered.length} TRANSACCIONES REALES</small>
+          <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#666', textTransform: 'uppercase' }}>Recaudación Total</span>
+          <strong style={{ display: 'block', fontSize: '2.5rem', margin: '0.5rem 0' }}>{money(transactions.reduce((s, i) => s + (i.total || 0), 0))}</strong>
+          <small style={{ color: '#888', fontSize: '0.75rem' }}>{transactions.length} TRANSACCIONES EN EL SISTEMA</small>
         </article>
-        <article style={{ background: '#fff', padding: '1.5rem', border: '1px solid #eee', borderRadius: '8px' }}>
-          <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#666', textTransform: 'uppercase' }}>IGV Acumulado</span>
-          <strong style={{ display: 'block', fontSize: '2.5rem', margin: '0.5rem 0' }}>{money(filtered.reduce((s, i) => s + (i.igv || 0), 0))}</strong>
-          <small style={{ color: '#888', fontSize: '0.75rem' }}>INCLUIDO EN VENTAS</small>
-        </article>
-      </section>
-
-      <section style={{ background: '#fff', border: '1px solid #eee', borderRadius: '8px', overflow: 'hidden' }}>
-        <div style={{ padding: '1.5rem', borderBottom: '2px solid #000' }}>
-          <h2 style={{ margin: 0, fontSize: '1rem', textTransform: 'uppercase' }}>Historial de Transacciones {filtered.length === 0 ? "(Mockups)" : "(Reales)"}</h2>
-        </div>
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
-            <thead style={{ background: '#0a0a0a', color: '#fff' }}>
-              <tr>
-                <th style={{ padding: '1rem' }}>ID & FECHA</th>
-                <th style={{ padding: '1rem' }}>CLIENTE (DOC)</th>
-                <th style={{ padding: '1rem' }}>LOGÍSTICA (ORIGEN → DESTINO)</th>
-                <th style={{ padding: '1rem' }}>DETALLE DE PEDIDO</th>
-                <th style={{ padding: '1rem' }}>TOTAL</th>
-              </tr>
-            </thead>
-            <tbody>
-              {displayTransactions.map((t: any) => {
-                const safeDate = t.date ? new Date(t.date).toLocaleDateString('es-PE') : "Fecha Inválida";
-                
-                return (
-                  <tr key={t.id} style={{ borderBottom: '1px solid #eee' }}>
-                    <td style={{ padding: '1rem' }}>
-                      <strong style={{ display: 'block' }}>{t.id}</strong>
-                      <span style={{ color: '#888', fontSize: '0.75rem' }}>{safeDate}</span>
-                    </td>
-                    <td style={{ padding: '1rem' }}>
-                      <strong style={{ display: 'block' }}>{t.customer}</strong>
-                      <span style={{ color: '#888', fontSize: '0.75rem' }}>DNI/Doc: {t.document || "N/A"}</span>
-                    </td>
-                    <td style={{ padding: '1rem' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.3rem' }}>
-                        <span style={{ background: '#f0f0f0', padding: '0.2rem 0.5rem', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 'bold' }}>LIM</span>
-                        <span style={{ color: '#aaa' }}>→</span>
-                        <span style={{ background: '#e3f2fd', color: '#0277bd', padding: '0.2rem 0.5rem', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 'bold' }}>
-                          {t.destination || t.districtCode || t.districtName || "LIMA"}
-                        </span>
-                      </div>
-                      <span style={{ fontSize: '0.7rem', color: '#666', display: 'block' }}>{t.address || "Dirección no registrada"}</span>
-                    </td>
-                    <td style={{ padding: '1rem', maxWidth: '250px' }}>
-                      <span style={{ fontSize: '0.8rem', lineHeight: '1.4', display: 'block' }}>{t.detail || "Detalle no disponible"}</span>
-                    </td>
-                    <td style={{ padding: '1rem' }}>
-                      <strong style={{ fontSize: '1.1rem' }}>{money(t.total)}</strong>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
       </section>
     </div>
   )
 }
 
+// NUEVO: PESTAÑA DE GESTIÓN DE PEDIDOS PARA EL ADMIN
+function ManageOrders() {
+  const { transactions, updateOrderStatus } = useStore()
+
+  if (transactions.length === 0) {
+    return <div style={{ padding: '3rem', textAlign: 'center', background: '#fff', borderRadius: '8px', border: '1px solid #eee' }}><h3>Aún no hay pedidos registrados.</h3></div>
+  }
+
+  return (
+    <section style={{ background: '#fff', border: '1px solid #eee', borderRadius: '8px', overflow: 'hidden', animation: 'fadeIn 0.3s ease' }}>
+      <div style={{ padding: '1.5rem', borderBottom: '2px solid #000' }}><h2 style={{ margin: 0, fontSize: '1rem', textTransform: 'uppercase' }}>Gestión y Despacho de Pedidos</h2></div>
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+          <thead style={{ background: '#0a0a0a', color: '#fff' }}>
+            <tr>
+              <th style={{ padding: '1rem' }}>ID & FECHA</th>
+              <th style={{ padding: '1rem' }}>CLIENTE</th>
+              <th style={{ padding: '1rem' }}>CONTACTO / ENVÍO</th>
+              <th style={{ padding: '1rem' }}>DETALLE DE COMPRA</th>
+              <th style={{ padding: '1rem' }}>TOTAL</th>
+              <th style={{ padding: '1rem' }}>ESTADO ACTUAL</th>
+            </tr>
+          </thead>
+          <tbody>
+            {[...transactions].reverse().map((t: any) => (
+              <tr key={t.id} style={{ borderBottom: '1px solid #eee' }}>
+                <td style={{ padding: '1rem' }}><strong style={{ display: 'block' }}>{t.id}</strong><span style={{ color: '#888', fontSize: '0.75rem' }}>{new Date(t.date).toLocaleDateString('es-PE')}</span></td>
+                <td style={{ padding: '1rem' }}><strong style={{ display: 'block' }}>{t.customer || "Anónimo"}</strong><span style={{ color: '#888', fontSize: '0.75rem' }}>DNI: {t.document || "N/A"}</span></td>
+                <td style={{ padding: '1rem' }}>
+                  <span style={{ display: 'block', fontWeight: 'bold', fontSize: '0.75rem', color: '#0277bd' }}>{t.email || "Sin correo"}</span>
+                  <span style={{ fontSize: '0.7rem', color: '#666', display: 'block', marginTop: '4px' }}>{t.address || "Dirección no registrada"} - {t.districtName || ""}</span>
+                </td>
+                <td style={{ padding: '1rem', maxWidth: '250px' }}><span style={{ fontSize: '0.8rem', lineHeight: '1.4', display: 'block' }}>{t.detail}</span></td>
+                <td style={{ padding: '1rem' }}><strong style={{ fontSize: '1.1rem' }}>{money(t.total)}</strong></td>
+                <td style={{ padding: '1rem' }}>
+                  {/* SELECTOR PARA CAMBIAR EL ESTADO */}
+                  <select 
+                    value={t.status || "Procesando"} 
+                    onChange={(e) => updateOrderStatus(t.id, e.target.value)}
+                    style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc', fontWeight: 'bold', cursor: 'pointer', background: t.status === "Entregado" ? "#e8f5e9" : t.status === "Enviado" ? "#e3f2fd" : "#fff3e0", color: t.status === "Entregado" ? "#2e7d32" : t.status === "Enviado" ? "#0277bd" : "#e65100" }}
+                  >
+                    <option value="Procesando">Procesando</option>
+                    <option value="Enviado">Enviado</option>
+                    <option value="Entregado">Entregado</option>
+                  </select>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  )
+}
+
 function AdminDashboard() {
   const navigate = useNavigate()
-  const [currentView, setCurrentView] = useState<"dashboard" | "upload" | "collections">("dashboard")
+  const [currentView, setCurrentView] = useState<"dashboard" | "orders" | "upload" | "collections">("dashboard")
 
   return (
     <main style={{ backgroundColor: '#f5f5f5', minHeight: '100vh', padding: '3rem 5%' }}>
@@ -296,14 +196,16 @@ function AdminDashboard() {
       </div>
       
       <div style={{ marginBottom: '2rem' }}>
-        <nav style={{ display: 'flex', gap: '2rem', borderBottom: '2px solid #ddd' }}>
+        <nav style={{ display: 'flex', gap: '2rem', borderBottom: '2px solid #ddd', overflowX: 'auto' }}>
           <button onClick={() => setCurrentView('dashboard')} style={{ background: 'transparent', border: 'none', borderBottom: currentView === 'dashboard' ? '2px solid #000' : '2px solid transparent', padding: '0 0 0.5rem 0', fontWeight: 'bold', fontSize: '0.9rem', color: currentView === 'dashboard' ? '#000' : '#888', cursor: 'pointer', textTransform: 'uppercase', marginBottom: '-2px' }}>Dashboard</button>
+          <button onClick={() => setCurrentView('orders')} style={{ background: 'transparent', border: 'none', borderBottom: currentView === 'orders' ? '2px solid #000' : '2px solid transparent', padding: '0 0 0.5rem 0', fontWeight: 'bold', fontSize: '0.9rem', color: currentView === 'orders' ? '#000' : '#888', cursor: 'pointer', textTransform: 'uppercase', marginBottom: '-2px' }}>Gestión de Pedidos</button>
           <button onClick={() => setCurrentView('upload')} style={{ background: 'transparent', border: 'none', borderBottom: currentView === 'upload' ? '2px solid #000' : '2px solid transparent', padding: '0 0 0.5rem 0', fontWeight: 'bold', fontSize: '0.9rem', color: currentView === 'upload' ? '#000' : '#888', cursor: 'pointer', textTransform: 'uppercase', marginBottom: '-2px' }}>Subir Catálogo</button>
           <button onClick={() => setCurrentView('collections')} style={{ background: 'transparent', border: 'none', borderBottom: currentView === 'collections' ? '2px solid #000' : '2px solid transparent', padding: '0 0 0.5rem 0', fontWeight: 'bold', fontSize: '0.9rem', color: currentView === 'collections' ? '#000' : '#888', cursor: 'pointer', textTransform: 'uppercase', marginBottom: '-2px' }}>Gestión de Colecciones</button>
         </nav>
       </div>
       
       {currentView === 'dashboard' && <MetricsDashboard />}
+      {currentView === 'orders' && <ManageOrders />}
       {currentView === 'upload' && <UploadPrenda />}
       {currentView === 'collections' && <ManageCollections />}
     </main>
@@ -317,10 +219,7 @@ export default function Admin() {
   const login = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     const data = new FormData(e.currentTarget)
-    if (data.get("user") === "admin" && data.get("password") === "admin666") {
-      sessionStorage.setItem("gone_admin", "true")
-      setAuth(true)
-    } else setError(true)
+    if (data.get("user") === "admin" && data.get("password") === "admin666") { sessionStorage.setItem("gone_admin", "true"); setAuth(true) } else setError(true)
   }
 
   if (auth) return <AdminDashboard />
