@@ -1,4 +1,4 @@
-import { type FormEvent, useMemo, useState, useRef } from "react"
+import { type FormEvent, useState, useRef } from "react"
 import { useNavigate } from "react-router-dom"
 import { useStore, type Size } from "./store"
 
@@ -12,6 +12,7 @@ function Logo({ dark = false }: { dark?: boolean }) {
 function ManageCollections() {
   const { collections, addCollection, toggleCollection, deleteCollection } = useStore()
   const [title, setTitle] = useState(""); const [subtitle, setSubtitle] = useState(""); const [category, setCategory] = useState("LIFESTYLE"); const [image, setImage] = useState<string | null>(null); const fileInputRef = useRef<HTMLInputElement>(null)
+  
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => { const file = e.target.files?.[0]; if (file) { const reader = new FileReader(); reader.onloadend = () => setImage(reader.result as string); reader.readAsDataURL(file) } }
   const handleCreate = (e: FormEvent) => { e.preventDefault(); if (!title || !image) { alert("Título e imagen obligatorios."); return }
     addCollection({ title, subtitle, category, image }); setTitle(""); setSubtitle(""); setImage(null)
@@ -43,7 +44,7 @@ function ManageCollections() {
                 <div><strong style={{ display: 'block', fontSize: '1rem' }}>{col.title || "Colección Sin Nombre"}</strong><small style={{ color: '#888' }}>{col.active ? "Mostrándose en web" : "Oculta"}</small></div>
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
                   <button onClick={() => toggleCollection(col.id)} style={{ background: col.active ? 'transparent' : '#fff', color: col.active ? '#fff' : '#000', border: '1px solid #fff', padding: '0.4rem 1rem', borderRadius: '20px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 'bold' }}>{col.active ? "DESACTIVAR" : "ACTIVAR"}</button>
-                  <button onClick={() => { if (window.confirm(`¿Estás seguro de que deseas eliminar la colección "${col.title}" permanentemente?`)) { deleteCollection(col.id) } }} style={{ background: 'transparent', color: '#ff4d4d', border: '1px solid #ff4d4d', padding: '0.4rem 1rem', borderRadius: '20px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 'bold' }}>ELIMINAR</button>
+                  <button onClick={() => { if (window.confirm(`¿Estás seguro de eliminar "${col.title}"?`)) { deleteCollection(col.id) } }} style={{ background: 'transparent', color: '#ff4d4d', border: '1px solid #ff4d4d', padding: '0.4rem 1rem', borderRadius: '20px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 'bold' }}>ELIMINAR</button>
                 </div>
               </div>
             ))}
@@ -129,13 +130,10 @@ function MetricsDashboard() {
   )
 }
 
-// NUEVO: PESTAÑA DE GESTIÓN DE PEDIDOS PARA EL ADMIN
 function ManageOrders() {
   const { transactions, updateOrderStatus } = useStore()
 
-  if (transactions.length === 0) {
-    return <div style={{ padding: '3rem', textAlign: 'center', background: '#fff', borderRadius: '8px', border: '1px solid #eee' }}><h3>Aún no hay pedidos registrados.</h3></div>
-  }
+  if (transactions.length === 0) return <div style={{ padding: '3rem', textAlign: 'center', background: '#fff', borderRadius: '8px', border: '1px solid #eee' }}><h3>Aún no hay pedidos registrados.</h3></div>
 
   return (
     <section style={{ background: '#fff', border: '1px solid #eee', borderRadius: '8px', overflow: 'hidden', animation: 'fadeIn 0.3s ease' }}>
@@ -143,37 +141,81 @@ function ManageOrders() {
       <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
           <thead style={{ background: '#0a0a0a', color: '#fff' }}>
-            <tr>
-              <th style={{ padding: '1rem' }}>ID & FECHA</th>
-              <th style={{ padding: '1rem' }}>CLIENTE</th>
-              <th style={{ padding: '1rem' }}>CONTACTO / ENVÍO</th>
-              <th style={{ padding: '1rem' }}>DETALLE DE COMPRA</th>
-              <th style={{ padding: '1rem' }}>TOTAL</th>
-              <th style={{ padding: '1rem' }}>ESTADO ACTUAL</th>
-            </tr>
+            <tr><th style={{ padding: '1rem' }}>ID & FECHA</th><th style={{ padding: '1rem' }}>CLIENTE</th><th style={{ padding: '1rem' }}>CONTACTO / ENVÍO</th><th style={{ padding: '1rem' }}>DETALLE DE COMPRA</th><th style={{ padding: '1rem' }}>TOTAL</th><th style={{ padding: '1rem' }}>ESTADO ACTUAL</th></tr>
           </thead>
           <tbody>
             {[...transactions].reverse().map((t: any) => (
               <tr key={t.id} style={{ borderBottom: '1px solid #eee' }}>
                 <td style={{ padding: '1rem' }}><strong style={{ display: 'block' }}>{t.id}</strong><span style={{ color: '#888', fontSize: '0.75rem' }}>{new Date(t.date).toLocaleDateString('es-PE')}</span></td>
                 <td style={{ padding: '1rem' }}><strong style={{ display: 'block' }}>{t.customer || "Anónimo"}</strong><span style={{ color: '#888', fontSize: '0.75rem' }}>DNI: {t.document || "N/A"}</span></td>
-                <td style={{ padding: '1rem' }}>
-                  <span style={{ display: 'block', fontWeight: 'bold', fontSize: '0.75rem', color: '#0277bd' }}>{t.email || "Sin correo"}</span>
-                  <span style={{ fontSize: '0.7rem', color: '#666', display: 'block', marginTop: '4px' }}>{t.address || "Dirección no registrada"} - {t.districtName || ""}</span>
-                </td>
+                <td style={{ padding: '1rem' }}><span style={{ display: 'block', fontWeight: 'bold', fontSize: '0.75rem', color: '#0277bd' }}>{t.email || "Sin correo"}</span><span style={{ fontSize: '0.7rem', color: '#666', display: 'block', marginTop: '4px' }}>{t.address || "Dirección no registrada"} - {t.districtName || ""}</span></td>
                 <td style={{ padding: '1rem', maxWidth: '250px' }}><span style={{ fontSize: '0.8rem', lineHeight: '1.4', display: 'block' }}>{t.detail}</span></td>
                 <td style={{ padding: '1rem' }}><strong style={{ fontSize: '1.1rem' }}>{money(t.total)}</strong></td>
                 <td style={{ padding: '1rem' }}>
-                  {/* SELECTOR PARA CAMBIAR EL ESTADO */}
-                  <select 
-                    value={t.status || "Procesando"} 
-                    onChange={(e) => updateOrderStatus(t.id, e.target.value)}
-                    style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc', fontWeight: 'bold', cursor: 'pointer', background: t.status === "Entregado" ? "#e8f5e9" : t.status === "Enviado" ? "#e3f2fd" : "#fff3e0", color: t.status === "Entregado" ? "#2e7d32" : t.status === "Enviado" ? "#0277bd" : "#e65100" }}
-                  >
-                    <option value="Procesando">Procesando</option>
-                    <option value="Enviado">Enviado</option>
-                    <option value="Entregado">Entregado</option>
+                  <select value={t.status || "Procesando"} onChange={(e) => updateOrderStatus(t.id, e.target.value)} style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc', fontWeight: 'bold', cursor: 'pointer', background: t.status === "Entregado" ? "#e8f5e9" : t.status === "Enviado" ? "#e3f2fd" : "#fff3e0", color: t.status === "Entregado" ? "#2e7d32" : t.status === "Enviado" ? "#0277bd" : "#e65100" }}>
+                    <option value="Procesando">Procesando</option><option value="Enviado">Enviado</option><option value="Entregado">Entregado</option>
                   </select>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  )
+}
+
+function ManageCustomers() {
+  const [users, setUsers] = useState<any[]>(() => {
+    try { return JSON.parse(localStorage.getItem("gone_users") || "[]") } catch(e) { return [] }
+  })
+
+  const deleteUser = (email: string) => {
+    if(window.confirm(`¿Estás seguro de que deseas eliminar permanentemente al cliente con correo ${email}?`)) {
+      const newUsers = users.filter((u: any) => u.email !== email)
+      setUsers(newUsers)
+      localStorage.setItem("gone_users", JSON.stringify(newUsers))
+    }
+  }
+
+  if (users.length === 0) {
+    return (
+      <div style={{ padding: '3rem', textAlign: 'center', background: '#fff', borderRadius: '8px', border: '1px solid #eee' }}>
+        <h3>Aún no hay clientes registrados en el sistema.</h3>
+        <p style={{color: '#666'}}>Cuando un cliente cree su cuenta, aparecerá en este directorio.</p>
+      </div>
+    )
+  }
+
+  return (
+    <section style={{ background: '#fff', border: '1px solid #eee', borderRadius: '8px', overflow: 'hidden', animation: 'fadeIn 0.3s ease' }}>
+      <div style={{ padding: '1.5rem', borderBottom: '2px solid #000' }}><h2 style={{ margin: 0, fontSize: '1rem', textTransform: 'uppercase' }}>Directorio de Clientes</h2></div>
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+          <thead style={{ background: '#0a0a0a', color: '#fff' }}>
+            <tr>
+              <th style={{ padding: '1rem' }}>NOMBRE COMPLETO</th>
+              <th style={{ padding: '1rem' }}>DOCUMENTO</th>
+              <th style={{ padding: '1rem' }}>CONTACTO</th>
+              <th style={{ padding: '1rem' }}>DIRECCIÓN DE ENVÍO</th>
+              <th style={{ padding: '1rem' }}></th>
+            </tr>
+          </thead>
+          <tbody>
+            {users.map((u, i) => (
+              <tr key={i} style={{ borderBottom: '1px solid #eee' }}>
+                <td style={{ padding: '1rem' }}><strong style={{ display: 'block' }}>{u.firstName} {u.lastName}</strong></td>
+                <td style={{ padding: '1rem' }}>DNI: {u.document || 'N/A'}</td>
+                <td style={{ padding: '1rem' }}>
+                  <span style={{ display: 'block', fontWeight: 'bold', color: '#0277bd' }}>{u.email}</span>
+                  <span style={{ color: '#666', fontSize: '0.75rem' }}>Tel: {u.phone || 'N/A'}</span>
+                </td>
+                <td style={{ padding: '1rem', maxWidth: '250px' }}>
+                  <span style={{ display: 'block' }}>{u.address || 'N/A'}</span>
+                  <span style={{ color: '#888', fontSize: '0.75rem' }}>{u.district || 'N/A'}</span>
+                </td>
+                <td style={{ padding: '1rem', textAlign: 'right' }}>
+                  <button onClick={() => deleteUser(u.email)} style={{ background: 'transparent', color: '#ff4d4d', border: '1px solid #ff4d4d', padding: '0.3rem 0.8rem', borderRadius: '20px', cursor: 'pointer', fontSize: '0.7rem', fontWeight: 'bold' }}>ELIMINAR</button>
                 </td>
               </tr>
             ))}
@@ -186,26 +228,43 @@ function ManageOrders() {
 
 function AdminDashboard() {
   const navigate = useNavigate()
-  const [currentView, setCurrentView] = useState<"dashboard" | "orders" | "upload" | "collections">("dashboard")
+  const [currentView, setCurrentView] = useState<"dashboard" | "orders" | "upload" | "collections" | "customers">("dashboard")
+
+  // FUNCIÓN MAESTRA PARA LIMPIAR EL DEMO
+  const resetDemoData = () => {
+    if (window.confirm("🚨 ¿Seguro que deseas BORRAR TODOS los pedidos, clientes y carritos de prueba para iniciar un demo limpio? (Tus productos no se borrarán)")) {
+      localStorage.removeItem("gone_transactions");
+      localStorage.removeItem("gone_users");
+      localStorage.removeItem("gone_cart");
+      sessionStorage.clear();
+      window.location.reload();
+    }
+  }
 
   return (
     <main style={{ backgroundColor: '#f5f5f5', minHeight: '100vh', padding: '3rem 5%' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '1rem' }}>
         <div><p style={{ margin: 0, fontSize: '0.75rem', fontWeight: 'bold', color: '#666' }}>GONE SURFING / ADMIN</p></div>
-        <button onClick={() => navigate('/shop')} style={{ background: '#000', color: '#fff', border: 'none', padding: '0.6rem 1.2rem', fontWeight: 'bold', borderRadius: '4px', cursor: 'pointer' }}>VER TIENDA PÚBLICA</button>
+        <div style={{ display: 'flex', gap: '1rem' }}>
+          {/* BOTÓN ROJO PARA VACIAR LOS DATOS DE PRUEBA RÁPIDAMENTE */}
+          <button onClick={resetDemoData} style={{ background: '#ff4d4d', color: '#fff', border: 'none', padding: '0.6rem 1.2rem', fontWeight: 'bold', borderRadius: '4px', cursor: 'pointer' }}>VACIAR DATOS DE PRUEBA</button>
+          <button onClick={() => navigate('/shop')} style={{ background: '#000', color: '#fff', border: 'none', padding: '0.6rem 1.2rem', fontWeight: 'bold', borderRadius: '4px', cursor: 'pointer' }}>VER TIENDA PÚBLICA</button>
+        </div>
       </div>
       
       <div style={{ marginBottom: '2rem' }}>
         <nav style={{ display: 'flex', gap: '2rem', borderBottom: '2px solid #ddd', overflowX: 'auto' }}>
           <button onClick={() => setCurrentView('dashboard')} style={{ background: 'transparent', border: 'none', borderBottom: currentView === 'dashboard' ? '2px solid #000' : '2px solid transparent', padding: '0 0 0.5rem 0', fontWeight: 'bold', fontSize: '0.9rem', color: currentView === 'dashboard' ? '#000' : '#888', cursor: 'pointer', textTransform: 'uppercase', marginBottom: '-2px' }}>Dashboard</button>
           <button onClick={() => setCurrentView('orders')} style={{ background: 'transparent', border: 'none', borderBottom: currentView === 'orders' ? '2px solid #000' : '2px solid transparent', padding: '0 0 0.5rem 0', fontWeight: 'bold', fontSize: '0.9rem', color: currentView === 'orders' ? '#000' : '#888', cursor: 'pointer', textTransform: 'uppercase', marginBottom: '-2px' }}>Gestión de Pedidos</button>
+          <button onClick={() => setCurrentView('customers')} style={{ background: 'transparent', border: 'none', borderBottom: currentView === 'customers' ? '2px solid #000' : '2px solid transparent', padding: '0 0 0.5rem 0', fontWeight: 'bold', fontSize: '0.9rem', color: currentView === 'customers' ? '#000' : '#888', cursor: 'pointer', textTransform: 'uppercase', marginBottom: '-2px' }}>Gestión de Clientes</button>
           <button onClick={() => setCurrentView('upload')} style={{ background: 'transparent', border: 'none', borderBottom: currentView === 'upload' ? '2px solid #000' : '2px solid transparent', padding: '0 0 0.5rem 0', fontWeight: 'bold', fontSize: '0.9rem', color: currentView === 'upload' ? '#000' : '#888', cursor: 'pointer', textTransform: 'uppercase', marginBottom: '-2px' }}>Subir Catálogo</button>
-          <button onClick={() => setCurrentView('collections')} style={{ background: 'transparent', border: 'none', borderBottom: currentView === 'collections' ? '2px solid #000' : '2px solid transparent', padding: '0 0 0.5rem 0', fontWeight: 'bold', fontSize: '0.9rem', color: currentView === 'collections' ? '#000' : '#888', cursor: 'pointer', textTransform: 'uppercase', marginBottom: '-2px' }}>Gestión de Colecciones</button>
+          <button onClick={() => setCurrentView('collections')} style={{ background: 'transparent', border: 'none', borderBottom: currentView === 'collections' ? '2px solid #000' : '2px solid transparent', padding: '0 0 0.5rem 0', fontWeight: 'bold', fontSize: '0.9rem', color: currentView === 'collections' ? '#000' : '#888', cursor: 'pointer', textTransform: 'uppercase', marginBottom: '-2px' }}>Colecciones</button>
         </nav>
       </div>
       
       {currentView === 'dashboard' && <MetricsDashboard />}
       {currentView === 'orders' && <ManageOrders />}
+      {currentView === 'customers' && <ManageCustomers />}
       {currentView === 'upload' && <UploadPrenda />}
       {currentView === 'collections' && <ManageCollections />}
     </main>

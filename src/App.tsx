@@ -178,23 +178,26 @@ function Cart() {
   )
 }
 
-// PERFIL CON FORMULARIO DE REGISTRO COMPLETO (DNI, Dirección, Distrito, Teléfono, etc.)
 function Profile() {
   const { transactions } = useStore()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   
   const [isAuth, setIsAuth] = useState(() => sessionStorage.getItem("gone_customer") === "true")
-  // Leer el parámetro mode=login de la URL
-  const [authMode, setAuthMode] = useState<"login" | "register">(searchParams.get("mode") === "login" ? "login" : searchParams.get("mode") === "register" ? "register" : "login")
+  const [authMode, setAuthMode] = useState<"login" | "register">(searchParams.get("mode") === "register" ? "register" : "login")
   const [error, setError] = useState(false)
+  const [registerError, setRegisterError] = useState("") // NUEVO: Estado para validación de correo duplicado
   const [currentTab, setCurrentTab] = useState<"pedidos" | "perfil">("pedidos")
 
   const defaultUser = { firstName: "Jaime", lastName: "Monroy", email: "jaime@gonesurfing.com", document: "72345678", phone: "+51 999 999 999", address: "Av. Principal 123, Dpto 4", district: "Punta Negra" }
   const user = JSON.parse(sessionStorage.getItem("gone_current_user") || "null") || defaultUser
 
   useEffect(() => {
-    if (searchParams.get("mode")) setAuthMode(searchParams.get("mode") as "login" | "register")
+    if (searchParams.get("mode")) {
+      setAuthMode(searchParams.get("mode") as "login" | "register");
+      setError(false);
+      setRegisterError("");
+    }
   }, [searchParams])
 
   const handleLogin = (e: React.FormEvent<HTMLFormElement>) => {
@@ -202,12 +205,12 @@ function Profile() {
     const email = data.get("email") as string; const pass = data.get("password") as string
     
     const users = JSON.parse(localStorage.getItem("gone_users") || "[]")
-    const foundUser = users.find((u: any) => u.email === email && u.password === pass)
+    const foundUser = users.find((u: any) => u.email.toLowerCase() === email.toLowerCase() && u.password === pass)
 
     if (foundUser) {
       sessionStorage.setItem("gone_customer", "true"); sessionStorage.setItem("gone_current_user", JSON.stringify(foundUser))
       setIsAuth(true); setError(false)
-    } else if (email === defaultUser.email && pass === "demo123") { 
+    } else if (email.toLowerCase() === defaultUser.email.toLowerCase() && pass === "demo123") { 
       sessionStorage.setItem("gone_customer", "true"); sessionStorage.setItem("gone_current_user", JSON.stringify(defaultUser))
       setIsAuth(true); setError(false) 
     } else { setError(true) }
@@ -215,6 +218,16 @@ function Profile() {
 
   const handleRegister = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault(); const data = new FormData(e.currentTarget)
+    const email = data.get("email") as string;
+    
+    const users = JSON.parse(localStorage.getItem("gone_users") || "[]")
+    
+    // NUEVO: VALIDACIÓN DE CORREO DUPLICADO
+    if (users.some((u: any) => u.email.toLowerCase() === email.toLowerCase()) || email.toLowerCase() === defaultUser.email.toLowerCase()) {
+      setRegisterError("Este correo ya está registrado. Intenta iniciar sesión.");
+      return;
+    }
+
     const newUser = {
       firstName: data.get("firstName") as string,
       lastName: data.get("lastName") as string,
@@ -222,16 +235,14 @@ function Profile() {
       phone: data.get("phone") as string,
       address: data.get("address") as string,
       district: data.get("district") as string,
-      email: data.get("email") as string,
+      email: email,
       password: data.get("password") as string
     }
     
-    const users = JSON.parse(localStorage.getItem("gone_users") || "[]")
     localStorage.setItem("gone_users", JSON.stringify([...users, newUser]))
-    
     sessionStorage.setItem("gone_customer", "true")
     sessionStorage.setItem("gone_current_user", JSON.stringify(newUser))
-    setIsAuth(true); setError(false)
+    setIsAuth(true); setError(false); setRegisterError("")
   }
 
   const handleLogout = () => { sessionStorage.removeItem("gone_customer"); sessionStorage.removeItem("gone_current_user"); setIsAuth(false); setCurrentTab("pedidos") }
@@ -242,8 +253,8 @@ function Profile() {
         <div style={{ background: '#fff', padding: '3rem', width: '100%', maxWidth: authMode === 'login' ? '400px' : '550px', borderTop: '4px solid #000', boxShadow: '0 10px 30px rgba(0,0,0,0.05)', borderRadius: '4px', transition: 'max-width 0.3s' }}>
           
           <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem' }}>
-            <button onClick={() => {setAuthMode("login"); setError(false)}} style={{ flex: 1, padding: '0.8rem', background: authMode === 'login' ? '#000' : '#f5f5f5', color: authMode === 'login' ? '#fff' : '#666', border: 'none', fontWeight: 'bold', cursor: 'pointer', borderRadius: '4px' }}>INICIAR SESIÓN</button>
-            <button onClick={() => {setAuthMode("register"); setError(false)}} style={{ flex: 1, padding: '0.8rem', background: authMode === 'register' ? '#000' : '#f5f5f5', color: authMode === 'register' ? '#fff' : '#666', border: 'none', fontWeight: 'bold', cursor: 'pointer', borderRadius: '4px' }}>CREAR CUENTA</button>
+            <button onClick={() => {setAuthMode("login"); setError(false); setRegisterError("")}} style={{ flex: 1, padding: '0.8rem', background: authMode === 'login' ? '#000' : '#f5f5f5', color: authMode === 'login' ? '#fff' : '#666', border: 'none', fontWeight: 'bold', cursor: 'pointer', borderRadius: '4px' }}>INICIAR SESIÓN</button>
+            <button onClick={() => {setAuthMode("register"); setError(false); setRegisterError("")}} style={{ flex: 1, padding: '0.8rem', background: authMode === 'register' ? '#000' : '#f5f5f5', color: authMode === 'register' ? '#fff' : '#666', border: 'none', fontWeight: 'bold', cursor: 'pointer', borderRadius: '4px' }}>CREAR CUENTA</button>
           </div>
 
           {authMode === "login" ? (
@@ -275,6 +286,10 @@ function Profile() {
                 <div style={{ flex: '1 1 200px' }}><label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 'bold', marginBottom: '0.5rem', textTransform: 'uppercase' }}>Correo Electrónico</label><input name="email" type="email" required style={{ width: '100%', padding: '1rem', border: '1px solid #ddd', borderRadius: '4px' }} /></div>
                 <div style={{ flex: '1 1 200px' }}><label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 'bold', marginBottom: '0.5rem', textTransform: 'uppercase' }}>Contraseña</label><input name="password" type="password" required style={{ width: '100%', padding: '1rem', border: '1px solid #ddd', borderRadius: '4px' }} /></div>
               </div>
+              
+              {/* MENSAJE DE ERROR SI EL CORREO ESTÁ DUPLICADO */}
+              {registerError && <small style={{ color: '#d32f2f', fontWeight: 'bold' }}>{registerError}</small>}
+              
               <button style={{ background: '#000', color: '#fff', border: 'none', padding: '1rem', fontWeight: 'bold', textTransform: 'uppercase', cursor: 'pointer', marginTop: '1rem', borderRadius: '4px' }}>Registrarme de manera segura</button>
             </form>
           )}
@@ -283,7 +298,7 @@ function Profile() {
     )
   }
 
-  const myOrders = transactions.filter(t => t.email === user.email)
+  const myOrders = transactions.filter(t => t.email.toLowerCase() === user.email.toLowerCase())
   const displayOrders = myOrders.length > 0 ? myOrders : []
 
   return (
