@@ -1,13 +1,23 @@
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { BrowserRouter, Link, Route, Routes, useLocation, useNavigate, useSearchParams } from "react-router-dom"
-import { StoreProvider, type Product, type Size, useStore } from "./store"
+import {
+  StoreProvider,
+  getCurrentSessionUser,
+  type CartItem,
+  type CustomerUser,
+  type Product,
+  type Size,
+  useStore,
+} from "./store"
 import Admin from "./Admin"
 import Collections from "./Collections"
 import Checkout, { LIMA_DISTRICTS } from "./Checkout"
 
 const SIZES: Size[] = ["S", "M", "L", "XL"]
-const money = (value: number) => `S/. ${value.toFixed(2)}`
-const getSubtotal = (cart: any[], products: Product[]) => cart.reduce((sum, item) => sum + (products.find((p) => p.id === item.productId)?.price ?? 0) * item.quantity, 0)
+const UNIQUE_SIZES: Size[] = ["Única"]
+const money = (value: number) => `S/. ${(Number(value) || 0).toFixed(2)}`
+const getSubtotal = (cart: CartItem[], products: Product[]) =>
+  cart.reduce((sum, item) => sum + (products.find((p) => p.id === item.productId)?.price ?? 0) * item.quantity, 0)
 
 function Logo() { return <span className="logo" aria-label="Gone Surfing" style={{ color: '#fff' }}>GONE<br />SURFING</span> }
 
@@ -18,18 +28,32 @@ function Icon({ name }: { name: "search" | "user" | "bag" }) {
 }
 
 function Header() {
-  const { cart, products } = useStore(); const count = cart.reduce((sum, item) => sum + item.quantity, 0)
-  const navigate = useNavigate(); const location = useLocation()
-  const [isSearching, setIsSearching] = useState(false); const [query, setQuery] = useState("")
+  const { cart, products } = useStore()
+  const count = cart.reduce((sum, item) => sum + item.quantity, 0)
+  const navigate = useNavigate()
+  const location = useLocation()
+  const [isSearching, setIsSearching] = useState(false)
+  const [query, setQuery] = useState("")
 
-  if (location.pathname === '/admin' || location.pathname === '/checkout') return null; 
+  if (location.pathname === '/admin' || location.pathname === '/checkout') return null
 
   const handleSearch = (e?: React.FormEvent | React.MouseEvent) => {
     if (e && e.preventDefault) e.preventDefault()
-    if (query.trim()) { navigate(`/shop?search=${encodeURIComponent(query)}`); setIsSearching(false); setQuery("") }
+    const cleanQuery = query.trim()
+    if (cleanQuery) {
+      navigate(`/shop?search=${encodeURIComponent(cleanQuery)}`)
+      setIsSearching(false)
+      setQuery("")
+    }
   }
 
-  const liveResults = query.trim() ? products.filter(p => p.name.toLowerCase().includes(query.toLowerCase()) || p.category.toLowerCase().includes(query.toLowerCase())).slice(0, 3) : []
+  const liveResults = useMemo(() => {
+    const cleanQuery = query.trim().toLowerCase()
+    if (!cleanQuery) return []
+    return products
+      .filter((p) => p.name.toLowerCase().includes(cleanQuery) || p.category.toLowerCase().includes(cleanQuery))
+      .slice(0, 3)
+  }, [products, query])
 
   return (
     <header className="header" style={{ backgroundColor: '#000000', color: '#ffffff', borderBottom: '1px solid #1a1a1a', position: 'relative', zIndex: 1000 }}>
@@ -73,12 +97,49 @@ function Header() {
   )
 }
 
-function Home({ openPanel }: { openPanel: (panel: string) => void }) {
-  const { products } = useStore(); const navigate = useNavigate(); const videoRef = useRef<HTMLVideoElement>(null); const [isPlaying, setIsPlaying] = useState(false)
-  const categories = [{ title: "NEW ARRIVALS", image: products[1]?.image }, { title: "ACCESORIOS", image: products[2]?.image }, { title: "MERCH", image: products[0]?.image }, { title: "BEST SELLERS", image: products[3]?.image }]
-  const stories = [{ title: "STAY REAL", image: "/assets/story.jpg", url: "about" }, { title: "YOUTUBE", image: "/assets/underwater.jpg", word: "NEW\nWAVES", url: "https://www.youtube.com/c/WorldSurfLeague" }, { title: "STORIES / MAGAZINE", image: "/assets/magazine.jpg", url: "https://www.surfer.com/" }, { title: "SURF TRIPS", image: "/assets/trips.jpg", url: "https://www.surfline.com/travel/" }]
+function Home(_props: { openPanel: (panel: string) => void }) {
+  const { products } = useStore()
+  const navigate = useNavigate()
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const [isPlaying, setIsPlaying] = useState(false)
 
-  const togglePlay = () => { if (videoRef.current) { if (isPlaying) { videoRef.current.pause() } else { videoRef.current.play() } setIsPlaying(!isPlaying) } }
+  const categories = useMemo(() => {
+    const findImage = (id: string, fallbackAsset: string) =>
+      products.find((p) => p.id === id)?.image || fallbackAsset
+
+    return [
+      { title: "NEW ARRIVALS", image: findImage("p2", "/assets/cap.jpg") },
+      { title: "ACCESORIOS", image: findImage("p3", "/assets/leash.jpg") },
+      { title: "MERCH", image: findImage("p1", "/assets/hero-surf.jpg") },
+      { title: "BEST SELLERS", image: findImage("p4", "/assets/story.jpg") },
+    ]
+  }, [products])
+
+  const stories = [
+    { title: "STAY REAL", image: "/assets/story.jpg", url: "about" },
+    { title: "YOUTUBE", image: "/assets/underwater.jpg", word: "NEW\nWAVES", url: "https://www.youtube.com/c/WorldSurfLeague" },
+    { title: "STORIES / MAGAZINE", image: "/assets/magazine.jpg", url: "https://www.surfer.com/" },
+    { title: "SURF TRIPS", image: "/assets/trips.jpg", url: "https://www.surfline.com/travel/" },
+  ]
+
+  const togglePlay = () => {
+    const video = videoRef.current
+    if (!video) return
+    if (isPlaying) {
+      video.pause()
+      setIsPlaying(false)
+    } else {
+      video.play().then(() => setIsPlaying(true)).catch(() => setIsPlaying(false))
+    }
+  }
+
+  const openStory = (url: string) => {
+    if (url === "about") {
+      navigate("/about")
+    } else {
+      window.open(url, "_blank", "noopener,noreferrer")
+    }
+  }
 
   return (
     <main>
@@ -91,39 +152,75 @@ function Home({ openPanel }: { openPanel: (panel: string) => void }) {
           {isPlaying ? <svg viewBox="0 0 24 24" style={{ fill: "white", width: "20px", height: "20px" }}><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" /></svg> : <svg viewBox="0 0 24 24" style={{ fill: "white", width: "22px", height: "22px", marginLeft: "4px" }}><path d="M8 5v14l11-7z" /></svg>}
         </button>
       </section>
-      <section className="story-grid">{stories.map((story) => (<article key={story.title} role="button" tabIndex={0} onClick={() => { if (story.url === "about") { navigate("/about") } else { window.open(story.url, "_blank", "noopener,noreferrer") } }}><img src={story.image} alt="" />{story.word && <b>{story.word}</b>}<span>{story.title}</span></article>))}</section>
+      <section className="story-grid">{stories.map((story) => (<article key={story.title} role="button" tabIndex={0} onClick={() => openStory(story.url)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openStory(story.url) } }}><img src={story.image} alt="" />{story.word && <b>{story.word}</b>}<span>{story.title}</span></article>))}</section>
     </main>
   )
 }
 
 function ProductCard({ product }: { product: Product }) {
-  const { addToCart } = useStore(); const isUnique = product.category === "Accesorios" || /gorra/i.test(product.name); const sizes = isUnique ? (["Única"] as Size[]) : SIZES; const [size, setSize] = useState<Size>(sizes[0]); const [added, setAdded] = useState(false)
-  useEffect(() => { setSize(sizes[0]) }, [product, sizes]); const add = () => { addToCart(product.id, size); setAdded(true); window.setTimeout(() => setAdded(false), 900) }
+  const { addToCart, cart } = useStore()
+  const isUnique = product.category === "Accesorios" || /gorra/i.test(product.name)
+  const sizes = isUnique ? UNIQUE_SIZES : SIZES
+  const [size, setSize] = useState<Size>(() => sizes.find((s) => (product.stocks[s] ?? 0) > 0) ?? sizes[0])
+  const [added, setAdded] = useState(false)
+  const timerRef = useRef<number | null>(null)
+
+  useEffect(() => {
+    const firstAvailable = sizes.find((s) => (product.stocks[s] ?? 0) > 0) ?? sizes[0]
+    setSize((current) => (sizes.includes(current) && (product.stocks[current] ?? 0) > 0 ? current : firstAvailable))
+  }, [product, sizes])
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current !== null) window.clearTimeout(timerRef.current)
+    }
+  }, [])
+
+  const inCartQty = cart.find((item) => item.productId === product.id && item.size === size)?.quantity ?? 0
+  const availableStock = product.stocks[size] ?? 0
+  const reachedMaxStock = availableStock <= 0 || inCartQty >= availableStock
+
+  const add = () => {
+    if (reachedMaxStock) return
+    addToCart(product.id, size)
+    setAdded(true)
+    if (timerRef.current !== null) window.clearTimeout(timerRef.current)
+    timerRef.current = window.setTimeout(() => setAdded(false), 900)
+  }
 
   return (
     <article className="product-card">
       <div className="product-photo"><img src={product.image} alt={product.name} /><span>{product.category}</span></div>
       <div className="product-info">
         <div><h2>{product.name}</h2><p>{money(product.price)}</p></div>
-        <div className="sizes" aria-label="Seleccionar talla">{sizes.map((opt) => (<button key={opt} className={size === opt ? "selected" : ""} disabled={product.stocks[opt] === 0} onClick={() => setSize(opt)}>{opt}</button>))}</div>
-        <button className="black-button" onClick={add} disabled={product.stocks[size] === 0}>{added ? "AÑADIDO" : "AGREGAR AL CARRITO"}</button>
+        <div className="sizes" aria-label="Seleccionar talla">{sizes.map((opt) => (<button key={opt} className={size === opt ? "selected" : ""} disabled={(product.stocks[opt] ?? 0) === 0} onClick={() => setSize(opt)}>{opt}</button>))}</div>
+        <button className="black-button" onClick={add} disabled={reachedMaxStock}>
+          {added ? "AÑADIDO" : availableStock === 0 ? "AGOTADO" : reachedMaxStock ? "MÁX. EN BOLSA" : "AGREGAR AL CARRITO"}
+        </button>
       </div>
     </article>
   )
 }
 
 function Shop() {
-  const { products } = useStore(); const [params, setParams] = useSearchParams(); const category = params.get("category")?.toUpperCase(); const collectionParam = params.get("collection"); const searchParam = params.get("search")?.toLowerCase(); const navigate = useNavigate()
+  const { products } = useStore()
+  const [params, setParams] = useSearchParams()
+  const category = params.get("category")?.toUpperCase()
+  const collectionParam = params.get("collection")
+  const searchParam = params.get("search")?.toLowerCase()
+  const navigate = useNavigate()
 
-  const visibleProducts = products.filter((p) => {
-    if (searchParam) return p.name.toLowerCase().includes(searchParam) || p.category.toLowerCase().includes(searchParam);
-    if (collectionParam) return p.collectionName === collectionParam;
-    if (!category || category === "ALL PRODUCTS") return true;
-    const prodCat = p.category.toUpperCase().trim()
-    if (category === "NEW ARRIVALS") return prodCat === "NEW ARRIVALS" || prodCat === "ACCESORIOS" || /tee/i.test(p.name);
-    if (category === "BEST SELLERS") return prodCat === "BEST SELLERS" || prodCat === "MERCH" || /leash/i.test(p.name);
-    return prodCat === category;
-  })
+  const visibleProducts = useMemo(() => {
+    return products.filter((p) => {
+      if (searchParam) return p.name.toLowerCase().includes(searchParam) || p.category.toLowerCase().includes(searchParam)
+      if (collectionParam) return p.collectionName === collectionParam
+      if (!category || category === "ALL PRODUCTS") return true
+      const prodCat = p.category.toUpperCase().trim()
+      if (category === "NEW ARRIVALS") return prodCat === "NEW ARRIVALS" || prodCat === "ACCESORIOS" || /tee/i.test(p.name)
+      if (category === "BEST SELLERS") return prodCat === "BEST SELLERS" || prodCat === "MERCH" || /leash/i.test(p.name)
+      return prodCat === category
+    })
+  }, [products, searchParam, collectionParam, category])
 
   const pageTitle = searchParam ? `RESULTADOS PARA: "${searchParam.toUpperCase()}"` : collectionParam ? `COLECCIÓN: ${collectionParam}` : (category || "ALL PRODUCTS")
   const shopCategories = ["ALL PRODUCTS", "NEW ARRIVALS", "ACCESORIOS", "MERCH", "BEST SELLERS"]
@@ -135,7 +232,7 @@ function Shop() {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #e5e5e5", paddingBottom: "1rem", marginBottom: "2.5rem" }}>
           <nav style={{ display: "flex", gap: "1.5rem", flexWrap: "wrap", alignItems: "center" }}>
             {shopCategories.map(cat => {
-              const isActive = (!collectionParam && (category === cat || (!category && cat === "ALL PRODUCTS")));
+              const isActive = (!collectionParam && (category === cat || (!category && cat === "ALL PRODUCTS")))
               return (<button key={cat} onClick={() => { if (cat === "ALL PRODUCTS") { navigate("/shop") } else { setParams({ category: cat }) } }} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "0.85rem", fontWeight: isActive ? "bold" : "600", color: isActive ? "#000" : "#999", textTransform: "uppercase", padding: "0.5rem 0", transition: "color 0.2s ease" }}>{cat}</button>)
             })}
           </nav>
@@ -150,7 +247,9 @@ function Shop() {
 }
 
 function Cart() {
-  const { products, cart, changeQuantity } = useStore(); const navigate = useNavigate(); const subtotal = getSubtotal(cart, products)
+  const { products, cart, changeQuantity } = useStore()
+  const navigate = useNavigate()
+  const subtotal = getSubtotal(cart, products)
   return (
     <main className="page cart-page">
       <div className="page-title row-title"><div><p>GONE SURFING / BAG</p><h1>YOUR BAG</h1></div><span>{cart.reduce((sum, item) => sum + item.quantity, 0)} ITEMS</span></div>
@@ -160,12 +259,18 @@ function Cart() {
         <div className="cart-layout">
           <section>
             {cart.map((item) => {
-              const product = products.find((p) => p.id === item.productId); if (!product) return null
+              const product = products.find((p) => p.id === item.productId)
+              if (!product) return null
+              const maxStock = product.stocks[item.size] ?? 0
               return (
                 <article className="cart-item" key={`${item.productId}-${item.size}`}>
                   <img src={product.image} alt={product.name} />
                   <div className="cart-copy"><h2>{product.name}</h2><p>SIZE: {item.size}</p><p>{money(product.price)}</p></div>
-                  <div className="quantity"><button onClick={() => changeQuantity(item.productId, item.size, -1)}>−</button><span>{item.quantity}</span><button onClick={() => changeQuantity(item.productId, item.size, 1)}>+</button></div>
+                  <div className="quantity">
+                    <button onClick={() => changeQuantity(item.productId, item.size, -1)}>−</button>
+                    <span>{item.quantity}</span>
+                    <button onClick={() => changeQuantity(item.productId, item.size, 1)} disabled={item.quantity >= maxStock}>+</button>
+                  </div>
                   <strong>{money(product.price * item.quantity)}</strong>
                 </article>
               )
@@ -179,75 +284,79 @@ function Cart() {
 }
 
 function Profile() {
-  const { transactions } = useStore()
+  const { transactions, registerUser, authenticateUser } = useStore()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  
-  const [isAuth, setIsAuth] = useState(() => sessionStorage.getItem("gone_customer") === "true")
+
+  const [currentUser, setCurrentUser] = useState<CustomerUser | null>(() => getCurrentSessionUser())
+  const [isAuth, setIsAuth] = useState(() => sessionStorage.getItem("gone_customer") === "true" && Boolean(getCurrentSessionUser()))
   const [authMode, setAuthMode] = useState<"login" | "register">(searchParams.get("mode") === "register" ? "register" : "login")
   const [error, setError] = useState(false)
-  const [registerError, setRegisterError] = useState("") // NUEVO: Estado para validación de correo duplicado
+  const [registerError, setRegisterError] = useState("")
   const [currentTab, setCurrentTab] = useState<"pedidos" | "perfil">("pedidos")
 
-  const defaultUser = { firstName: "Jaime", lastName: "Monroy", email: "jaime@gonesurfing.com", document: "72345678", phone: "+51 999 999 999", address: "Av. Principal 123, Dpto 4", district: "Punta Negra" }
-  const user = JSON.parse(sessionStorage.getItem("gone_current_user") || "null") || defaultUser
-
   useEffect(() => {
-    if (searchParams.get("mode")) {
-      setAuthMode(searchParams.get("mode") as "login" | "register");
-      setError(false);
-      setRegisterError("");
+    const mode = searchParams.get("mode")
+    if (mode === "login" || mode === "register") {
+      setAuthMode(mode)
+      setError(false)
+      setRegisterError("")
     }
   }, [searchParams])
 
   const handleLogin = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault(); const data = new FormData(e.currentTarget)
-    const email = data.get("email") as string; const pass = data.get("password") as string
-    
-    const users = JSON.parse(localStorage.getItem("gone_users") || "[]")
-    const foundUser = users.find((u: any) => u.email.toLowerCase() === email.toLowerCase() && u.password === pass)
+    e.preventDefault()
+    const data = new FormData(e.currentTarget)
+    const email = String(data.get("email") || "").trim()
+    const pass = String(data.get("password") || "")
 
-    if (foundUser) {
-      sessionStorage.setItem("gone_customer", "true"); sessionStorage.setItem("gone_current_user", JSON.stringify(foundUser))
-      setIsAuth(true); setError(false)
-    } else if (email.toLowerCase() === defaultUser.email.toLowerCase() && pass === "demo123") { 
-      sessionStorage.setItem("gone_customer", "true"); sessionStorage.setItem("gone_current_user", JSON.stringify(defaultUser))
-      setIsAuth(true); setError(false) 
-    } else { setError(true) }
+    const authenticated = authenticateUser(email, pass)
+    if (authenticated) {
+      setCurrentUser(authenticated)
+      setIsAuth(true)
+      setError(false)
+    } else {
+      setError(true)
+    }
   }
 
   const handleRegister = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault(); const data = new FormData(e.currentTarget)
-    const email = data.get("email") as string;
-    
-    const users = JSON.parse(localStorage.getItem("gone_users") || "[]")
-    
-    // NUEVO: VALIDACIÓN DE CORREO DUPLICADO
-    if (users.some((u: any) => u.email.toLowerCase() === email.toLowerCase()) || email.toLowerCase() === defaultUser.email.toLowerCase()) {
-      setRegisterError("Este correo ya está registrado. Intenta iniciar sesión.");
-      return;
+    e.preventDefault()
+    const data = new FormData(e.currentTarget)
+
+    const newUser: CustomerUser = {
+      firstName: String(data.get("firstName") || "").trim(),
+      lastName: String(data.get("lastName") || "").trim(),
+      documentType: "DNI",
+      document: String(data.get("document") || "").trim(),
+      phone: String(data.get("phone") || "").trim(),
+      address: String(data.get("address") || "").trim(),
+      district: String(data.get("district") || ""),
+      email: String(data.get("email") || "").trim(),
+      password: String(data.get("password") || ""),
     }
 
-    const newUser = {
-      firstName: data.get("firstName") as string,
-      lastName: data.get("lastName") as string,
-      document: data.get("document") as string,
-      phone: data.get("phone") as string,
-      address: data.get("address") as string,
-      district: data.get("district") as string,
-      email: email,
-      password: data.get("password") as string
+    const result = registerUser(newUser)
+    if (!result.ok) {
+      setRegisterError(result.error || "No se pudo completar el registro.")
+      return
     }
-    
-    localStorage.setItem("gone_users", JSON.stringify([...users, newUser]))
-    sessionStorage.setItem("gone_customer", "true")
-    sessionStorage.setItem("gone_current_user", JSON.stringify(newUser))
-    setIsAuth(true); setError(false); setRegisterError("")
+
+    setCurrentUser(newUser)
+    setIsAuth(true)
+    setError(false)
+    setRegisterError("")
   }
 
-  const handleLogout = () => { sessionStorage.removeItem("gone_customer"); sessionStorage.removeItem("gone_current_user"); setIsAuth(false); setCurrentTab("pedidos") }
+  const handleLogout = () => {
+    sessionStorage.removeItem("gone_customer")
+    sessionStorage.removeItem("gone_current_user")
+    setCurrentUser(null)
+    setIsAuth(false)
+    setCurrentTab("pedidos")
+  }
 
-  if (!isAuth) {
+  if (!isAuth || !currentUser) {
     return (
       <main style={{ backgroundColor: '#f9f9f9', minHeight: '80vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem' }}>
         <div style={{ background: '#fff', padding: '3rem', width: '100%', maxWidth: authMode === 'login' ? '400px' : '550px', borderTop: '4px solid #000', boxShadow: '0 10px 30px rgba(0,0,0,0.05)', borderRadius: '4px', transition: 'max-width 0.3s' }}>
@@ -259,7 +368,6 @@ function Profile() {
 
           {authMode === "login" ? (
             <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem', animation: 'fadeIn 0.3s ease' }}>
-              <div style={{ background: '#f5f5f5', padding: '1rem', borderRadius: '4px', fontSize: '0.8rem', color: '#666' }}><strong>Cuenta Demo:</strong><br/>Correo: jaime@gonesurfing.com<br/>Clave: demo123</div>
               <div><label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 'bold', marginBottom: '0.5rem', textTransform: 'uppercase' }}>Correo Electrónico</label><input name="email" type="email" required style={{ width: '100%', padding: '1rem', border: '1px solid #ddd', borderRadius: '4px' }} /></div>
               <div><label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 'bold', marginBottom: '0.5rem', textTransform: 'uppercase' }}>Contraseña</label><input name="password" type="password" required style={{ width: '100%', padding: '1rem', border: '1px solid #ddd', borderRadius: '4px' }} /></div>
               {error && <small style={{ color: '#d32f2f', fontWeight: 'bold' }}>El correo o la contraseña son incorrectos.</small>}
@@ -272,7 +380,7 @@ function Profile() {
                 <div style={{ flex: '1 1 200px' }}><label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 'bold', marginBottom: '0.5rem', textTransform: 'uppercase' }}>Apellidos</label><input name="lastName" required style={{ width: '100%', padding: '1rem', border: '1px solid #ddd', borderRadius: '4px' }} /></div>
               </div>
               <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-                <div style={{ flex: '1 1 200px' }}><label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 'bold', marginBottom: '0.5rem', textTransform: 'uppercase' }}>DNI</label><input name="document" required maxLength={8} style={{ width: '100%', padding: '1rem', border: '1px solid #ddd', borderRadius: '4px' }} /></div>
+                <div style={{ flex: '1 1 200px' }}><label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 'bold', marginBottom: '0.5rem', textTransform: 'uppercase' }}>DNI</label><input name="document" required maxLength={8} pattern="\d{8}" title="Ingresa los 8 dígitos de tu DNI" style={{ width: '100%', padding: '1rem', border: '1px solid #ddd', borderRadius: '4px' }} /></div>
                 <div style={{ flex: '1 1 200px' }}><label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 'bold', marginBottom: '0.5rem', textTransform: 'uppercase' }}>Teléfono</label><input name="phone" required type="tel" style={{ width: '100%', padding: '1rem', border: '1px solid #ddd', borderRadius: '4px' }} /></div>
               </div>
               <div><label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 'bold', marginBottom: '0.5rem', textTransform: 'uppercase' }}>Dirección Completa</label><input name="address" required placeholder="Calle, número, departamento" style={{ width: '100%', padding: '1rem', border: '1px solid #ddd', borderRadius: '4px' }} /></div>
@@ -284,10 +392,9 @@ function Profile() {
               </div>
               <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
                 <div style={{ flex: '1 1 200px' }}><label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 'bold', marginBottom: '0.5rem', textTransform: 'uppercase' }}>Correo Electrónico</label><input name="email" type="email" required style={{ width: '100%', padding: '1rem', border: '1px solid #ddd', borderRadius: '4px' }} /></div>
-                <div style={{ flex: '1 1 200px' }}><label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 'bold', marginBottom: '0.5rem', textTransform: 'uppercase' }}>Contraseña</label><input name="password" type="password" required style={{ width: '100%', padding: '1rem', border: '1px solid #ddd', borderRadius: '4px' }} /></div>
+                <div style={{ flex: '1 1 200px' }}><label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 'bold', marginBottom: '0.5rem', textTransform: 'uppercase' }}>Contraseña</label><input name="password" type="password" required minLength={6} style={{ width: '100%', padding: '1rem', border: '1px solid #ddd', borderRadius: '4px' }} /></div>
               </div>
               
-              {/* MENSAJE DE ERROR SI EL CORREO ESTÁ DUPLICADO */}
               {registerError && <small style={{ color: '#d32f2f', fontWeight: 'bold' }}>{registerError}</small>}
               
               <button style={{ background: '#000', color: '#fff', border: 'none', padding: '1rem', fontWeight: 'bold', textTransform: 'uppercase', cursor: 'pointer', marginTop: '1rem', borderRadius: '4px' }}>Registrarme de manera segura</button>
@@ -298,14 +405,13 @@ function Profile() {
     )
   }
 
-  const myOrders = transactions.filter(t => t.email.toLowerCase() === user.email.toLowerCase())
-  const displayOrders = myOrders.length > 0 ? myOrders : []
+  const displayOrders = transactions.filter((t) => (t.email || "").toLowerCase() === (currentUser.email || "").toLowerCase())
 
   return (
     <main style={{ padding: "4rem 5%", minHeight: "80vh", display: "flex", flexDirection: "row", gap: "4rem", flexWrap: "wrap", fontFamily: '"Inter", sans-serif' }}>
       <aside style={{ flex: "1 1 250px", maxWidth: "300px" }}>
         <h1 style={{ fontSize: "2rem", textTransform: "uppercase", marginBottom: "0.5rem", letterSpacing: "-1px" }}>Mi Cuenta</h1>
-        <p style={{ color: "#666", marginBottom: "2.5rem" }}>Hola, {user.firstName}</p>
+        <p style={{ color: "#666", marginBottom: "2.5rem" }}>Hola, {currentUser.firstName}</p>
         <nav style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
           <button onClick={() => setCurrentTab("pedidos")} style={{ textAlign: "left", background: "none", border: "none", cursor: "pointer", fontSize: "0.9rem", fontWeight: currentTab === "pedidos" ? "bold" : "normal", color: currentTab === "pedidos" ? "#000" : "#666", textTransform: "uppercase", letterSpacing: "1px", transition: "color 0.2s" }}>Mis Pedidos</button>
           <button onClick={() => setCurrentTab("perfil")} style={{ textAlign: "left", background: "none", border: "none", cursor: "pointer", fontSize: "0.9rem", fontWeight: currentTab === "perfil" ? "bold" : "normal", color: currentTab === "perfil" ? "#000" : "#666", textTransform: "uppercase", letterSpacing: "1px", transition: "color 0.2s" }}>Mi Perfil</button>
@@ -319,22 +425,26 @@ function Profile() {
             <h2 style={{ fontSize: "1.5rem", textTransform: "uppercase", marginBottom: "2rem", borderBottom: "1px solid #eee", paddingBottom: "1rem" }}>Historial de Compras</h2>
             {displayOrders.length === 0 ? (
               <div style={{ padding: '3rem', textAlign: 'center', background: '#f9f9f9', borderRadius: '8px', border: '1px dashed #ccc' }}>
-                <p style={{ color: "#666", marginBottom: '1rem' }}>No tienes pedidos recientes con el correo {user.email}.</p>
+                <p style={{ color: "#666", marginBottom: '1rem' }}>No tienes pedidos recientes con el correo {currentUser.email}.</p>
                 <button onClick={() => navigate("/shop")} className="black-button" style={{ padding: '0.8rem 2rem', width: 'auto' }}>Ir a la tienda</button>
               </div>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
                 {[...displayOrders].reverse().map((o, i) => {
-                  const status = o.status || "Procesando"; const statusColor = status === "Entregado" ? "#2e7d32" : status === "Enviado" ? "#0277bd" : "#e65100"; const statusBg = status === "Entregado" ? "#e8f5e9" : status === "Enviado" ? "#e3f2fd" : "#fff3e0";
+                  const status = o.status || "Procesando"
+                  const statusColor =
+                    status === "Entregado" ? "#2e7d32" : status === "Enviado" ? "#0277bd" : status === "Cancelado" ? "#c62828" : "#e65100"
+                  const statusBg =
+                    status === "Entregado" ? "#e8f5e9" : status === "Enviado" ? "#e3f2fd" : status === "Cancelado" ? "#ffebee" : "#fff3e0"
                   return (
-                    <div key={i} style={{ border: "1px solid #eee", borderRadius: "8px", padding: "1.5rem", background: "#fff", transition: "box-shadow 0.2s" }} onMouseOver={e => e.currentTarget.style.boxShadow = "0 4px 15px rgba(0,0,0,0.05)"} onMouseOut={e => e.currentTarget.style.boxShadow = "none"}>
+                    <div key={o.id || i} style={{ border: "1px solid #eee", borderRadius: "8px", padding: "1.5rem", background: "#fff", transition: "box-shadow 0.2s" }} onMouseOver={e => e.currentTarget.style.boxShadow = "0 4px 15px rgba(0,0,0,0.05)"} onMouseOut={e => e.currentTarget.style.boxShadow = "none"}>
                       <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: "1rem", marginBottom: "1rem", borderBottom: "1px solid #f5f5f5", paddingBottom: "1rem" }}>
-                          <div><span style={{ display: "block", fontSize: "0.65rem", color: "#888", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "4px" }}>Orden</span><strong style={{ fontSize: "0.9rem" }}>{o.id || o.number}</strong></div>
+                          <div><span style={{ display: "block", fontSize: "0.65rem", color: "#888", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "4px" }}>Orden</span><strong style={{ fontSize: "0.9rem" }}>{o.id}</strong></div>
                           <div><span style={{ display: "block", fontSize: "0.65rem", color: "#888", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "4px" }}>Fecha</span><strong style={{ fontSize: "0.9rem" }}>{new Date(o.date).toLocaleDateString('es-PE')}</strong></div>
                           <div><span style={{ display: "block", fontSize: "0.65rem", color: "#888", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "4px" }}>Total</span><strong style={{ fontSize: "0.9rem" }}>{money(o.total)}</strong></div>
                           <div style={{ textAlign: "right" }}><span style={{ display: "block", fontSize: "0.65rem", color: "#888", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "4px" }}>Estado</span><span style={{ background: statusBg, color: statusColor, padding: "4px 8px", borderRadius: "4px", fontSize: "0.75rem", fontWeight: "bold" }}>{status}</span></div>
                       </div>
-                      <div><span style={{ fontSize: "0.85rem", color: "#555", lineHeight: "1.5" }}>{o.detail || o.items?.map((item: any) => item.name).join(", ")}</span></div>
+                      <div><span style={{ fontSize: "0.85rem", color: "#555", lineHeight: "1.5" }}>{o.detail}</span></div>
                     </div>
                   )
                 })}
@@ -349,18 +459,18 @@ function Profile() {
               <div>
                 <h3 style={{ fontSize: "0.85rem", textTransform: "uppercase", marginBottom: "1.5rem", color: "#000", letterSpacing: "1px" }}>Información Personal</h3>
                 <div style={{ display: "flex", flexDirection: "column", gap: "1.2rem" }}>
-                  <div><label style={{ fontSize: "0.7rem", color: "#888", textTransform: "uppercase", letterSpacing: "1px" }}>Nombres</label><p style={{ margin: "0.2rem 0 0 0", fontWeight: "500", fontSize: "0.9rem" }}>{user.firstName}</p></div>
-                  <div><label style={{ fontSize: "0.7rem", color: "#888", textTransform: "uppercase", letterSpacing: "1px" }}>Apellidos</label><p style={{ margin: "0.2rem 0 0 0", fontWeight: "500", fontSize: "0.9rem" }}>{user.lastName}</p></div>
-                  {user.document && <div><label style={{ fontSize: "0.7rem", color: "#888", textTransform: "uppercase", letterSpacing: "1px" }}>DNI</label><p style={{ margin: "0.2rem 0 0 0", fontWeight: "500", fontSize: "0.9rem" }}>{user.document}</p></div>}
-                  <div><label style={{ fontSize: "0.7rem", color: "#888", textTransform: "uppercase", letterSpacing: "1px" }}>Correo Electrónico</label><p style={{ margin: "0.2rem 0 0 0", fontWeight: "500", fontSize: "0.9rem" }}>{user.email}</p></div>
-                  {user.phone && <div><label style={{ fontSize: "0.7rem", color: "#888", textTransform: "uppercase", letterSpacing: "1px" }}>Teléfono</label><p style={{ margin: "0.2rem 0 0 0", fontWeight: "500", fontSize: "0.9rem" }}>{user.phone}</p></div>}
+                  <div><label style={{ fontSize: "0.7rem", color: "#888", textTransform: "uppercase", letterSpacing: "1px" }}>Nombres</label><p style={{ margin: "0.2rem 0 0 0", fontWeight: "500", fontSize: "0.9rem" }}>{currentUser.firstName}</p></div>
+                  <div><label style={{ fontSize: "0.7rem", color: "#888", textTransform: "uppercase", letterSpacing: "1px" }}>Apellidos</label><p style={{ margin: "0.2rem 0 0 0", fontWeight: "500", fontSize: "0.9rem" }}>{currentUser.lastName}</p></div>
+                  {currentUser.document && <div><label style={{ fontSize: "0.7rem", color: "#888", textTransform: "uppercase", letterSpacing: "1px" }}>DNI</label><p style={{ margin: "0.2rem 0 0 0", fontWeight: "500", fontSize: "0.9rem" }}>{currentUser.document}</p></div>}
+                  <div><label style={{ fontSize: "0.7rem", color: "#888", textTransform: "uppercase", letterSpacing: "1px" }}>Correo Electrónico</label><p style={{ margin: "0.2rem 0 0 0", fontWeight: "500", fontSize: "0.9rem" }}>{currentUser.email}</p></div>
+                  {currentUser.phone && <div><label style={{ fontSize: "0.7rem", color: "#888", textTransform: "uppercase", letterSpacing: "1px" }}>Teléfono</label><p style={{ margin: "0.2rem 0 0 0", fontWeight: "500", fontSize: "0.9rem" }}>{currentUser.phone}</p></div>}
                 </div>
               </div>
               <div>
                 <h3 style={{ fontSize: "0.85rem", textTransform: "uppercase", marginBottom: "1.5rem", color: "#000", letterSpacing: "1px" }}>Dirección Predeterminada</h3>
                 <div style={{ display: "flex", flexDirection: "column", gap: "1.2rem" }}>
-                  {user.address && <div><label style={{ fontSize: "0.7rem", color: "#888", textTransform: "uppercase", letterSpacing: "1px" }}>Dirección Completa</label><p style={{ margin: "0.2rem 0 0 0", fontWeight: "500", fontSize: "0.9rem" }}>{user.address}</p></div>}
-                  {user.district && <div><label style={{ fontSize: "0.7rem", color: "#888", textTransform: "uppercase", letterSpacing: "1px" }}>Distrito</label><p style={{ margin: "0.2rem 0 0 0", fontWeight: "500", fontSize: "0.9rem" }}>{user.district}</p></div>}
+                  {currentUser.address && <div><label style={{ fontSize: "0.7rem", color: "#888", textTransform: "uppercase", letterSpacing: "1px" }}>Dirección Completa</label><p style={{ margin: "0.2rem 0 0 0", fontWeight: "500", fontSize: "0.9rem" }}>{currentUser.address}</p></div>}
+                  {currentUser.district && <div><label style={{ fontSize: "0.7rem", color: "#888", textTransform: "uppercase", letterSpacing: "1px" }}>Distrito</label><p style={{ margin: "0.2rem 0 0 0", fontWeight: "500", fontSize: "0.9rem" }}>{currentUser.district}</p></div>}
                 </div>
               </div>
             </div>
@@ -372,13 +482,24 @@ function Profile() {
 }
 
 function Footer({ openChat }: { openChat: () => void }) {
-  const location = useLocation(); if (location.pathname === '/admin' || location.pathname === '/checkout') return null;
+  const location = useLocation()
+  if (location.pathname === '/admin' || location.pathname === '/checkout') return null
   return (<footer><Logo /><p>SURF CULTURE FROM LIMA, PERÚ.</p><button onClick={openChat}>◯ &nbsp; Chat</button></footer>)
 }
 
 function AppContent() {
-  const location = useLocation(); const [panel, setPanel] = useState<string | null>(null); const dialog = useRef<HTMLDialogElement>(null)
-  useEffect(() => { const d = dialog.current; if (!d) return; if (panel) { if (!d.open) d.showModal() } else { d.close() } }, [panel])
+  const location = useLocation()
+  const [panel, setPanel] = useState<string | null>(null)
+  const dialog = useRef<HTMLDialogElement>(null)
+  useEffect(() => {
+    const d = dialog.current
+    if (!d) return
+    if (panel) {
+      if (!d.open) d.showModal()
+    } else if (d.open) {
+      d.close()
+    }
+  }, [panel])
   useEffect(() => { window.scrollTo({ top: 0 }) }, [location.pathname])
   return (
     <>

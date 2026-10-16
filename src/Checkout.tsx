@@ -1,8 +1,8 @@
-import { type FormEvent, useState, useEffect } from "react"
+import { type FormEvent, useState, useEffect, useMemo } from "react"
 import { useNavigate, Link } from "react-router-dom"
-import { useStore } from "./store"
+import { useStore, getCurrentSessionUser, type OrderDetailsInput } from "./store"
 
-const money = (value: number) => `S/. ${value.toFixed(2)}`
+const money = (value: number) => `S/. ${(Number(value) || 0).toFixed(2)}`
 
 export interface DistrictInfo {
   name: string
@@ -11,7 +11,6 @@ export interface DistrictInfo {
   y: number
 }
 
-// COORDENADAS EXACTAS DEL PROYECTO ANTERIOR
 export const LIMA_DISTRICTS: DistrictInfo[] = [
   { name: 'San Bartolo', code: 'SBT', x: 387, y: 178 },
   { name: 'Punta Hermosa', code: 'PTH', x: 370, y: 165 },
@@ -39,19 +38,24 @@ export const LIMA_DISTRICTS: DistrictInfo[] = [
   { name: 'San Martín de Porres', code: 'SMP', x: 240, y: 38 },
 ]
 
-export default function Checkout() {
-  const { products, cart, completeOrder, changeQuantity } = useStore()
-  const navigate = useNavigate()
-  
-  // VERIFICACIÓN DE SESIÓN PARA AUTO-LLENADO
-  const isAuth = sessionStorage.getItem("gone_customer") === "true"
-  
-  const [shippingMethod, setShippingMethod] = useState('standard')
-  const [documentType, setDocumentType] = useState('DNI')
-  const [selectedDistrictName, setSelectedDistrictName] = useState(isAuth ? 'Punta Negra' : 'San Bartolo')
-  const [orderConfirmed, setOrderConfirmed] = useState<any>(null)
+interface ConfirmedOrderState extends OrderDetailsInput {
+  id: string
+  number: string
+  total: number
+  subtotal: number
+}
 
-  // ESTADOS DEL FORMULARIO (Auto-llenados si isAuth es true)
+export default function Checkout() {
+  const { products, cart, users, completeOrder, changeQuantity } = useStore()
+  const navigate = useNavigate()
+
+  const isAuth = sessionStorage.getItem("gone_customer") === "true" && Boolean(getCurrentSessionUser())
+
+  const [shippingMethod, setShippingMethod] = useState<'standard' | 'express'>('standard')
+  const [documentType, setDocumentType] = useState<'DNI' | 'CE'>('DNI')
+  const [selectedDistrictName, setSelectedDistrictName] = useState(isAuth ? 'Punta Negra' : 'San Bartolo')
+  const [orderConfirmed, setOrderConfirmed] = useState<ConfirmedOrderState | null>(null)
+
   const [email, setEmail] = useState("")
   const [firstName, setFirstName] = useState("")
   const [lastName, setLastName] = useState("")
@@ -59,10 +63,9 @@ export default function Checkout() {
   const [address, setAddress] = useState("")
   const [documentNumber, setDocumentNumber] = useState("")
 
-  // EFECTO DE AUTO-LLENADO MEJORADO
   useEffect(() => {
     if (isAuth) {
-      const storedUser = JSON.parse(sessionStorage.getItem("gone_current_user") || "null")
+      const storedUser = getCurrentSessionUser()
       if (storedUser) {
         setFirstName(storedUser.firstName || "")
         setLastName(storedUser.lastName || "")
@@ -70,14 +73,26 @@ export default function Checkout() {
         setPhone(storedUser.phone || "")
         setAddress(storedUser.address || "")
         setDocumentNumber(storedUser.document || "")
-        if (storedUser.district && LIMA_DISTRICTS.find(d => d.name === storedUser.district)) {
+        if (storedUser.documentType === "DNI" || storedUser.documentType === "CE") {
+          setDocumentType(storedUser.documentType)
+        }
+        if (storedUser.district && LIMA_DISTRICTS.some((d) => d.name === storedUser.district)) {
           setSelectedDistrictName(storedUser.district)
         }
       }
     }
   }, [isAuth])
 
-  const itemsTotalCents = cart.reduce((sum, item) => sum + Math.round((products.find(p => p.id === item.productId)?.price || 0) * 100) * (item.quantity || 1), 0)
+  const emailHasExistingAccount = useMemo(() => {
+    const clean = email.trim().toLowerCase()
+    if (!clean) return false
+    return users.some((u) => (u.email || "").toLowerCase() === clean)
+  }, [email, users])
+
+  const itemsTotalCents = cart.reduce(
+    (sum, item) => sum + Math.round((products.find((p) => p.id === item.productId)?.price || 0) * 100) * (item.quantity || 1),
+    0
+  )
   const shippingCents = shippingMethod === 'express' ? 3000 : itemsTotalCents >= 30000 ? 0 : 1500
   const subtotalCents = Math.round(itemsTotalCents / 1.18)
   const taxCents = itemsTotalCents - subtotalCents
@@ -98,27 +113,37 @@ export default function Checkout() {
     e.preventDefault()
     const data = new FormData(e.currentTarget)
     const districtObj = LIMA_DISTRICTS.find((d) => d.name === selectedDistrictName) || LIMA_DISTRICTS[0]
-    
-    const details = {
-      customer: String(data.get("firstName")) + " " + String(data.get("lastName")),
-      document: String(data.get("documentNumber")),
-      email: String(data.get("email")),
-      phone: String(data.get("phone")),
+
+    const details: OrderDetailsInput = {
+      customer: `${String(data.get("firstName") || "").trim()} ${String(data.get("lastName") || "").trim()}`.trim(),
+      documentType,
+      document: String(data.get("documentNumber") || "").trim(),
+      email: String(data.get("email") || "").trim(),
+      phone: String(data.get("phone") || "").trim(),
       districtCode: districtObj.code,
       districtName: districtObj.name,
       districtX: districtObj.x,
       districtY: districtObj.y,
-      address: String(data.get("address")),
+      address: String(data.get("address") || "").trim(),
+      shippingMethod,
       shipping: shippingCents / 100,
       total: totalCents / 100,
       subtotal: subtotalCents / 100,
-      items: cart.map(i => ({...i}))
+      items: cart.map((i) => ({ ...i })),
     }
 
     try {
       const order = completeOrder(details)
-      setOrderConfirmed({ ...details, id: order.id, number: order.id })
-    } catch (err) { alert("Error al procesar el pedido.") }
+      setOrderConfirmed({
+        ...details,
+        id: order.id,
+        number: order.id,
+        total: totalCents / 100,
+        subtotal: subtotalCents / 100,
+      })
+    } catch {
+      alert("Error al procesar el pedido. Verifica el stock disponible.")
+    }
   }
 
   if (orderConfirmed) {
@@ -148,9 +173,11 @@ export default function Checkout() {
             </div>
             <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', borderBottom: '1px solid rgba(255,255,255,0.1)', padding: '1.5rem 0', marginBottom: '2rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               <p style={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '1px', color: '#888', margin: 0, textAlign: 'center' }}>TU PRÓXIMO CAPÍTULO EMPIEZA AQUÍ</p>
-              {orderConfirmed.items.map((item: any, position: number) => {
-                const prod = products.find(p => p.id === item.productId); if (!prod) return null; const qty = item.quantity || 1
-                return (<div key={position} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><span>{qty > 1 ? `${qty}x ` : ''}{prod.name}<small style={{ display: 'block', color: '#888', fontSize: '0.75rem', marginTop: '4px' }}>Talla: {item.size}</small></span><strong>{money(prod.price * qty)}</strong></div>)
+              {orderConfirmed.items.map((item, position) => {
+                const prod = products.find(p => p.id === item.productId)
+                if (!prod) return null
+                const qty = item.quantity || 1
+                return (<div key={`${item.productId}-${item.size}-${position}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><span>{qty > 1 ? `${qty}x ` : ''}{prod.name}<small style={{ display: 'block', color: '#888', fontSize: '0.75rem', marginTop: '4px' }}>Talla: {item.size}</small></span><strong>{money(prod.price * qty)}</strong></div>)
               })}
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}><span style={{ fontSize: '0.9rem', fontWeight: 'bold' }}>Total de prueba</span><strong style={{ fontSize: '1.5rem' }}>{money(orderConfirmed.total)}</strong></div>
@@ -198,7 +225,7 @@ export default function Checkout() {
             <label style={{ display: 'block', fontSize: '0.75rem', color: '#666', marginBottom: '0.5rem' }}>Correo electrónico</label>
             <input name="email" type="email" required placeholder="tu@email.com" value={email} onChange={e => setEmail(e.target.value)} style={{ width: '100%', padding: '1rem', border: '1px solid #ddd', borderRadius: '4px', fontSize: '0.9rem', marginBottom: '0.5rem' }} />
 
-            {!isAuth && email.toLowerCase() === "jaime@gonesurfing.com" && (
+            {!isAuth && emailHasExistingAccount && (
               <div style={{ background: '#f9f9f9', padding: '1rem', borderLeft: '4px solid #000', marginTop: '0.5rem', marginBottom: '1rem', fontSize: '0.8rem', animation: 'fadeIn 0.3s ease' }}>
                 <p style={{ margin: '0 0 0.5rem 0', color: '#333' }}>Parece que ya tienes una cuenta con nosotros.</p>
                 <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -208,7 +235,6 @@ export default function Checkout() {
               </div>
             )}
             
-            {/* DISEÑO IDÉNTICO A TU CAPTURA */}
             <p style={{ fontSize: '0.7rem', color: '#888', margin: '0 0 1rem 0' }}>Aquí enviaremos tu boleta electrónica y el tiempo estimado de envío</p>
             {!isAuth && (
               <button type="button" onClick={() => navigate('/profile?mode=login')} style={{ background: 'none', border: 'none', color: '#000', fontSize: '0.85rem', fontWeight: 'bold', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}>
@@ -224,7 +250,7 @@ export default function Checkout() {
               <div style={{ flex: 1 }}><label style={{ display: 'block', fontSize: '0.75rem', color: '#666', marginBottom: '0.5rem' }}>Apellidos</label><input name="lastName" required placeholder="Tus apellidos" value={lastName} onChange={e => setLastName(e.target.value)} style={{ width: '100%', padding: '1rem', border: '1px solid #ddd', borderRadius: '4px', fontSize: '0.9rem' }} /></div>
             </div>
             <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
-              <div style={{ flex: 1 }}><label style={{ display: 'block', fontSize: '0.75rem', color: '#666', marginBottom: '0.5rem' }}>Tipo de Documento</label><select value={documentType} onChange={e => setDocumentType(e.target.value)} style={{ width: '100%', padding: '1rem', border: '1px solid #ddd', borderRadius: '4px', fontSize: '0.9rem', backgroundColor: '#fff' }}><option value="DNI">DNI</option><option value="CE">CE</option></select></div>
+              <div style={{ flex: 1 }}><label style={{ display: 'block', fontSize: '0.75rem', color: '#666', marginBottom: '0.5rem' }}>Tipo de Documento</label><select value={documentType} onChange={e => setDocumentType(e.target.value as 'DNI' | 'CE')} style={{ width: '100%', padding: '1rem', border: '1px solid #ddd', borderRadius: '4px', fontSize: '0.9rem', backgroundColor: '#fff' }}><option value="DNI">DNI</option><option value="CE">CE</option></select></div>
               <div style={{ flex: 1 }}><label style={{ display: 'block', fontSize: '0.75rem', color: '#666', marginBottom: '0.5rem' }}>Número de Documento</label><input name="documentNumber" required placeholder={documentType === 'DNI' ? '8 dígitos' : '9 a 12 dígitos'} maxLength={documentType === 'DNI' ? 8 : 12} value={documentNumber} onChange={e => setDocumentNumber(e.target.value)} style={{ width: '100%', padding: '1rem', border: '1px solid #ddd', borderRadius: '4px', fontSize: '0.9rem' }} /></div>
             </div>
             <div style={{ marginBottom: '1rem' }}><label style={{ display: 'block', fontSize: '0.75rem', color: '#666', marginBottom: '0.5rem' }}>Dirección completa</label><input name="address" required placeholder="Calle, número, departamento o referencia" value={address} onChange={e => setAddress(e.target.value)} style={{ width: '100%', padding: '1rem', border: '1px solid #ddd', borderRadius: '4px', fontSize: '0.9rem' }} /></div>
@@ -252,13 +278,25 @@ export default function Checkout() {
         <p style={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '1px', color: '#888', fontWeight: 600, marginBottom: '1rem' }}>THE GOOD STUFF</p>
         <h2 style={{ fontSize: '2rem', fontWeight: 600, margin: '0 0 2rem 0' }}>Tu pedido.</h2>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', borderBottom: '1px solid #e5e5e5', paddingBottom: '2rem', marginBottom: '2rem' }}>
-          {cart.map((item, index) => {
-            const prod = products.find(p => p.id === item.productId); if (!prod) return null
+          {cart.map((item) => {
+            const prod = products.find(p => p.id === item.productId)
+            if (!prod) return null
+            const maxStock = prod.stocks[item.size] ?? 0
             return (
-              <div key={index} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div key={`${item.productId}-${item.size}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                   <div style={{ position: 'relative' }}><img src={prod.image} alt={prod.name} style={{ width: '60px', height: '60px', objectFit: 'cover', borderRadius: '4px', border: '1px solid #eee' }} /><span style={{ position: 'absolute', top: '-8px', right: '-8px', background: '#888', color: '#fff', fontSize: '0.65rem', width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%' }}>{item.quantity}</span></div>
-                  <div><strong style={{ display: 'block', fontSize: '0.9rem' }}>{prod.name}</strong><span style={{ fontSize: '0.75rem', color: '#666', display: 'block', marginBottom: '0.3rem' }}>Talla: <b style={{ color: '#000' }}>{item.size}</b></span><div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}><div style={{ display: 'inline-flex', alignItems: 'center', border: '1px solid #ddd', borderRadius: '4px', background: '#fff' }}><button type="button" onClick={() => changeQuantity(item.productId, item.size, -1)} style={{ background: '#f5f5f5', border: 'none', width: '24px', height: '24px', cursor: 'pointer', fontWeight: 'bold' }}>-</button><span style={{ fontSize: '0.75rem', padding: '0 8px', minWidth: '16px', textAlign: 'center' }}>{item.quantity}</span><button type="button" onClick={() => changeQuantity(item.productId, item.size, 1)} style={{ background: '#f5f5f5', border: 'none', width: '24px', height: '24px', cursor: 'pointer', fontWeight: 'bold' }}>+</button></div></div></div>
+                  <div>
+                    <strong style={{ display: 'block', fontSize: '0.9rem' }}>{prod.name}</strong>
+                    <span style={{ fontSize: '0.75rem', color: '#666', display: 'block', marginBottom: '0.3rem' }}>Talla: <b style={{ color: '#000' }}>{item.size}</b></span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <div style={{ display: 'inline-flex', alignItems: 'center', border: '1px solid #ddd', borderRadius: '4px', background: '#fff' }}>
+                        <button type="button" onClick={() => changeQuantity(item.productId, item.size, -1)} style={{ background: '#f5f5f5', border: 'none', width: '24px', height: '24px', cursor: 'pointer', fontWeight: 'bold' }}>-</button>
+                        <span style={{ fontSize: '0.75rem', padding: '0 8px', minWidth: '16px', textAlign: 'center' }}>{item.quantity}</span>
+                        <button type="button" onClick={() => changeQuantity(item.productId, item.size, 1)} disabled={item.quantity >= maxStock} style={{ background: '#f5f5f5', border: 'none', width: '24px', height: '24px', cursor: item.quantity >= maxStock ? 'not-allowed' : 'pointer', fontWeight: 'bold', opacity: item.quantity >= maxStock ? 0.4 : 1 }}>+</button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
                 <strong style={{ fontSize: '0.9rem' }}>{money(prod.price * item.quantity)}</strong>
               </div>

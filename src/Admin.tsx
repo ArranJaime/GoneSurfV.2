@@ -1,6 +1,11 @@
-import { type FormEvent, useState, useRef } from "react"
+import { type FormEvent, useState, useRef, useEffect, useMemo } from "react"
 import { useNavigate } from "react-router-dom"
-import { useStore, type Size } from "./store"
+import {
+  useStore,
+  type Size,
+  type OrderStatus,
+  type OrderTransaction,
+} from "./store"
 
 const SIZES: Size[] = ["S", "M", "L", "XL"]
 const money = (value: number) => `S/. ${(Number(value) || 0).toFixed(2)}`
@@ -11,11 +16,32 @@ function Logo({ dark = false }: { dark?: boolean }) {
 
 function ManageCollections() {
   const { collections, addCollection, toggleCollection, deleteCollection } = useStore()
-  const [title, setTitle] = useState(""); const [subtitle, setSubtitle] = useState(""); const [category, setCategory] = useState("LIFESTYLE"); const [image, setImage] = useState<string | null>(null); const fileInputRef = useRef<HTMLInputElement>(null)
+  const [title, setTitle] = useState("")
+  const [subtitle, setSubtitle] = useState("")
+  const [category, setCategory] = useState("LIFESTYLE")
+  const [image, setImage] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => { const file = e.target.files?.[0]; if (file) { const reader = new FileReader(); reader.onloadend = () => setImage(reader.result as string); reader.readAsDataURL(file) } }
-  const handleCreate = (e: FormEvent) => { e.preventDefault(); if (!title || !image) { alert("Título e imagen obligatorios."); return }
-    addCollection({ title, subtitle, category, image }); setTitle(""); setSubtitle(""); setImage(null)
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      const reader = new FileReader()
+      reader.onloadend = () => setImage(reader.result as string)
+      reader.readAsDataURL(file)
+    }
+  }
+
+  const handleCreate = (e: FormEvent) => {
+    e.preventDefault()
+    if (!title.trim() || !image) {
+      alert("Título e imagen obligatorios.")
+      return
+    }
+    addCollection({ title: title.trim(), subtitle: subtitle.trim(), category: category.trim(), image })
+    setTitle("")
+    setSubtitle("")
+    setImage(null)
+    if (fileInputRef.current) fileInputRef.current.value = ""
   }
 
   return (
@@ -56,15 +82,68 @@ function ManageCollections() {
 }
 
 function UploadPrenda() {
-  const { collections, addProduct, products, changeStock, updateProductCollection, deleteProduct } = useStore()
-  const [name, setName] = useState(""); const [price, setPrice] = useState(""); const [category, setCategory] = useState("New Arrivals"); const [collection, setCollection] = useState("Catálogo General"); const [image, setImage] = useState<string | null>(null); const [stocks, setStocks] = useState<Record<string, number>>({ Única: 25, S: 10, M: 10, L: 10, XL: 10 }); const [success, setSuccess] = useState(false); const fileInputRef = useRef<HTMLInputElement>(null)
+  const { collections, addProduct, products, changeStock, updateProductPrice, updateProductCollection, deleteProduct } = useStore()
+  const [name, setName] = useState("")
+  const [price, setPrice] = useState("")
+  const [category, setCategory] = useState("New Arrivals")
+  const [collection, setCollection] = useState("Catálogo General")
+  const [image, setImage] = useState<string | null>(null)
+  const [stocks, setStocks] = useState<Record<string, number>>({ Única: 25, S: 10, M: 10, L: 10, XL: 10 })
+  const [success, setSuccess] = useState(false)
+  const [editingPriceId, setEditingPriceId] = useState<string | null>(null)
+  const [tempPrice, setTempPrice] = useState("")
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const timerRef = useRef<number | null>(null)
   const isUnique = category === "Accesorios"
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => { const file = e.target.files?.[0]; if (file) { const reader = new FileReader(); reader.onloadend = () => setImage(reader.result as string); reader.readAsDataURL(file) } }
-  const handleSubmit = (e: FormEvent) => { e.preventDefault(); if (!name || !price || !image) { alert("Completa nombre, precio e imagen."); return }
-    const activeStocks: Record<string, number> = isUnique ? { Única: stocks["Única"] } : { S: stocks.S, M: stocks.M, L: stocks.L, XL: stocks.XL }
-    addProduct({ name, price: parseFloat(price), category, collectionName: collection, image, stocks: activeStocks })
-    setSuccess(true); setName(""); setPrice(""); setImage(null); setTimeout(() => setSuccess(false), 3000)
+  useEffect(() => {
+    return () => {
+      if (timerRef.current !== null) window.clearTimeout(timerRef.current)
+    }
+  }, [])
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      const reader = new FileReader()
+      reader.onloadend = () => setImage(reader.result as string)
+      reader.readAsDataURL(file)
+    }
+  }
+
+  const handleSubmit = (e: FormEvent) => {
+    e.preventDefault()
+    const parsedPrice = parseFloat(price)
+    if (!name.trim() || !image || Number.isNaN(parsedPrice) || parsedPrice <= 0) {
+      alert("Completa nombre, un precio válido mayor a 0 e imagen.")
+      return
+    }
+    const activeStocks: Record<string, number> = isUnique
+      ? { Única: Math.max(0, stocks["Única"] || 0) }
+      : {
+          S: Math.max(0, stocks.S || 0),
+          M: Math.max(0, stocks.M || 0),
+          L: Math.max(0, stocks.L || 0),
+          XL: Math.max(0, stocks.XL || 0),
+        }
+
+    addProduct({ name: name.trim(), price: parsedPrice, category, collectionName: collection, image, stocks: activeStocks })
+    setSuccess(true)
+    setName("")
+    setPrice("")
+    setImage(null)
+    if (fileInputRef.current) fileInputRef.current.value = ""
+    if (timerRef.current !== null) window.clearTimeout(timerRef.current)
+    timerRef.current = window.setTimeout(() => setSuccess(false), 3000)
+  }
+
+  const saveInlinePrice = (productId: string) => {
+    const parsed = parseFloat(tempPrice)
+    if (!Number.isNaN(parsed) && parsed > 0) {
+      updateProductPrice(productId, parsed)
+    }
+    setEditingPriceId(null)
+    setTempPrice("")
   }
 
   return (
@@ -101,8 +180,49 @@ function UploadPrenda() {
               {products.map(p => (
                 <tr key={p.id} style={{ borderBottom: '1px solid #eee' }}>
                   <td style={{ padding: '1rem', display: 'flex', alignItems: 'center', gap: '1rem' }}><img src={p.image} alt="" style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '4px' }} /><div><strong>{p.name}</strong><span style={{ display: 'block', fontSize: '0.7rem', color: '#888' }}>{p.category}</span></div></td>
-                  <td style={{ padding: '1rem' }}>{p.collectionName && p.collectionName !== "Catálogo General" ? <span style={{ background: '#000', padding: '0.3rem 0.6rem', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 'bold', color: '#fff', display: 'inline-flex', alignItems: 'center', gap: '8px' }}>{p.collectionName} <button onClick={() => updateProductCollection(p.id, "Catálogo General")} style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', padding: 0 }}>✕</button></span> : <span style={{ color: '#888', fontStyle: 'italic', fontSize: '0.8rem' }}>Sin colección</span>}</td>
-                  <td style={{ padding: '1rem' }}>{money(p.price)}</td>
+                  <td style={{ padding: '1rem' }}>
+                    {p.collectionName && p.collectionName !== "Catálogo General" ? (
+                      <span style={{ background: '#000', padding: '0.3rem 0.6rem', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 'bold', color: '#fff', display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                        {p.collectionName}
+                        <button onClick={() => updateProductCollection(p.id, "Catálogo General")} title="Quitar de colección" style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', padding: 0 }}>✕</button>
+                      </span>
+                    ) : (
+                      <select
+                        value="Catálogo General"
+                        onChange={(e) => updateProductCollection(p.id, e.target.value)}
+                        style={{ padding: '0.3rem 0.5rem', borderRadius: '4px', border: '1px solid #ddd', fontSize: '0.75rem', color: '#666', background: '#fafafa', cursor: 'pointer' }}
+                      >
+                        <option value="Catálogo General">Sin colección (Asignar...)</option>
+                        {collections.map((c) => (
+                          <option key={c.id} value={c.title || c.id}>{c.title || "Colección Sin Nombre"}</option>
+                        ))}
+                      </select>
+                    )}
+                  </td>
+                  <td style={{ padding: '1rem' }}>
+                    {editingPriceId === p.id ? (
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={tempPrice}
+                          onChange={(e) => setTempPrice(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === 'Enter') saveInlinePrice(p.id); if (e.key === 'Escape') setEditingPriceId(null) }}
+                          autoFocus
+                          style={{ width: '75px', padding: '0.25rem 0.4rem', border: '1px solid #000', borderRadius: '4px', fontSize: '0.8rem' }}
+                        />
+                        <button onClick={() => saveInlinePrice(p.id)} style={{ background: '#000', color: '#fff', border: 'none', borderRadius: '4px', padding: '0.25rem 0.5rem', cursor: 'pointer', fontSize: '0.7rem', fontWeight: 'bold' }}>✓</button>
+                      </div>
+                    ) : (
+                      <span
+                        onClick={() => { setEditingPriceId(p.id); setTempPrice(String(p.price)) }}
+                        title="Haz clic para editar el precio"
+                        style={{ cursor: 'pointer', borderBottom: '1px dashed #ccc', paddingBottom: '2px' }}
+                      >
+                        {money(p.price)}
+                      </span>
+                    )}
+                  </td>
                   <td style={{ padding: '1rem' }}><div style={{ display: 'flex', gap: '0.5rem' }}>{(p.category === "Accesorios" ? ["Única"] as Size[] : SIZES).map(s => (<div key={s} style={{ display: 'flex', alignItems: 'center', border: '1px solid #ddd', borderRadius: '3px', overflow: 'hidden' }}><b style={{ padding: '0.2rem 0.5rem', background: '#f5f5f5', borderRight: '1px solid #ddd' }}>{s}</b><button onClick={() => changeStock(p.id, s, -1)} style={{ border: 'none', background: 'none', padding: '0.2rem 0.5rem', cursor: 'pointer' }}>−</button><span style={{ padding: '0.2rem 0.2rem' }}>{p.stocks[s] || 0}</span><button onClick={() => changeStock(p.id, s, 1)} style={{ border: 'none', background: 'none', padding: '0.2rem 0.5rem', cursor: 'pointer' }}>+</button></div>))}</div></td>
                   <td style={{ padding: '1rem', textAlign: 'right' }}><button onClick={() => { if(window.confirm(`¿Seguro que deseas eliminar permanentemente el producto "${p.name}"?`)) { deleteProduct(p.id) } }} style={{ background: 'transparent', color: '#ff4d4d', border: '1px solid #ff4d4d', padding: '0.3rem 0.8rem', borderRadius: '20px', cursor: 'pointer', fontSize: '0.7rem', fontWeight: 'bold' }}>ELIMINAR</button></td>
                 </tr>
@@ -116,14 +236,73 @@ function UploadPrenda() {
 }
 
 function MetricsDashboard() {
-  const { transactions } = useStore()
+  const { transactions, products, users } = useStore()
+
+  const activeTransactions = useMemo(
+    () => transactions.filter((t) => t.status !== "Cancelado"),
+    [transactions]
+  )
+  const totalRevenue = useMemo(
+    () => activeTransactions.reduce((s, i) => s + (i.total || 0), 0),
+    [activeTransactions]
+  )
+  const pendingOrders = useMemo(
+    () => transactions.filter((t) => !t.status || t.status === "Procesando").length,
+    [transactions]
+  )
+  const completedOrders = useMemo(
+    () => transactions.filter((t) => t.status === "Enviado" || t.status === "Entregado").length,
+    [transactions]
+  )
+
+  const inventoryStats = useMemo(() => {
+    let totalUnits = 0
+    let outOfStockSizes = 0
+    products.forEach((p) => {
+      const relevantSizes = p.category === "Accesorios" ? (["Única"] as Size[]) : SIZES
+      relevantSizes.forEach((sz) => {
+        const units = p.stocks[sz] || 0
+        totalUnits += units
+        if (units === 0) outOfStockSizes += 1
+      })
+    })
+    return { totalUnits, outOfStockSizes }
+  }, [products])
+
+  const uniqueCustomerEmails = useMemo(() => {
+    const set = new Set<string>()
+    users.forEach((u) => { if (u.email) set.add(u.email.toLowerCase()) })
+    transactions.forEach((t) => { if (t.email) set.add(t.email.toLowerCase()) })
+    return set.size
+  }, [users, transactions])
+
   return (
     <div style={{ animation: 'fadeIn 0.3s ease' }}>
-      <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1rem', marginBottom: '3rem' }}>
+      <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem', marginBottom: '3rem' }}>
         <article style={{ background: '#fff', padding: '1.5rem', border: '1px solid #eee', borderRadius: '8px' }}>
           <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#666', textTransform: 'uppercase' }}>Recaudación Total</span>
-          <strong style={{ display: 'block', fontSize: '2.5rem', margin: '0.5rem 0' }}>{money(transactions.reduce((s, i) => s + (i.total || 0), 0))}</strong>
-          <small style={{ color: '#888', fontSize: '0.75rem' }}>{transactions.length} TRANSACCIONES EN EL SISTEMA</small>
+          <strong style={{ display: 'block', fontSize: '2.5rem', margin: '0.5rem 0' }}>{money(totalRevenue)}</strong>
+          <small style={{ color: '#888', fontSize: '0.75rem' }}>{activeTransactions.length} VENTAS ACTIVAS EN EL SISTEMA</small>
+        </article>
+
+        <article style={{ background: '#fff', padding: '1.5rem', border: '1px solid #eee', borderRadius: '8px' }}>
+          <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#666', textTransform: 'uppercase' }}>Pedidos por Despachar</span>
+          <strong style={{ display: 'block', fontSize: '2.5rem', margin: '0.5rem 0', color: pendingOrders > 0 ? '#e65100' : '#000' }}>{pendingOrders}</strong>
+          <small style={{ color: '#888', fontSize: '0.75rem' }}>{completedOrders} ENVIADOS O ENTREGADOS</small>
+        </article>
+
+        <article style={{ background: '#fff', padding: '1.5rem', border: '1px solid #eee', borderRadius: '8px' }}>
+          <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#666', textTransform: 'uppercase' }}>Unidades en Stock</span>
+          <strong style={{ display: 'block', fontSize: '2.5rem', margin: '0.5rem 0' }}>{inventoryStats.totalUnits}</strong>
+          <small style={{ color: inventoryStats.outOfStockSizes > 0 ? '#ff4d4d' : '#888', fontSize: '0.75rem', fontWeight: inventoryStats.outOfStockSizes > 0 ? 'bold' : 'normal' }}>
+            {products.length} PRODUCTOS ({inventoryStats.outOfStockSizes} TALLAS AGOTADAS)
+          </small>
+        </article>
+
+        <article style={{ background: '#fff', padding: '1.5rem', border: '1px solid #eee', borderRadius: '8px' }}>
+          <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#666', textTransform: 'uppercase' }}>Clientes Activos</span>
+          <strong style={{ display: 'block', fontSize: '2.5rem', margin: '0.5rem 0' }}>{uniqueCustomerEmails}</strong>
+          <small style={{ color: '#888', fontSize: '0.75rem' }}>{users.length} CUENTAS REGISTRADAS</small>
         </article>
       </section>
     </div>
@@ -144,20 +323,50 @@ function ManageOrders() {
             <tr><th style={{ padding: '1rem' }}>ID & FECHA</th><th style={{ padding: '1rem' }}>CLIENTE</th><th style={{ padding: '1rem' }}>CONTACTO / ENVÍO</th><th style={{ padding: '1rem' }}>DETALLE DE COMPRA</th><th style={{ padding: '1rem' }}>TOTAL</th><th style={{ padding: '1rem' }}>ESTADO ACTUAL</th></tr>
           </thead>
           <tbody>
-            {[...transactions].reverse().map((t: any) => (
-              <tr key={t.id} style={{ borderBottom: '1px solid #eee' }}>
-                <td style={{ padding: '1rem' }}><strong style={{ display: 'block' }}>{t.id}</strong><span style={{ color: '#888', fontSize: '0.75rem' }}>{new Date(t.date).toLocaleDateString('es-PE')}</span></td>
-                <td style={{ padding: '1rem' }}><strong style={{ display: 'block' }}>{t.customer || "Anónimo"}</strong><span style={{ color: '#888', fontSize: '0.75rem' }}>DNI: {t.document || "N/A"}</span></td>
-                <td style={{ padding: '1rem' }}><span style={{ display: 'block', fontWeight: 'bold', fontSize: '0.75rem', color: '#0277bd' }}>{t.email || "Sin correo"}</span><span style={{ fontSize: '0.7rem', color: '#666', display: 'block', marginTop: '4px' }}>{t.address || "Dirección no registrada"} - {t.districtName || ""}</span></td>
-                <td style={{ padding: '1rem', maxWidth: '250px' }}><span style={{ fontSize: '0.8rem', lineHeight: '1.4', display: 'block' }}>{t.detail}</span></td>
-                <td style={{ padding: '1rem' }}><strong style={{ fontSize: '1.1rem' }}>{money(t.total)}</strong></td>
-                <td style={{ padding: '1rem' }}>
-                  <select value={t.status || "Procesando"} onChange={(e) => updateOrderStatus(t.id, e.target.value)} style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc', fontWeight: 'bold', cursor: 'pointer', background: t.status === "Entregado" ? "#e8f5e9" : t.status === "Enviado" ? "#e3f2fd" : "#fff3e0", color: t.status === "Entregado" ? "#2e7d32" : t.status === "Enviado" ? "#0277bd" : "#e65100" }}>
-                    <option value="Procesando">Procesando</option><option value="Enviado">Enviado</option><option value="Entregado">Entregado</option>
-                  </select>
-                </td>
-              </tr>
-            ))}
+            {[...transactions].reverse().map((t: OrderTransaction) => {
+              const status = t.status || "Procesando"
+              const badgeBg =
+                status === "Entregado" ? "#e8f5e9" : status === "Enviado" ? "#e3f2fd" : status === "Cancelado" ? "#ffebee" : "#fff3e0"
+              const badgeColor =
+                status === "Entregado" ? "#2e7d32" : status === "Enviado" ? "#0277bd" : status === "Cancelado" ? "#c62828" : "#e65100"
+
+              return (
+                <tr key={t.id} style={{ borderBottom: '1px solid #eee', opacity: status === "Cancelado" ? 0.65 : 1 }}>
+                  <td style={{ padding: '1rem' }}>
+                    <strong style={{ display: 'block' }}>{t.id}</strong>
+                    <span style={{ color: '#888', fontSize: '0.75rem' }}>{new Date(t.date).toLocaleDateString('es-PE')}</span>
+                  </td>
+                  <td style={{ padding: '1rem' }}>
+                    <strong style={{ display: 'block' }}>{t.customer || "Anónimo"}</strong>
+                    <span style={{ color: '#888', fontSize: '0.75rem' }}>{t.documentType || "DNI"}: {t.document || "N/A"}</span>
+                  </td>
+                  <td style={{ padding: '1rem' }}>
+                    <span style={{ display: 'block', fontWeight: 'bold', fontSize: '0.75rem', color: '#0277bd' }}>{t.email || "Sin correo"}</span>
+                    {t.phone && <span style={{ display: 'block', fontSize: '0.72rem', color: '#333', marginTop: '2px' }}>Tel: {t.phone}</span>}
+                    <span style={{ fontSize: '0.7rem', color: '#666', display: 'block', marginTop: '4px' }}>
+                      {t.address || "Dirección no registrada"} - {t.districtName || ""}
+                    </span>
+                    <span style={{ display: 'inline-block', fontSize: '0.65rem', background: '#f5f5f5', padding: '2px 6px', borderRadius: '3px', color: '#555', marginTop: '4px', fontWeight: 'bold' }}>
+                      {t.shippingMethod === "express" ? "ENVÍO EXPRESS" : "ENVÍO ESTÁNDAR"} ({t.shipping ? money(t.shipping) : "Gratis"})
+                    </span>
+                  </td>
+                  <td style={{ padding: '1rem', maxWidth: '250px' }}><span style={{ fontSize: '0.8rem', lineHeight: '1.4', display: 'block' }}>{t.detail}</span></td>
+                  <td style={{ padding: '1rem' }}><strong style={{ fontSize: '1.1rem' }}>{money(t.total)}</strong></td>
+                  <td style={{ padding: '1rem' }}>
+                    <select
+                      value={status}
+                      onChange={(e) => updateOrderStatus(t.id, e.target.value as OrderStatus)}
+                      style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc', fontWeight: 'bold', cursor: 'pointer', background: badgeBg, color: badgeColor }}
+                    >
+                      <option value="Procesando">Procesando</option>
+                      <option value="Enviado">Enviado</option>
+                      <option value="Entregado">Entregado</option>
+                      <option value="Cancelado">Cancelado (Devuelve Stock)</option>
+                    </select>
+                  </td>
+                </tr>
+              )
+            })}
           </tbody>
         </table>
       </div>
@@ -165,24 +374,82 @@ function ManageOrders() {
   )
 }
 
-function ManageCustomers() {
-  const [users, setUsers] = useState<any[]>(() => {
-    try { return JSON.parse(localStorage.getItem("gone_users") || "[]") } catch(e) { return [] }
-  })
+interface DirectoryCustomerRow {
+  firstName: string
+  lastName: string
+  email: string
+  document: string
+  phone: string
+  address: string
+  district: string
+  isRegistered: boolean
+  ordersCount: number
+  totalSpent: number
+}
 
-  const deleteUser = (email: string) => {
-    if(window.confirm(`¿Estás seguro de que deseas eliminar permanentemente al cliente con correo ${email}?`)) {
-      const newUsers = users.filter((u: any) => u.email !== email)
-      setUsers(newUsers)
-      localStorage.setItem("gone_users", JSON.stringify(newUsers))
+function ManageCustomers() {
+  const { users, transactions, deleteUser } = useStore()
+
+  const directory = useMemo<DirectoryCustomerRow[]>(() => {
+    const map = new Map<string, DirectoryCustomerRow>()
+
+    users.forEach((u) => {
+      const key = (u.email || "").toLowerCase()
+      if (!key) return
+      map.set(key, {
+        firstName: u.firstName || "",
+        lastName: u.lastName || "",
+        email: u.email,
+        document: u.document || "N/A",
+        phone: u.phone || "N/A",
+        address: u.address || "N/A",
+        district: u.district || "N/A",
+        isRegistered: true,
+        ordersCount: 0,
+        totalSpent: 0,
+      })
+    })
+
+    transactions.forEach((t) => {
+      const key = (t.email || "").toLowerCase()
+      if (!key) return
+      const existing = map.get(key)
+      const isCancelled = t.status === "Cancelado"
+
+      if (existing) {
+        existing.ordersCount += 1
+        if (!isCancelled) existing.totalSpent += t.total || 0
+      } else {
+        const parts = (t.customer || "Cliente Invitado").trim().split(" ")
+        map.set(key, {
+          firstName: parts[0] || "Cliente",
+          lastName: parts.slice(1).join(" "),
+          email: t.email,
+          document: t.document || "N/A",
+          phone: t.phone || "N/A",
+          address: t.address || "N/A",
+          district: t.districtName || "N/A",
+          isRegistered: false,
+          ordersCount: 1,
+          totalSpent: isCancelled ? 0 : t.total || 0,
+        })
+      }
+    })
+
+    return Array.from(map.values())
+  }, [users, transactions])
+
+  const handleDeleteCustomer = (email: string) => {
+    if (window.confirm(`¿Estás seguro de que deseas eliminar permanentemente al cliente con correo ${email}?`)) {
+      deleteUser(email)
     }
   }
 
-  if (users.length === 0) {
+  if (directory.length === 0) {
     return (
       <div style={{ padding: '3rem', textAlign: 'center', background: '#fff', borderRadius: '8px', border: '1px solid #eee' }}>
         <h3>Aún no hay clientes registrados en el sistema.</h3>
-        <p style={{color: '#666'}}>Cuando un cliente cree su cuenta, aparecerá en este directorio.</p>
+        <p style={{color: '#666'}}>Cuando un cliente cree su cuenta o realice un pedido, aparecerá en este directorio.</p>
       </div>
     )
   }
@@ -198,13 +465,19 @@ function ManageCustomers() {
               <th style={{ padding: '1rem' }}>DOCUMENTO</th>
               <th style={{ padding: '1rem' }}>CONTACTO</th>
               <th style={{ padding: '1rem' }}>DIRECCIÓN DE ENVÍO</th>
+              <th style={{ padding: '1rem' }}>COMPRAS</th>
               <th style={{ padding: '1rem' }}></th>
             </tr>
           </thead>
           <tbody>
-            {users.map((u, i) => (
-              <tr key={i} style={{ borderBottom: '1px solid #eee' }}>
-                <td style={{ padding: '1rem' }}><strong style={{ display: 'block' }}>{u.firstName} {u.lastName}</strong></td>
+            {directory.map((u, i) => (
+              <tr key={u.email || i} style={{ borderBottom: '1px solid #eee' }}>
+                <td style={{ padding: '1rem' }}>
+                  <strong style={{ display: 'block' }}>{u.firstName} {u.lastName}</strong>
+                  <span style={{ fontSize: '0.68rem', color: u.isRegistered ? '#2e7d32' : '#888', fontWeight: 'bold' }}>
+                    {u.isRegistered ? "CUENTA REGISTRADA" : "INVITADO CHECKOUT"}
+                  </span>
+                </td>
                 <td style={{ padding: '1rem' }}>DNI: {u.document || 'N/A'}</td>
                 <td style={{ padding: '1rem' }}>
                   <span style={{ display: 'block', fontWeight: 'bold', color: '#0277bd' }}>{u.email}</span>
@@ -214,8 +487,14 @@ function ManageCustomers() {
                   <span style={{ display: 'block' }}>{u.address || 'N/A'}</span>
                   <span style={{ color: '#888', fontSize: '0.75rem' }}>{u.district || 'N/A'}</span>
                 </td>
+                <td style={{ padding: '1rem' }}>
+                  <strong style={{ display: 'block' }}>{money(u.totalSpent)}</strong>
+                  <span style={{ color: '#888', fontSize: '0.75rem' }}>{u.ordersCount} {u.ordersCount === 1 ? 'pedido' : 'pedidos'}</span>
+                </td>
                 <td style={{ padding: '1rem', textAlign: 'right' }}>
-                  <button onClick={() => deleteUser(u.email)} style={{ background: 'transparent', color: '#ff4d4d', border: '1px solid #ff4d4d', padding: '0.3rem 0.8rem', borderRadius: '20px', cursor: 'pointer', fontSize: '0.7rem', fontWeight: 'bold' }}>ELIMINAR</button>
+                  {u.isRegistered && (
+                    <button onClick={() => handleDeleteCustomer(u.email)} style={{ background: 'transparent', color: '#ff4d4d', border: '1px solid #ff4d4d', padding: '0.3rem 0.8rem', borderRadius: '20px', cursor: 'pointer', fontSize: '0.7rem', fontWeight: 'bold' }}>ELIMINAR</button>
+                  )}
                 </td>
               </tr>
             ))}
@@ -226,18 +505,14 @@ function ManageCustomers() {
   )
 }
 
-function AdminDashboard() {
+function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   const navigate = useNavigate()
+  const { resetDemoData } = useStore()
   const [currentView, setCurrentView] = useState<"dashboard" | "orders" | "upload" | "collections" | "customers">("dashboard")
 
-  // FUNCIÓN MAESTRA PARA LIMPIAR EL DEMO
-  const resetDemoData = () => {
+  const handleResetDemo = () => {
     if (window.confirm("🚨 ¿Seguro que deseas BORRAR TODOS los pedidos, clientes y carritos de prueba para iniciar un demo limpio? (Tus productos no se borrarán)")) {
-      localStorage.removeItem("gone_transactions");
-      localStorage.removeItem("gone_users");
-      localStorage.removeItem("gone_cart");
-      sessionStorage.clear();
-      window.location.reload();
+      resetDemoData()
     }
   }
 
@@ -245,10 +520,10 @@ function AdminDashboard() {
     <main style={{ backgroundColor: '#f5f5f5', minHeight: '100vh', padding: '3rem 5%' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '1rem' }}>
         <div><p style={{ margin: 0, fontSize: '0.75rem', fontWeight: 'bold', color: '#666' }}>GONE SURFING / ADMIN</p></div>
-        <div style={{ display: 'flex', gap: '1rem' }}>
-          {/* BOTÓN ROJO PARA VACIAR LOS DATOS DE PRUEBA RÁPIDAMENTE */}
-          <button onClick={resetDemoData} style={{ background: '#ff4d4d', color: '#fff', border: 'none', padding: '0.6rem 1.2rem', fontWeight: 'bold', borderRadius: '4px', cursor: 'pointer' }}>VACIAR DATOS DE PRUEBA</button>
+        <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+          <button onClick={handleResetDemo} style={{ background: '#ff4d4d', color: '#fff', border: 'none', padding: '0.6rem 1.2rem', fontWeight: 'bold', borderRadius: '4px', cursor: 'pointer' }}>VACIAR DATOS DE PRUEBA</button>
           <button onClick={() => navigate('/shop')} style={{ background: '#000', color: '#fff', border: 'none', padding: '0.6rem 1.2rem', fontWeight: 'bold', borderRadius: '4px', cursor: 'pointer' }}>VER TIENDA PÚBLICA</button>
+          <button onClick={onLogout} style={{ background: 'transparent', color: '#000', border: '1px solid #000', padding: '0.6rem 1.2rem', fontWeight: 'bold', borderRadius: '4px', cursor: 'pointer' }}>CERRAR SESIÓN</button>
         </div>
       </div>
       
@@ -275,13 +550,27 @@ export default function Admin() {
   const [auth, setAuth] = useState(() => sessionStorage.getItem("gone_admin") === "true")
   const [error, setError] = useState(false)
 
+  const expectedUser = import.meta.env.VITE_ADMIN_USER || "admin"
+  const expectedPassword = import.meta.env.VITE_ADMIN_PASSWORD || "admin666"
+
   const login = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     const data = new FormData(e.currentTarget)
-    if (data.get("user") === "admin" && data.get("password") === "admin666") { sessionStorage.setItem("gone_admin", "true"); setAuth(true) } else setError(true)
+    if (data.get("user") === expectedUser && data.get("password") === expectedPassword) {
+      sessionStorage.setItem("gone_admin", "true")
+      setAuth(true)
+      setError(false)
+    } else {
+      setError(true)
+    }
   }
 
-  if (auth) return <AdminDashboard />
+  const logout = () => {
+    sessionStorage.removeItem("gone_admin")
+    setAuth(false)
+  }
+
+  if (auth) return <AdminDashboard onLogout={logout} />
 
   return (
     <main style={{ backgroundColor: '#e5e5e5', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
