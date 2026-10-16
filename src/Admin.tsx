@@ -238,21 +238,46 @@ function UploadPrenda() {
 function MetricsDashboard() {
   const { transactions, products, users } = useStore()
 
-  const activeTransactions = useMemo(
-    () => transactions.filter((t) => t.status !== "Cancelado"),
-    [transactions]
+  const [dateFilter, setDateFilter] = useState<"all" | "today" | "yesterday" | "last7" | "last30" | "custom">("all")
+  const [customStart, setCustomStart] = useState("")
+  const [customEnd, setCustomEnd] = useState("")
+
+  const filteredTransactions = useMemo(() => {
+    const now = new Date()
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
+    const yesterdayStart = todayStart - 86400000
+
+    return transactions.filter((t) => {
+      const tTime = new Date(t.date).getTime()
+      if (dateFilter === "all") return true
+      if (dateFilter === "today") return tTime >= todayStart
+      if (dateFilter === "yesterday") return tTime >= yesterdayStart && tTime < todayStart
+      if (dateFilter === "last7") return tTime >= todayStart - (7 * 86400000)
+      if (dateFilter === "last30") return tTime >= todayStart - (30 * 86400000)
+      if (dateFilter === "custom") {
+        const startValid = customStart ? new Date(customStart).getTime() : 0
+        const endValid = customEnd ? new Date(customEnd).getTime() + 86400000 : Number.MAX_SAFE_INTEGER
+        return tTime >= startValid && tTime <= endValid
+      }
+      return true
+    })
+  }, [transactions, dateFilter, customStart, customEnd])
+
+  const activeFilteredTransactions = useMemo(
+    () => filteredTransactions.filter((t) => t.status !== "Cancelado"),
+    [filteredTransactions]
   )
   const totalRevenue = useMemo(
-    () => activeTransactions.reduce((s, i) => s + (i.total || 0), 0),
-    [activeTransactions]
+    () => activeFilteredTransactions.reduce((s, i) => s + (i.total || 0), 0),
+    [activeFilteredTransactions]
   )
   const pendingOrders = useMemo(
-    () => transactions.filter((t) => !t.status || t.status === "Procesando").length,
-    [transactions]
+    () => filteredTransactions.filter((t) => !t.status || t.status === "Procesando").length,
+    [filteredTransactions]
   )
   const completedOrders = useMemo(
-    () => transactions.filter((t) => t.status === "Enviado" || t.status === "Entregado").length,
-    [transactions]
+    () => filteredTransactions.filter((t) => t.status === "Enviado" || t.status === "Entregado").length,
+    [filteredTransactions]
   )
 
   const inventoryStats = useMemo(() => {
@@ -272,17 +297,50 @@ function MetricsDashboard() {
   const uniqueCustomerEmails = useMemo(() => {
     const set = new Set<string>()
     users.forEach((u) => { if (u.email) set.add(u.email.toLowerCase()) })
-    transactions.forEach((t) => { if (t.email) set.add(t.email.toLowerCase()) })
+    filteredTransactions.forEach((t) => { if (t.email) set.add(t.email.toLowerCase()) })
     return set.size
-  }, [users, transactions])
+  }, [users, filteredTransactions])
 
   return (
     <div style={{ animation: 'fadeIn 0.3s ease' }}>
+      
+      {/* BARRA DE FILTROS DE FECHA */}
+      <div style={{ background: '#fff', padding: '1.2rem 1.5rem', borderRadius: '8px', border: '1px solid #eee', marginBottom: '2rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', flexWrap: 'wrap' }}>
+          <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#666', textTransform: 'uppercase' }}>Filtrar Periodo:</span>
+          <select
+            value={dateFilter}
+            onChange={(e) => setDateFilter(e.target.value as any)}
+            style={{ padding: '0.5rem 1rem', borderRadius: '4px', border: '1px solid #ccc', fontWeight: 'bold', fontSize: '0.85rem', background: '#fff', cursor: 'pointer' }}
+          >
+            <option value="all">Histórico Completo</option>
+            <option value="today">Hoy</option>
+            <option value="yesterday">Ayer</option>
+            <option value="last7">Últimos 7 días</option>
+            <option value="last30">Último mes (30 días)</option>
+            <option value="custom">Rango Personalizado...</option>
+          </select>
+        </div>
+
+        {dateFilter === "custom" && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', flexWrap: 'wrap', animation: 'fadeIn 0.3s ease' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <label style={{ fontSize: '0.7rem', color: '#666', fontWeight: 'bold' }}>DESDE:</label>
+              <input type="date" value={customStart} onChange={(e) => setCustomStart(e.target.value)} style={{ padding: '0.4rem', border: '1px solid #ccc', borderRadius: '4px', fontSize: '0.8rem' }} />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <label style={{ fontSize: '0.7rem', color: '#666', fontWeight: 'bold' }}>HASTA:</label>
+              <input type="date" value={customEnd} onChange={(e) => setCustomEnd(e.target.value)} style={{ padding: '0.4rem', border: '1px solid #ccc', borderRadius: '4px', fontSize: '0.8rem' }} />
+            </div>
+          </div>
+        )}
+      </div>
+
       <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem', marginBottom: '3rem' }}>
         <article style={{ background: '#fff', padding: '1.5rem', border: '1px solid #eee', borderRadius: '8px' }}>
           <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#666', textTransform: 'uppercase' }}>Recaudación Total</span>
           <strong style={{ display: 'block', fontSize: '2.5rem', margin: '0.5rem 0' }}>{money(totalRevenue)}</strong>
-          <small style={{ color: '#888', fontSize: '0.75rem' }}>{activeTransactions.length} VENTAS ACTIVAS EN EL SISTEMA</small>
+          <small style={{ color: '#888', fontSize: '0.75rem' }}>{activeFilteredTransactions.length} VENTAS EN EL PERIODO</small>
         </article>
 
         <article style={{ background: '#fff', padding: '1.5rem', border: '1px solid #eee', borderRadius: '8px' }}>
@@ -302,7 +360,7 @@ function MetricsDashboard() {
         <article style={{ background: '#fff', padding: '1.5rem', border: '1px solid #eee', borderRadius: '8px' }}>
           <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#666', textTransform: 'uppercase' }}>Clientes Activos</span>
           <strong style={{ display: 'block', fontSize: '2.5rem', margin: '0.5rem 0' }}>{uniqueCustomerEmails}</strong>
-          <small style={{ color: '#888', fontSize: '0.75rem' }}>{users.length} CUENTAS REGISTRADAS</small>
+          <small style={{ color: '#888', fontSize: '0.75rem' }}>EN EL PERIODO SELECCIONADO</small>
         </article>
       </section>
     </div>

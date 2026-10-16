@@ -46,9 +46,16 @@ interface ConfirmedOrderState extends OrderDetailsInput {
 }
 
 export default function Checkout() {
-  const { products, cart, users, completeOrder, changeQuantity } = useStore()
+  const store = useStore()
+  const products = store?.products ?? []
+  const cart = store?.cart ?? []
+  const users = store?.users ?? []
+  const completeOrder = store?.completeOrder
+  const changeQuantity = store?.changeQuantity
+
   const navigate = useNavigate()
 
+  const [hasError, setHasError] = useState(false)
   const isAuth = sessionStorage.getItem("gone_customer") === "true" && Boolean(getCurrentSessionUser())
 
   const [shippingMethod, setShippingMethod] = useState<'standard' | 'express'>('standard')
@@ -65,38 +72,61 @@ export default function Checkout() {
 
   useEffect(() => {
     if (isAuth) {
-      const storedUser = getCurrentSessionUser()
-      if (storedUser) {
-        setFirstName(storedUser.firstName || "")
-        setLastName(storedUser.lastName || "")
-        setEmail(storedUser.email || "")
-        setPhone(storedUser.phone || "")
-        setAddress(storedUser.address || "")
-        setDocumentNumber(storedUser.document || "")
-        if (storedUser.documentType === "DNI" || storedUser.documentType === "CE") {
-          setDocumentType(storedUser.documentType)
+      try {
+        const storedUser = getCurrentSessionUser()
+        if (storedUser) {
+          setFirstName(storedUser.firstName || "")
+          setLastName(storedUser.lastName || "")
+          setEmail(storedUser.email || "")
+          setPhone(storedUser.phone || "")
+          setAddress(storedUser.address || "")
+          setDocumentNumber(storedUser.document || "")
+          if (storedUser.documentType === "DNI" || storedUser.documentType === "CE") {
+            setDocumentType(storedUser.documentType)
+          }
+          if (storedUser.district && LIMA_DISTRICTS.some((d) => d.name === storedUser.district)) {
+            setSelectedDistrictName(storedUser.district)
+          }
         }
-        if (storedUser.district && LIMA_DISTRICTS.some((d) => d.name === storedUser.district)) {
-          setSelectedDistrictName(storedUser.district)
-        }
+      } catch (err) {
+        console.error("Error al recuperar usuario en sesión:", err)
       }
     }
   }, [isAuth])
 
   const emailHasExistingAccount = useMemo(() => {
-    const clean = email.trim().toLowerCase()
-    if (!clean) return false
-    return users.some((u) => (u.email || "").toLowerCase() === clean)
+    try {
+      const clean = email.trim().toLowerCase()
+      if (!clean) return false
+      return users.some((u) => (u?.email || "").toLowerCase() === clean)
+    } catch {
+      return false
+    }
   }, [email, users])
 
-  const itemsTotalCents = cart.reduce(
-    (sum, item) => sum + Math.round((products.find((p) => p.id === item.productId)?.price || 0) * 100) * (item.quantity || 1),
-    0
-  )
+  const itemsTotalCents = useMemo(() => {
+    if (!Array.isArray(cart)) return 0
+    return cart.reduce((sum, item) => {
+      const prod = products.find((p) => p.id === item?.productId)
+      const price = prod?.price || 0
+      const qty = item?.quantity || 1
+      return sum + Math.round(price * 100) * qty
+    }, 0)
+  }, [cart, products])
+
   const shippingCents = shippingMethod === 'express' ? 3000 : itemsTotalCents >= 30000 ? 0 : 1500
   const subtotalCents = Math.round(itemsTotalCents / 1.18)
   const taxCents = itemsTotalCents - subtotalCents
   const totalCents = itemsTotalCents + shippingCents
+
+  if (hasError) {
+    return (
+      <div style={{ padding: '4rem', textAlign: 'center' }}>
+        <h2>Ups, ocurrió un inconveniente al cargar el checkout.</h2>
+        <button onClick={() => { setHasError(false); navigate('/shop'); }} className="black-button" style={{ marginTop: '1.5rem', width: 'auto', padding: '1rem 2rem' }}>Volver a la tienda</button>
+      </div>
+    )
+  }
 
   if (!cart.length && !orderConfirmed) {
     return (
@@ -111,38 +141,47 @@ export default function Checkout() {
 
   const submit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    const data = new FormData(e.currentTarget)
-    const districtObj = LIMA_DISTRICTS.find((d) => d.name === selectedDistrictName) || LIMA_DISTRICTS[0]
-
-    const details: OrderDetailsInput = {
-      customer: `${String(data.get("firstName") || "").trim()} ${String(data.get("lastName") || "").trim()}`.trim(),
-      documentType,
-      document: String(data.get("documentNumber") || "").trim(),
-      email: String(data.get("email") || "").trim(),
-      phone: String(data.get("phone") || "").trim(),
-      districtCode: districtObj.code,
-      districtName: districtObj.name,
-      districtX: districtObj.x,
-      districtY: districtObj.y,
-      address: String(data.get("address") || "").trim(),
-      shippingMethod,
-      shipping: shippingCents / 100,
-      total: totalCents / 100,
-      subtotal: subtotalCents / 100,
-      items: cart.map((i) => ({ ...i })),
-    }
-
     try {
-      const order = completeOrder(details)
-      setOrderConfirmed({
-        ...details,
-        id: order.id,
-        number: order.id,
+      if (!completeOrder) {
+        alert("El sistema de tienda no está inicializado.")
+        return
+      }
+      const data = new FormData(e.currentTarget)
+      const districtObj = LIMA_DISTRICTS.find((d) => d.name === selectedDistrictName) || LIMA_DISTRICTS[0]
+
+      const details: OrderDetailsInput = {
+        customer: `${String(data.get("firstName") || "").trim()} ${String(data.get("lastName") || "").trim()}`.trim(),
+        documentType,
+        document: String(data.get("documentNumber") || "").trim(),
+        email: String(data.get("email") || "").trim(),
+        phone: String(data.get("phone") || "").trim(),
+        districtCode: districtObj.code,
+        districtName: districtObj.name,
+        districtX: districtObj.x,
+        districtY: districtObj.y,
+        address: String(data.get("address") || "").trim(),
+        shippingMethod,
+        shipping: shippingCents / 100,
         total: totalCents / 100,
         subtotal: subtotalCents / 100,
-      })
-    } catch {
-      alert("Error al procesar el pedido. Verifica el stock disponible.")
+        items: cart.map((i) => ({ ...i })),
+      }
+
+      const order = completeOrder(details)
+      if (order && order.id) {
+        setOrderConfirmed({
+          ...details,
+          id: order.id,
+          number: order.id,
+          total: totalCents / 100,
+          subtotal: subtotalCents / 100,
+        })
+      } else {
+        throw new Error("No se pudo generar el ID de orden.")
+      }
+    } catch (err) {
+      console.error("Error crítico procesando orden:", err)
+      alert("Error al procesar el pedido. Verifica el stock disponible en la tienda.")
     }
   }
 
@@ -201,7 +240,14 @@ export default function Checkout() {
               <div style={{ position: 'absolute', bottom: '1rem', left: '1rem', background: '#1a1a1a', border: '1px solid #333', padding: '0.4rem 0.8rem', borderRadius: '20px', display: 'flex', alignItems: 'center', gap: '0.5rem', zIndex: 2 }}><span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#4CAF50' }}></span><span style={{ fontSize: '0.65rem', color: '#ddd' }}>Tus olas están en camino a {dest.name}</span></div>
             </div>
             <div style={{ marginTop: '1.5rem' }}><p style={{ fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '1px', color: '#888', margin: '0 0 0.5rem 0' }}>ESTADO DE ÉXITO SIMULADO</p><p style={{ fontSize: '0.75rem', color: '#aaa', margin: 0 }}>No se ha realizado ningún cobro ni se ha enviado una boleta o correo real.</p></div>
-            <button onClick={() => navigate('/')} style={{ width: '100%', padding: '1.2rem', background: '#c2c9b4', color: '#000', border: 'none', borderRadius: '4px', fontWeight: 'bold', fontSize: '0.9rem', marginTop: '2rem', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', transition: 'background 0.2s ease' }} onMouseOver={e => e.currentTarget.style.background = '#d6e0cd'} onMouseOut={e => e.currentTarget.style.background = '#c2c9b4'}>SEGUIR EXPLORANDO <span style={{ fontSize: '1.2rem' }}>↗</span></button>
+            <button 
+              onClick={() => { window.location.href = '/' }} 
+              style={{ width: '100%', padding: '1.2rem', background: '#c2c9b4', color: '#000', border: 'none', borderRadius: '4px', fontWeight: 'bold', fontSize: '0.9rem', marginTop: '2rem', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', transition: 'background 0.2s ease' }} 
+              onMouseOver={e => e.currentTarget.style.background = '#d6e0cd'} 
+              onMouseOut={e => e.currentTarget.style.background = '#c2c9b4'}
+            >
+              SEGUIR EXPLORANDO <span style={{ fontSize: '1.2rem' }}>↗</span>
+            </button>
           </div>
           <div style={{ marginTop: '3rem' }}><span style={{ fontFamily: 'serif', fontStyle: 'italic', fontSize: '2rem', fontWeight: 'bold' }}>stay real</span><p style={{ fontSize: '0.5rem', letterSpacing: '3px', color: '#888', marginTop: '0.5rem' }}>PARA LOS DÍAS SIN PLANES.</p></div>
         </div>
@@ -291,9 +337,9 @@ export default function Checkout() {
                     <span style={{ fontSize: '0.75rem', color: '#666', display: 'block', marginBottom: '0.3rem' }}>Talla: <b style={{ color: '#000' }}>{item.size}</b></span>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                       <div style={{ display: 'inline-flex', alignItems: 'center', border: '1px solid #ddd', borderRadius: '4px', background: '#fff' }}>
-                        <button type="button" onClick={() => changeQuantity(item.productId, item.size, -1)} style={{ background: '#f5f5f5', border: 'none', width: '24px', height: '24px', cursor: 'pointer', fontWeight: 'bold' }}>-</button>
+                        <button type="button" onClick={() => changeQuantity && changeQuantity(item.productId, item.size, -1)} style={{ background: '#f5f5f5', border: 'none', width: '24px', height: '24px', cursor: 'pointer', fontWeight: 'bold' }}>-</button>
                         <span style={{ fontSize: '0.75rem', padding: '0 8px', minWidth: '16px', textAlign: 'center' }}>{item.quantity}</span>
-                        <button type="button" onClick={() => changeQuantity(item.productId, item.size, 1)} disabled={item.quantity >= maxStock} style={{ background: '#f5f5f5', border: 'none', width: '24px', height: '24px', cursor: item.quantity >= maxStock ? 'not-allowed' : 'pointer', fontWeight: 'bold', opacity: item.quantity >= maxStock ? 0.4 : 1 }}>+</button>
+                        <button type="button" onClick={() => changeQuantity && changeQuantity(item.productId, item.size, 1)} disabled={item.quantity >= maxStock} style={{ background: '#f5f5f5', border: 'none', width: '24px', height: '24px', cursor: item.quantity >= maxStock ? 'not-allowed' : 'pointer', fontWeight: 'bold', opacity: item.quantity >= maxStock ? 0.4 : 1 }}>+</button>
                       </div>
                     </div>
                   </div>

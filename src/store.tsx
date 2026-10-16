@@ -68,17 +68,6 @@ export interface OrderTransaction extends OrderDetailsInput {
   status: OrderStatus
 }
 
-export const DEFAULT_DEMO_USER: CustomerUser = {
-  firstName: "Jaime",
-  lastName: "Monroy",
-  email: "jaime@gonesurfing.com",
-  documentType: "DNI",
-  document: "72345678",
-  phone: "+51 999 999 999",
-  address: "Av. Principal 123, Dpto 4",
-  district: "Punta Negra",
-}
-
 interface Store {
   products: Product[]
   collections: CollectionData[]
@@ -146,7 +135,7 @@ export function safeWriteStorage(key: string, value: unknown): boolean {
 export function getCurrentSessionUser(): CustomerUser | null {
   try {
     const parsed = JSON.parse(sessionStorage.getItem("gone_current_user") || "null")
-    return parsed && typeof parsed === "object" ? (parsed as CustomerUser) : null
+    return parsed && typeof parsed === "object" && typeof parsed.email === "string" ? (parsed as CustomerUser) : null
   } catch {
     return null
   }
@@ -187,7 +176,25 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   useEffect(() => { safeWriteStorage("gone_cart", cart) }, [cart])
   useEffect(() => { safeWriteStorage("gone_users", users) }, [users])
 
-  // Sincroniza el carrito si un producto fue eliminado o su stock se redujo en Admin
+  // Sincronización en tiempo real si el usuario prueba Tienda y Admin en dos pestañas distintas
+  useEffect(() => {
+    const handleStorageSync = (e: StorageEvent) => {
+      if (e.key === "gone_collections") {
+        setCollections(safeReadStorage("gone_collections", initialCollections))
+      } else if (e.key === "gone_products") {
+        setProducts(safeReadStorage("gone_products", initialProducts))
+      } else if (e.key === "gone_transactions") {
+        setTransactions(safeReadStorage("gone_transactions", []))
+      } else if (e.key === "gone_cart") {
+        setCart(safeReadStorage("gone_cart", []))
+      } else if (e.key === "gone_users") {
+        setUsers(safeReadStorage("gone_users", []))
+      }
+    }
+    window.addEventListener("storage", handleStorageSync)
+    return () => window.removeEventListener("storage", handleStorageSync)
+  }, [])
+
   useEffect(() => {
     setCart((prevCart) => {
       let changed = false
@@ -354,7 +361,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const wasCancelled = target.status === "Cancelado"
       const isNowCancelled = nextStatus === "Cancelado"
 
-      // Si pasa a Cancelado devuelve el stock; si sale de Cancelado lo vuelve a descontar
       if (!wasCancelled && isNowCancelled && Array.isArray(target.items)) {
         setProducts((prevProducts) =>
           prevProducts.map((product) => {
@@ -389,18 +395,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const cleanEmail = newUser.email.trim().toLowerCase()
     if (!cleanEmail) return { ok: false, error: "El correo electrónico es obligatorio." }
 
-    const exists =
-      cleanEmail === DEFAULT_DEMO_USER.email.toLowerCase() ||
-      users.some((u) => (u.email || "").toLowerCase() === cleanEmail)
-
+    const exists = users.some((u) => (u.email || "").toLowerCase() === cleanEmail)
     if (exists) {
       return { ok: false, error: "Este correo ya está registrado. Intenta iniciar sesión." }
     }
 
-    const updatedUsers = [...users, { ...newUser, email: newUser.email.trim() }]
-    setUsers(updatedUsers)
+    const normalizedUser: CustomerUser = { ...newUser, email: newUser.email.trim() }
+    setUsers((prev) => [...prev, normalizedUser])
     sessionStorage.setItem("gone_customer", "true")
-    sessionStorage.setItem("gone_current_user", JSON.stringify(newUser))
+    sessionStorage.setItem("gone_current_user", JSON.stringify(normalizedUser))
     return { ok: true }
   }, [users])
 
@@ -411,11 +414,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       sessionStorage.setItem("gone_customer", "true")
       sessionStorage.setItem("gone_current_user", JSON.stringify(foundUser))
       return foundUser
-    }
-    if (cleanEmail === DEFAULT_DEMO_USER.email.toLowerCase() && password === "demo123") {
-      sessionStorage.setItem("gone_customer", "true")
-      sessionStorage.setItem("gone_current_user", JSON.stringify(DEFAULT_DEMO_USER))
-      return DEFAULT_DEMO_USER
     }
     return null
   }, [users])

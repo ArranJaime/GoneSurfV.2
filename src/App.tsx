@@ -35,7 +35,8 @@ function Header() {
   const [isSearching, setIsSearching] = useState(false)
   const [query, setQuery] = useState("")
 
-  if (location.pathname === '/admin' || location.pathname === '/checkout') return null
+  // Los hooks ya se declararon arriba de forma consistente; ahora evaluamos la condición de visibilidad de manera segura
+  const isHiddenRoute = location.pathname === '/admin' || location.pathname === '/checkout'
 
   const handleSearch = (e?: React.FormEvent | React.MouseEvent) => {
     if (e && e.preventDefault) e.preventDefault()
@@ -54,6 +55,8 @@ function Header() {
       .filter((p) => p.name.toLowerCase().includes(cleanQuery) || p.category.toLowerCase().includes(cleanQuery))
       .slice(0, 3)
   }, [products, query])
+
+  if (isHiddenRoute) return null
 
   return (
     <header className="header" style={{ backgroundColor: '#000000', color: '#ffffff', borderBottom: '1px solid #1a1a1a', position: 'relative', zIndex: 1000 }}>
