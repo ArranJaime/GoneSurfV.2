@@ -1,4 +1,4 @@
-import { type FormEvent, useState, useRef, useEffect, useMemo } from "react"
+import { type FormEvent, useState, useRef, useEffect, useMemo, useCallback } from "react"
 import { useNavigate } from "react-router-dom"
 import {
   useStore,
@@ -2002,9 +2002,90 @@ function renderPaymentBadge(method?: string) {
 }
 
 function ManageOrders() {
-  const { transactions, updateOrderStatus } = useStore()
+  const { transactions: storeTransactions, updateOrderStatus } = useStore()
+  const [liveOrders, setLiveOrders] = useState<OrderTransaction[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+  const [fetchError, setFetchError] = useState<string | null>(null)
 
-  if (transactions.length === 0) {
+  const fetchOrdersFromApi = useCallback(async () => {
+    setIsLoading(true)
+    setFetchError(null)
+
+    const apiUrl = (
+      import.meta.env.VITE_API_URL ||
+      import.meta.env.VITE_AWS_API_GATEWAY_URL ||
+      ""
+    ).replace(/\/$/, "")
+
+    try {
+      if (apiUrl) {
+        const session = api.auth.getAdminSession()
+        const headers: Record<string, string> = {
+          "Content-Type": "application/json",
+        }
+        if (session && session.token) {
+          headers["Authorization"] = `Bearer ${session.token}`
+        }
+
+        const res = await fetch(`${apiUrl}/orders`, { headers })
+        if (!res.ok) {
+          const errText = await res.text().catch(() => "")
+          console.error(`[Admin] Error en GET /orders (${res.status}):`, errText)
+          throw new Error(
+            `Error HTTP ${res.status} al consultar pedidos del servidor.`,
+          )
+        }
+        const data: OrderTransaction[] = await res.json()
+        setLiveOrders(data)
+        try {
+          localStorage.setItem("gone_transactions", JSON.stringify(data))
+        } catch {}
+      } else {
+        const data = await api.orders.getAll()
+        setLiveOrders(data)
+      }
+    } catch (err: any) {
+      console.error("[Admin] Error al obtener órdenes con VITE_API_URL:", err)
+      setFetchError(err?.message || "No se pudo sincronizar pedidos en vivo.")
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchOrdersFromApi()
+  }, [fetchOrdersFromApi])
+
+  const handleStatusChange = async (id: string, nextStatus: OrderStatus) => {
+    try {
+      updateOrderStatus(id, nextStatus)
+      setLiveOrders((prev) =>
+        prev.map((o) => (o.id === id ? { ...o, status: nextStatus } : o)),
+      )
+    } catch (err) {
+      console.error("[Admin] Error actualizando estado de pedido:", err)
+    }
+  }
+
+  const displayOrders = liveOrders.length > 0 ? liveOrders : storeTransactions
+
+  if (isLoading && displayOrders.length === 0) {
+    return (
+      <div
+        style={{
+          padding: "3rem",
+          textAlign: "center",
+          background: "#fff",
+          borderRadius: "8px",
+          border: "1px solid #eee",
+        }}
+      >
+        <h3>Cargando pedidos desde DynamoDB...</h3>
+      </div>
+    )
+  }
+
+  if (displayOrders.length === 0) {
     return (
       <div
         style={{
@@ -2016,6 +2097,33 @@ function ManageOrders() {
         }}
       >
         <h3>Aún no hay pedidos registrados.</h3>
+        {fetchError && (
+          <p
+            style={{
+              color: "#d32f2f",
+              fontSize: "0.85rem",
+              marginTop: "0.5rem",
+            }}
+          >
+            {fetchError}
+          </p>
+        )}
+        <button
+          type="button"
+          onClick={fetchOrdersFromApi}
+          style={{
+            marginTop: "1rem",
+            padding: "8px 16px",
+            background: "#0a0a0a",
+            color: "#fff",
+            border: "none",
+            borderRadius: "4px",
+            cursor: "pointer",
+            fontWeight: 700,
+          }}
+        >
+          🔄 Reintentar conexión
+        </button>
       </div>
     )
   }
@@ -2030,10 +2138,48 @@ function ManageOrders() {
         animation: "fadeIn 0.3s ease",
       }}
     >
-      <div style={{ padding: "1.5rem", borderBottom: "2px solid #000" }}>
-        <h2 style={{ margin: 0, fontSize: "1rem", textTransform: "uppercase" }}>
-          Gestión y Despacho de Pedidos
-        </h2>
+      <div
+        style={{
+          padding: "1.25rem 1.5rem",
+          borderBottom: "2px solid #000",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          flexWrap: "wrap",
+          gap: "1rem",
+        }}
+      >
+        <div>
+          <h2
+            style={{ margin: 0, fontSize: "1rem", textTransform: "uppercase" }}
+          >
+            Gestión y Despacho de Pedidos
+          </h2>
+          <span style={{ fontSize: "0.75rem", color: "#666" }}>
+            Total registrados: {displayOrders.length} pedido(s)
+          </span>
+        </div>
+        <button
+          type="button"
+          onClick={fetchOrdersFromApi}
+          disabled={isLoading}
+          style={{
+            background: "#0a0a0a",
+            color: "#fff",
+            border: "none",
+            padding: "8px 16px",
+            borderRadius: "4px",
+            fontSize: "0.8rem",
+            fontWeight: 700,
+            cursor: isLoading ? "not-allowed" : "pointer",
+            display: "flex",
+            alignItems: "center",
+            gap: "6px",
+            opacity: isLoading ? 0.6 : 1,
+          }}
+        >
+          {isLoading ? "Cargando..." : "🔄 Actualizar desde Servidor"}
+        </button>
       </div>
       <div style={{ overflowX: "auto" }}>
         <table
@@ -2056,7 +2202,7 @@ function ManageOrders() {
             </tr>
           </thead>
           <tbody>
-            {[...transactions].map((t: OrderTransaction) => {
+            {[...displayOrders].map((t: OrderTransaction) => {
               const status = t.status || "Procesando"
               const badgeBg =
                 status === "Entregado"
@@ -2176,7 +2322,7 @@ function ManageOrders() {
                     <select
                       value={status}
                       onChange={(e) =>
-                        updateOrderStatus(t.id, e.target.value as OrderStatus)
+                        handleStatusChange(t.id, e.target.value as OrderStatus)
                       }
                       style={{
                         padding: "0.5rem",
@@ -2417,6 +2563,24 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
     useState<"dashboard" | "orders" | "upload" | "collections" | "customers">(
       "dashboard",
     )
+
+  useEffect(() => {
+    api.orders
+      .getAll()
+      .then((liveOrders) => {
+        if (Array.isArray(liveOrders) && liveOrders.length > 0) {
+          try {
+            localStorage.setItem(
+              "gone_transactions",
+              JSON.stringify(liveOrders),
+            )
+          } catch {}
+        }
+      })
+      .catch((err) => {
+        console.warn("[AdminDashboard] Error al precargar órdenes de API:", err)
+      })
+  }, [])
 
   const handleResetDemo = () => {
     if (

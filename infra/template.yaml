@@ -216,6 +216,7 @@ Resources:
                   - dynamodb:Scan
                   - dynamodb:Query
                   - dynamodb:BatchWriteItem
+                  - dynamodb:ConditionCheckItem
                 Resource:
                   - !GetAtt ProductsTable.Arn
                   - !GetAtt CollectionsTable.Arn

@@ -32,21 +32,31 @@ jobs:
       - name: Install Frontend Dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build Production Frontend
-        env:
-          VITE_STORAGE_MODE: aws
-          VITE_AWS_REGION: us-east-1
-          VITE_AWS_API_GATEWAY_URL: ${{ secrets.VITE_AWS_API_GATEWAY_URL }}
-          VITE_AWS_CLOUDFRONT_URL: ${{ secrets.VITE_AWS_CLOUDFRONT_URL }}
-          VITE_AWS_S3_BUCKET: ${{ secrets.VITE_AWS_S3_MEDIA_BUCKET }}
-        run: pnpm run build
-
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
+
+      - name: Fetch API Gateway URL from CloudFormation
+        id: cf_outputs
+        run: |
+          API_URL=$(aws cloudformation describe-stacks --stack-name GoneSurfing-Stack-prod --query "Stacks[0].Outputs[?OutputKey=='ApiGatewayUrl'].OutputValue" --output text 2>/dev/null || echo "")
+          if [ -z "$API_URL" ] || [ "$API_URL" = "None" ]; then
+            API_URL="${{ secrets.VITE_API_URL || secrets.VITE_AWS_API_GATEWAY_URL || 'https://bkvv9miw03.execute-api.us-east-1.amazonaws.com/prod' }}"
+          fi
+          echo "api_url=$API_URL" >> $GITHUB_OUTPUT
+
+      - name: Build Production Frontend
+        env:
+          VITE_STORAGE_MODE: aws
+          VITE_AWS_REGION: us-east-1
+          VITE_API_URL: ${{ steps.cf_outputs.outputs.api_url }}
+          VITE_AWS_API_GATEWAY_URL: ${{ steps.cf_outputs.outputs.api_url }}
+          VITE_AWS_CLOUDFRONT_URL: ${{ secrets.VITE_AWS_CLOUDFRONT_URL }}
+          VITE_AWS_S3_BUCKET: ${{ secrets.VITE_AWS_S3_MEDIA_BUCKET }}
+        run: pnpm run build
 
       - name: Deploy Static Files to S3 Frontend Bucket
         run: |

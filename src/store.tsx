@@ -52,7 +52,10 @@ export interface Store {
   addToCart: (productId: string, size: Size) => void
   changeQuantity: (productId: string, size: Size, delta: number) => void
   changeStock: (productId: string, size: Size, delta: number) => void
-  completeOrder: (details: OrderDetailsInput) => { id: string }
+  completeOrder: (
+    details: OrderDetailsInput,
+    createdTransaction?: OrderTransaction,
+  ) => { id: string }
   addProduct: (product: Omit<Product, "id">) => void
   updateProduct: (id: string, updates: Partial<Omit<Product, "id">>) => void
   updateProductPrice: (productId: string, newPrice: number) => void
@@ -171,6 +174,21 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
   }, [reloadFromStorage])
 
+  // Sincronizar órdenes vivas desde API en el arranque
+  useEffect(() => {
+    api.orders
+      .getAll()
+      .then((liveOrders) => {
+        if (Array.isArray(liveOrders) && liveOrders.length > 0) {
+          setTransactions(liveOrders)
+          safeWriteStorage("gone_transactions", liveOrders)
+        }
+      })
+      .catch((err) => {
+        console.warn("[Store] Error al sincronizar pedidos de API:", err)
+      })
+  }, [])
+
   // Persist local changes and broadcast
   useEffect(() => {
     safeWriteStorage("gone_collections", collections)
@@ -284,7 +302,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   )
 
   const completeOrder = useCallback(
-    (details: OrderDetailsInput): { id: string } => {
+    (
+      details: OrderDetailsInput,
+      createdTransaction?: OrderTransaction,
+    ): { id: string } => {
       // 1. Verify stock against catalog products
       const validCartItems = cart.filter((item) => {
         const prod = products.find((p) => p.id === item.productId)
@@ -306,17 +327,21 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         details.shippingMethod || "standard",
       )
 
-      const id = `ORD-${String(Math.floor(1000 + Math.random() * 9000))}`
-      const detailString = accounting.items
-        .map((i) => `${i.quantity}x ${i.name} (${i.size})`)
-        .join(", ")
+      const id =
+        createdTransaction?.id ||
+        `ORD-${String(Math.floor(1000 + Math.random() * 9000))}`
+      const detailString =
+        createdTransaction?.detail ||
+        accounting.items
+          .map((i) => `${i.quantity}x ${i.name} (${i.size})`)
+          .join(", ")
 
       const initialStatus: OrderStatus =
         details.paymentMethod === "yape_plin"
           ? "Pendiente de Pago"
           : "Procesando"
 
-      const newTransaction: OrderTransaction = {
+      const newTransaction: OrderTransaction = createdTransaction || {
         ...details,
         paymentMethod: details.paymentMethod || "tarjeta",
         items: validCartItems,
@@ -351,7 +376,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       })
 
       setTransactions((prev) => {
-        const updated = [newTransaction, ...prev]
+        const filtered = prev.filter((t) => t.id !== newTransaction.id)
+        const updated = [newTransaction, ...filtered]
         safeWriteStorage("gone_transactions", updated)
         return updated
       })

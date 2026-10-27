@@ -168,7 +168,12 @@ export const INITIAL_PRODUCTS: Product[] = [
 const STORAGE_MODE = (
   import.meta.env.VITE_STORAGE_MODE || "local"
 ).toLowerCase()
-const API_GATEWAY_URL = import.meta.env.VITE_AWS_API_GATEWAY_URL || ""
+export const API_URL = (
+  import.meta.env.VITE_API_URL ||
+  import.meta.env.VITE_AWS_API_GATEWAY_URL ||
+  ""
+).replace(/\/$/, "")
+const API_GATEWAY_URL = API_URL
 const ADMIN_USER_ENV = import.meta.env.VITE_ADMIN_USER || "admin"
 const ADMIN_PASSWORD_ENV = import.meta.env.VITE_ADMIN_PASSWORD || "admin666"
 const ADMIN_SESSION_HOURS = parseInt(
@@ -831,9 +836,20 @@ export const api = {
             broadcastSyncEvent("orders")
             broadcastSyncEvent("products")
             return saved
+          } else {
+            const errBody = await res.json().catch(() => ({}))
+            console.error(
+              `[api.orders.create] Error ${res.status} al guardar orden en DynamoDB:`,
+              errBody,
+            )
+            throw new Error(
+              errBody.message ||
+                `Error del servidor al registrar orden (HTTP ${res.status})`,
+            )
           }
         } catch (err) {
           console.error("Fallo al guardar orden en AWS DynamoDB:", err)
+          throw err
         }
       }
 

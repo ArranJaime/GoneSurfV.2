@@ -5,6 +5,7 @@ import {
   getCurrentSessionUser,
   type OrderDetailsInput,
 } from "./store"
+import { api, type OrderTransaction } from "./services/api"
 import {
   validateDocument,
   validateEmail,
@@ -71,6 +72,7 @@ export default function Checkout() {
 
   const [hasError, setHasError] = useState(false)
   const [validationError, setValidationError] = useState("")
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const isAuth =
     sessionStorage.getItem("gone_customer") === "true" &&
     Boolean(getCurrentSessionUser())
@@ -210,9 +212,10 @@ export default function Checkout() {
     )
   }
 
-  const submit = (e: FormEvent<HTMLFormElement>) => {
+  const submit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setValidationError("")
+    setIsSubmitting(true)
 
     try {
       if (!completeOrder) {
@@ -289,33 +292,80 @@ export default function Checkout() {
         items: cart.map((i) => ({ ...i })),
       }
 
-      const order = completeOrder(details)
-      if (order && order.id) {
-        const confirmedData: ConfirmedOrderState = {
-          ...details,
-          id: order.id,
-          number: order.id,
-          total: accounting.total,
-          subtotal: accounting.subtotal,
-          paymentMethod,
+      // Invocación al endpoint de Backend DynamoDB (/orders)
+      const apiUrl = (
+        import.meta.env.VITE_API_URL ||
+        import.meta.env.VITE_AWS_API_GATEWAY_URL ||
+        ""
+      ).replace(/\/$/, "")
+
+      console.log(
+        `[Checkout] Registrando orden en API (${apiUrl || "modo local"})...`,
+        details,
+      )
+
+      let savedOrder: OrderTransaction
+
+      if (apiUrl) {
+        const response = await fetch(`${apiUrl}/orders`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(details),
+        })
+
+        if (!response.ok) {
+          const errBody = await response.json().catch(() => ({}))
+          console.error(
+            `[Checkout] Error HTTP ${response.status} en POST /orders:`,
+            errBody,
+          )
+          throw new Error(
+            errBody.message ||
+              `Error al registrar el pedido en el servidor (HTTP ${response.status})`,
+          )
         }
 
-        if (paymentMethod === "yape_plin") {
-          setPendingYapeOrder(confirmedData)
-          setShowYapeModal(true)
-          return
-        }
-
-        setOrderConfirmed(confirmedData)
+        savedOrder = await response.json()
+        console.log(
+          "[Checkout] Orden registrada exitosamente en DynamoDB:",
+          savedOrder,
+        )
       } else {
-        throw new Error("No se pudo generar el ID de orden.")
+        // Fallback al servicio API
+        savedOrder = await api.orders.create(details, products)
       }
+
+      // Solo si el backend responde con éxito (200/201), actualizamos el estado
+      completeOrder(details, savedOrder)
+
+      const confirmedData: ConfirmedOrderState = {
+        ...details,
+        id: savedOrder.id,
+        number: savedOrder.id,
+        total: savedOrder.total || accounting.total,
+        subtotal: savedOrder.subtotal || accounting.subtotal,
+        paymentMethod,
+      }
+
+      // Si es Yape / Plin, mostramos el modal QR SOLO tras confirmación en DB
+      if (paymentMethod === "yape_plin") {
+        setPendingYapeOrder(confirmedData)
+        setShowYapeModal(true)
+        return
+      }
+
+      // Si es Tarjeta o Efectivo, mostramos pantalla de confirmación directa
+      setOrderConfirmed(confirmedData)
     } catch (err: any) {
-      console.error("Error crítico procesando orden:", err)
+      console.error("[Checkout] Error crítico procesando orden:", err)
       setValidationError(
         err?.message ||
-          "Error al procesar el pedido. Verifica el stock disponible en la tienda.",
+          "Error al procesar el pedido. Verifica el stock disponible en la tienda o tu conexión a internet.",
       )
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -2133,7 +2183,7 @@ export default function Checkout() {
         <button
           type="submit"
           form="checkout-form"
-          disabled={cart.length === 0}
+          disabled={cart.length === 0 || isSubmitting}
           style={{
             width: "100%",
             padding: "1.5rem",
@@ -2143,19 +2193,22 @@ export default function Checkout() {
             borderRadius: "4px",
             fontSize: "1.1rem",
             fontWeight: "bold",
-            cursor: "pointer",
+            cursor:
+              cart.length === 0 || isSubmitting ? "not-allowed" : "pointer",
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
-            opacity: cart.length === 0 ? 0.5 : 1,
+            opacity: cart.length === 0 || isSubmitting ? 0.5 : 1,
           }}
         >
-          {paymentMethod === "yape_plin"
-            ? "Continuar con Yape / Plin"
-            : paymentMethod === "efectivo"
-              ? "Confirmar Contra Entrega"
-              : "Pagar Pedido"}{" "}
-          <span>→</span>
+          {isSubmitting
+            ? "Procesando pedido..."
+            : paymentMethod === "yape_plin"
+              ? "Continuar con Yape / Plin"
+              : paymentMethod === "efectivo"
+                ? "Confirmar Contra Entrega"
+                : "Pagar Pedido"}{" "}
+          <span>{isSubmitting ? "⌛" : "→"}</span>
         </button>
         <p
           style={{
