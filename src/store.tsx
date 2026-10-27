@@ -18,6 +18,8 @@ import {
   type CustomerUser,
   type OrderDetailsInput,
   type OrderTransaction,
+  type Order,
+  type OrderPaymentMethod,
   type Size,
   type OrderStatus,
 } from "./services/api"
@@ -30,6 +32,8 @@ export type {
   CustomerUser,
   OrderDetailsInput,
   OrderTransaction,
+  Order,
+  OrderPaymentMethod,
   Size,
   OrderStatus,
 }
@@ -307,8 +311,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         .map((i) => `${i.quantity}x ${i.name} (${i.size})`)
         .join(", ")
 
+      const initialStatus: OrderStatus =
+        details.paymentMethod === "yape_plin"
+          ? "Pendiente de Pago"
+          : "Procesando"
+
       const newTransaction: OrderTransaction = {
         ...details,
+        paymentMethod: details.paymentMethod || "tarjeta",
         items: validCartItems,
         id,
         total: accounting.total,
@@ -317,7 +327,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         shipping: accounting.shipping,
         date: new Date().toISOString(),
         detail: detailString,
-        status: "Procesando",
+        status: initialStatus,
       }
 
       // 3. Atomically decrement stock

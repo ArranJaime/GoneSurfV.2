@@ -558,6 +558,12 @@ export async function handler(event) {
       const igvCents = itemsTotalCents - subtotalCents        // IGV
       const totalCents = itemsTotalCents + shippingCents       // Monto Total
 
+      const rawPaymentMethod = orderInput.paymentMethod || "tarjeta"
+      const paymentMethod = ["tarjeta", "yape_plin", "efectivo"].includes(rawPaymentMethod)
+        ? rawPaymentMethod
+        : "tarjeta"
+      const initialStatus = paymentMethod === "yape_plin" ? "Pendiente de Pago" : "Procesando"
+
       const orderId = `ORD-${Math.floor(1000 + Math.random() * 9000)}`
       const transaction = {
         id: orderId,
@@ -572,6 +578,7 @@ export async function handler(event) {
         districtY: orderInput.districtY || 55,
         address: (orderInput.address || "").trim(),
         shippingMethod,
+        paymentMethod,
         shipping: Number((shippingCents / 100).toFixed(2)),
         itemsTotal: Number((itemsTotalCents / 100).toFixed(2)),
         subtotal: Number((subtotalCents / 100).toFixed(2)),
@@ -580,7 +587,7 @@ export async function handler(event) {
         items,
         detail: detailParts.join(", "),
         date: new Date().toISOString(),
-        status: "Procesando",
+        status: orderInput.status || initialStatus,
       }
 
       await docClient.send(new PutCommand({ TableName: ORDERS_TABLE, Item: transaction }))

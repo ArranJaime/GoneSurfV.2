@@ -17,7 +17,13 @@ import { calculateOrderAmounts } from "../utils/accounting"
 import { optimizeImageFile } from "../utils/imageOptimizer"
 
 export type Size = "S" | "M" | "L" | "XL" | "Única"
-export type OrderStatus = "Procesando" | "Enviado" | "Entregado" | "Cancelado"
+export type OrderStatus =
+  | "Pendiente de Pago"
+  | "Procesando"
+  | "Enviado"
+  | "Entregado"
+  | "Cancelado"
+export type OrderPaymentMethod = "tarjeta" | "yape_plin" | "efectivo"
 
 export interface CollectionData {
   id: string
@@ -69,6 +75,7 @@ export interface OrderDetailsInput {
   address: string
   shippingMethod?: "standard" | "express"
   shipping: number
+  paymentMethod: OrderPaymentMethod
   total?: number
   subtotal?: number
   items: CartItem[]
@@ -82,7 +89,10 @@ export interface OrderTransaction extends OrderDetailsInput {
   date: string
   detail: string
   status: OrderStatus
+  paymentMethod: OrderPaymentMethod
 }
+
+export type Order = OrderTransaction
 
 export interface MediaUploadResponse {
   url: string
@@ -783,6 +793,11 @@ export const api = {
         .map((i) => `${i.quantity}x ${i.name} (${i.size})`)
         .join(", ")
 
+      const initialStatus: OrderStatus =
+        orderInput.paymentMethod === "yape_plin"
+          ? "Pendiente de Pago"
+          : "Procesando"
+
       const transaction: OrderTransaction = {
         ...orderInput,
         customer: sanitizeString(orderInput.customer),
@@ -791,6 +806,7 @@ export const api = {
         phone: sanitizeString(orderInput.phone),
         address: sanitizeString(orderInput.address),
         districtName: sanitizeString(orderInput.districtName),
+        paymentMethod: orderInput.paymentMethod || "tarjeta",
         items: validCartItems,
         id: orderId,
         total: accounting.total,
@@ -799,7 +815,7 @@ export const api = {
         shipping: accounting.shipping,
         date: new Date().toISOString(),
         detail: detailString,
-        status: "Procesando",
+        status: initialStatus,
       }
 
       // AWS Mode dispatch

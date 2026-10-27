@@ -1937,6 +1937,70 @@ function MetricsDashboard() {
   )
 }
 
+function renderPaymentBadge(method?: string) {
+  if (method === "yape_plin") {
+    return (
+      <span
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: "6px",
+          padding: "4px 8px",
+          borderRadius: "4px",
+          backgroundColor: "#f3e5f5",
+          border: "1px solid #ce93d8",
+          color: "#6a1b9a",
+          fontSize: "0.75rem",
+          fontWeight: 700,
+          whiteSpace: "nowrap",
+        }}
+      >
+        <span style={{ fontSize: "0.9rem" }}>📱</span> Yape / Plin
+      </span>
+    )
+  }
+  if (method === "efectivo") {
+    return (
+      <span
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: "6px",
+          padding: "4px 8px",
+          borderRadius: "4px",
+          backgroundColor: "#e8f5e9",
+          border: "1px solid #a5d6a7",
+          color: "#2e7d32",
+          fontSize: "0.75rem",
+          fontWeight: 700,
+          whiteSpace: "nowrap",
+        }}
+      >
+        <span style={{ fontSize: "0.9rem" }}>💵</span> Contra entrega
+      </span>
+    )
+  }
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: "6px",
+        padding: "4px 8px",
+        borderRadius: "4px",
+        backgroundColor: "#e3f2fd",
+        border: "1px solid #90caf9",
+        color: "#1565c0",
+        fontSize: "0.75rem",
+        fontWeight: 700,
+        whiteSpace: "nowrap",
+      }}
+    >
+      <span style={{ fontSize: "0.9rem" }}>💳</span> Tarjeta
+    </span>
+  )
+}
+
 function ManageOrders() {
   const { transactions, updateOrderStatus } = useStore()
 
@@ -1987,6 +2051,7 @@ function ManageOrders() {
               <th style={{ padding: "1rem" }}>CONTACTO / ENVÍO</th>
               <th style={{ padding: "1rem" }}>DETALLE DE COMPRA</th>
               <th style={{ padding: "1rem" }}>TOTAL</th>
+              <th style={{ padding: "1rem" }}>MÉTODO DE PAGO</th>
               <th style={{ padding: "1rem" }}>ESTADO ACTUAL</th>
             </tr>
           </thead>
@@ -2000,7 +2065,9 @@ function ManageOrders() {
                     ? "#e3f2fd"
                     : status === "Cancelado"
                       ? "#ffebee"
-                      : "#fff3e0"
+                      : status === "Pendiente de Pago"
+                        ? "#fff8e1"
+                        : "#fff3e0"
               const badgeColor =
                 status === "Entregado"
                   ? "#2e7d32"
@@ -2008,7 +2075,9 @@ function ManageOrders() {
                     ? "#0277bd"
                     : status === "Cancelado"
                       ? "#c62828"
-                      : "#e65100"
+                      : status === "Pendiente de Pago"
+                        ? "#b78103"
+                        : "#e65100"
 
               return (
                 <tr
@@ -2101,6 +2170,9 @@ function ManageOrders() {
                     </strong>
                   </td>
                   <td style={{ padding: "1rem" }}>
+                    {renderPaymentBadge(t.paymentMethod)}
+                  </td>
+                  <td style={{ padding: "1rem" }}>
                     <select
                       value={status}
                       onChange={(e) =>
@@ -2116,6 +2188,7 @@ function ManageOrders() {
                         color: badgeColor,
                       }}
                     >
+                      <option value="Pendiente de Pago">Pendiente de Pago</option>
                       <option value="Procesando">Procesando</option>
                       <option value="Enviado">Enviado</option>
                       <option value="Entregado">Entregado</option>
