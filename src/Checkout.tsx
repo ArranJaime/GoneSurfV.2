@@ -49,11 +49,14 @@ export const LIMA_DISTRICTS: DistrictInfo[] = [
   { name: "San Martín de Porres", code: "SMP", x: 240, y: 38 },
 ]
 
+export type PaymentMethod = "card" | "yape" | "cod"
+
 interface ConfirmedOrderState extends OrderDetailsInput {
   id: string
   number: string
   total: number
   subtotal: number
+  paymentMethod?: PaymentMethod
 }
 
 export default function Checkout() {
@@ -75,6 +78,7 @@ export default function Checkout() {
   const [shippingMethod, setShippingMethod] = useState<"standard" | "express">(
     "standard",
   )
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("card")
   const [documentType, setDocumentType] = useState<"DNI" | "CE">("DNI")
   const [selectedDistrictName, setSelectedDistrictName] = useState(
     isAuth ? "Punta Negra" : "San Bartolo",
@@ -289,6 +293,7 @@ export default function Checkout() {
           number: order.id,
           total: accounting.total,
           subtotal: accounting.subtotal,
+          paymentMethod,
         })
       } else {
         throw new Error("No se pudo generar el ID de orden.")
@@ -355,7 +360,7 @@ export default function Checkout() {
               margin: "0 0 1rem 0",
             }}
           >
-            GONE SURFING / CONFIRMACIÓN DE PRUEBA
+            GONE SURFING / ORDEN CONFIRMADA
           </p>
           <div
             style={{
@@ -772,20 +777,127 @@ export default function Checkout() {
               </div>
             </div>
             <div style={{ marginTop: "1.5rem" }}>
-              <p
-                style={{
-                  fontSize: "0.6rem",
-                  textTransform: "uppercase",
-                  letterSpacing: "1px",
-                  color: "#888",
-                  margin: "0 0 0.5rem 0",
-                }}
-              >
-                ESTADO DE ÉXITO SIMULADO
-              </p>
-              <p style={{ fontSize: "0.75rem", color: "#aaa", margin: 0 }}>
-                No se ha realizado ningún cobro bancario real.
-              </p>
+              {orderConfirmed.paymentMethod === "yape" && (
+                <div
+                  style={{
+                    backgroundColor: "rgba(255, 255, 255, 0.08)",
+                    border: "1px solid rgba(255, 255, 255, 0.2)",
+                    borderRadius: "8px",
+                    padding: "1.5rem",
+                    textAlign: "center",
+                  }}
+                >
+                  <p
+                    style={{
+                      fontSize: "0.75rem",
+                      textTransform: "uppercase",
+                      letterSpacing: "1px",
+                      color: "#e3eb1e",
+                      margin: "0 0 0.8rem 0",
+                      fontWeight: "bold",
+                    }}
+                  >
+                    PAGO PENDIENTE CON YAPE / PLIN
+                  </p>
+                  <p
+                    style={{
+                      fontSize: "0.85rem",
+                      color: "#ddd",
+                      margin: "0 0 1rem 0",
+                    }}
+                  >
+                    Escanea el siguiente código QR o transfiere al número{" "}
+                    <strong>999 888 777</strong> (Gone Surfing Perú)
+                  </p>
+                  <div
+                    style={{
+                      display: "inline-block",
+                      background: "#fff",
+                      padding: "12px",
+                      borderRadius: "8px",
+                      marginBottom: "0.8rem",
+                    }}
+                  >
+                    <svg
+                      width="130"
+                      height="130"
+                      viewBox="0 0 100 100"
+                      fill="#000"
+                    >
+                      <rect width="100" height="100" fill="#fff" />
+                      <path d="M10,10 h30 v30 h-30 z M15,15 v20 h20 v-20 z M20,20 h10 v10 h-10 z" />
+                      <path d="M60,10 h30 v30 h-30 z M65,15 v20 h20 v-20 z M70,20 h10 v10 h-10 z" />
+                      <path d="M10,60 h30 v30 h-30 z M15,65 v20 h20 v-20 z M20,70 h10 v10 h-10 z" />
+                      <rect x="45" y="10" width="5" height="15" />
+                      <rect x="45" y="30" width="10" height="10" />
+                      <rect x="45" y="55" width="20" height="10" />
+                      <rect x="70" y="55" width="20" height="10" />
+                      <rect x="55" y="70" width="10" height="20" />
+                      <rect x="70" y="75" width="20" height="15" />
+                    </svg>
+                  </div>
+                  <p
+                    style={{
+                      fontSize: "0.75rem",
+                      color: "#aaa",
+                      margin: 0,
+                    }}
+                  >
+                    Monto total:{" "}
+                    <strong style={{ color: "#fff" }}>
+                      {money(orderConfirmed.total)}
+                    </strong>
+                  </p>
+                  <p
+                    style={{
+                      fontSize: "0.7rem",
+                      color: "#888",
+                      marginTop: "6px",
+                    }}
+                  >
+                    Envía tu comprobante por WhatsApp al 999 888 777 indicando tu
+                    número de orden #{orderConfirmed.id}.
+                  </p>
+                </div>
+              )}
+              {orderConfirmed.paymentMethod === "cod" && (
+                <div>
+                  <p
+                    style={{
+                      fontSize: "0.6rem",
+                      textTransform: "uppercase",
+                      letterSpacing: "1px",
+                      color: "#888",
+                      margin: "0 0 0.5rem 0",
+                    }}
+                  >
+                    MÉTODO DE PAGO
+                  </p>
+                  <p style={{ fontSize: "0.85rem", color: "#ddd", margin: 0 }}>
+                    Pago contra entrega en efectivo. Pagarás{" "}
+                    <strong>{money(orderConfirmed.total)}</strong> al recibir tu
+                    pedido en tu domicilio.
+                  </p>
+                </div>
+              )}
+              {orderConfirmed.paymentMethod === "card" && (
+                <div>
+                  <p
+                    style={{
+                      fontSize: "0.6rem",
+                      textTransform: "uppercase",
+                      letterSpacing: "1px",
+                      color: "#888",
+                      margin: "0 0 0.5rem 0",
+                    }}
+                  >
+                    MÉTODO DE PAGO
+                  </p>
+                  <p style={{ fontSize: "0.85rem", color: "#ddd", margin: 0 }}>
+                    Tarjeta de Crédito / Débito procesada de forma segura.
+                  </p>
+                </div>
+              )}
             </div>
             <button
               onClick={() => {
@@ -903,30 +1015,6 @@ export default function Checkout() {
           <span style={{ color: "#000" }}>01 CONTACTO</span>
           <span>02 ENVÍO</span>
           <span>03 PAGO</span>
-        </div>
-        <div
-          style={{
-            backgroundColor: "#f2f4ee",
-            padding: "1.5rem",
-            borderRadius: "4px",
-            borderLeft: "4px solid #c2c9b4",
-            marginBottom: "3rem",
-          }}
-        >
-          <strong
-            style={{
-              display: "block",
-              fontSize: "0.75rem",
-              letterSpacing: "1px",
-              marginBottom: "0.5rem",
-            }}
-          >
-            PROTOTIPO / SIN COBROS
-          </strong>
-          <span style={{ fontSize: "0.85rem", color: "#555" }}>
-            No ingreses datos confidenciales reales. Este checkout valida
-            inventario real pero opera en pasarela segura de prueba.
-          </span>
         </div>
 
         {validationError && (
@@ -1382,125 +1470,409 @@ export default function Checkout() {
                 gap: "1rem",
               }}
             >
-              <span style={{ color: "#999", fontSize: "0.9rem" }}>03</span> Pago
-              Seguro{" "}
-              <span
-                style={{
-                  fontSize: "0.7rem",
-                  background: "#eee",
-                  padding: "2px 6px",
-                  borderRadius: "4px",
-                  color: "#666",
-                }}
-              >
-                VISA / MC
-              </span>
+              <span style={{ color: "#999", fontSize: "0.9rem" }}>03</span> Método de Pago
             </h2>
-            <p
+
+            <div
               style={{
-                fontSize: "0.75rem",
-                color: "#888",
-                marginBottom: "1rem",
+                display: "flex",
+                flexDirection: "column",
+                gap: "0.75rem",
+                marginBottom: "1.5rem",
               }}
             >
-              Tarjeta de prueba para prototipo. No se enviarán ni guardarán
-              estos datos.
-            </p>
-            <div style={{ marginBottom: "1rem" }}>
+              {/* Opción 1: Tarjeta */}
               <label
                 style={{
-                  display: "block",
-                  fontSize: "0.75rem",
-                  color: "#666",
-                  marginBottom: "0.5rem",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "1rem 1.25rem",
+                  border: "1px solid",
+                  borderColor: paymentMethod === "card" ? "#000" : "#ddd",
+                  borderRadius: "4px",
+                  cursor: "pointer",
+                  backgroundColor:
+                    paymentMethod === "card" ? "#fbfbfb" : "#fff",
+                  transition: "all 0.2s ease",
                 }}
               >
-                Número de Tarjeta
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.75rem",
+                  }}
+                >
+                  <input
+                    type="radio"
+                    name="paymentMethod"
+                    value="card"
+                    checked={paymentMethod === "card"}
+                    onChange={() => setPaymentMethod("card")}
+                    style={{ accentColor: "#000" }}
+                  />
+                  <div>
+                    <strong style={{ display: "block", fontSize: "0.9rem" }}>
+                      Tarjeta de Crédito / Débito (Pasarela Segura)
+                    </strong>
+                    <span style={{ fontSize: "0.75rem", color: "#666" }}>
+                      Visa, Mastercard, American Express
+                    </span>
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: "6px" }}>
+                  <span
+                    style={{
+                      fontSize: "0.65rem",
+                      background: "#eee",
+                      padding: "2px 6px",
+                      borderRadius: "3px",
+                      fontWeight: "bold",
+                    }}
+                  >
+                    VISA
+                  </span>
+                  <span
+                    style={{
+                      fontSize: "0.65rem",
+                      background: "#eee",
+                      padding: "2px 6px",
+                      borderRadius: "3px",
+                      fontWeight: "bold",
+                    }}
+                  >
+                    MC
+                  </span>
+                </div>
               </label>
-              <input
-                defaultValue="4242 4242 4242 4242"
-                required
-                style={{
-                  width: "100%",
-                  padding: "1rem",
-                  border: "1px solid #ddd",
-                  borderRadius: "4px",
-                  fontSize: "0.9rem",
-                }}
-              />
-            </div>
-            <div style={{ display: "flex", gap: "1rem", marginBottom: "1rem" }}>
-              <div style={{ flex: 1 }}>
-                <label
-                  style={{
-                    display: "block",
-                    fontSize: "0.75rem",
-                    color: "#666",
-                    marginBottom: "0.5rem",
-                  }}
-                >
-                  Fecha de Venc.
-                </label>
-                <input
-                  defaultValue="12/30"
-                  placeholder="MM/AA"
-                  required
-                  style={{
-                    width: "100%",
-                    padding: "1rem",
-                    border: "1px solid #ddd",
-                    borderRadius: "4px",
-                    fontSize: "0.9rem",
-                  }}
-                />
-              </div>
-              <div style={{ flex: 1 }}>
-                <label
-                  style={{
-                    display: "block",
-                    fontSize: "0.75rem",
-                    color: "#666",
-                    marginBottom: "0.5rem",
-                  }}
-                >
-                  CVC
-                </label>
-                <input
-                  defaultValue="123"
-                  required
-                  style={{
-                    width: "100%",
-                    padding: "1rem",
-                    border: "1px solid #ddd",
-                    borderRadius: "4px",
-                    fontSize: "0.9rem",
-                  }}
-                />
-              </div>
-            </div>
-            <div>
+
+              {/* Opción 2: Yape / Plin */}
               <label
                 style={{
-                  display: "block",
-                  fontSize: "0.75rem",
-                  color: "#666",
-                  marginBottom: "0.5rem",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "1rem 1.25rem",
+                  border: "1px solid",
+                  borderColor: paymentMethod === "yape" ? "#000" : "#ddd",
+                  borderRadius: "4px",
+                  cursor: "pointer",
+                  backgroundColor:
+                    paymentMethod === "yape" ? "#fbfbfb" : "#fff",
+                  transition: "all 0.2s ease",
                 }}
               >
-                Nombre del Titular
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.75rem",
+                  }}
+                >
+                  <input
+                    type="radio"
+                    name="paymentMethod"
+                    value="yape"
+                    checked={paymentMethod === "yape"}
+                    onChange={() => setPaymentMethod("yape")}
+                    style={{ accentColor: "#000" }}
+                  />
+                  <div>
+                    <strong style={{ display: "block", fontSize: "0.9rem" }}>
+                      Yape / Plin (QR o transferencia)
+                    </strong>
+                    <span style={{ fontSize: "0.75rem", color: "#666" }}>
+                      Pago móvil instantáneo sin comisiones
+                    </span>
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: "6px" }}>
+                  <span
+                    style={{
+                      fontSize: "0.65rem",
+                      background: "#742284",
+                      color: "#fff",
+                      padding: "2px 6px",
+                      borderRadius: "3px",
+                      fontWeight: "bold",
+                    }}
+                  >
+                    YAPE
+                  </span>
+                  <span
+                    style={{
+                      fontSize: "0.65rem",
+                      background: "#00a1df",
+                      color: "#fff",
+                      padding: "2px 6px",
+                      borderRadius: "3px",
+                      fontWeight: "bold",
+                    }}
+                  >
+                    PLIN
+                  </span>
+                </div>
               </label>
-              <input
-                defaultValue="SURF DEMO"
-                required
+
+              {/* Opción 3: Pago contra entrega */}
+              <label
                 style={{
-                  width: "100%",
-                  padding: "1rem",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "1rem 1.25rem",
+                  border: "1px solid",
+                  borderColor: paymentMethod === "cod" ? "#000" : "#ddd",
+                  borderRadius: "4px",
+                  cursor: "pointer",
+                  backgroundColor: paymentMethod === "cod" ? "#fbfbfb" : "#fff",
+                  transition: "all 0.2s ease",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.75rem",
+                  }}
+                >
+                  <input
+                    type="radio"
+                    name="paymentMethod"
+                    value="cod"
+                    checked={paymentMethod === "cod"}
+                    onChange={() => setPaymentMethod("cod")}
+                    style={{ accentColor: "#000" }}
+                  />
+                  <div>
+                    <strong style={{ display: "block", fontSize: "0.9rem" }}>
+                      Pago contra entrega (Efectivo)
+                    </strong>
+                    <span style={{ fontSize: "0.75rem", color: "#666" }}>
+                      Paga al recibir en tu domicilio
+                    </span>
+                  </div>
+                </div>
+                <span
+                  style={{
+                    fontSize: "0.65rem",
+                    background: "#e8f5e9",
+                    color: "#2e7d32",
+                    padding: "2px 6px",
+                    borderRadius: "3px",
+                    fontWeight: "bold",
+                  }}
+                >
+                  EFECTIVO
+                </span>
+              </label>
+            </div>
+
+            {/* Mensajes informativos según selección */}
+            {paymentMethod === "yape" && (
+              <div
+                style={{
+                  backgroundColor: "#f5eff7",
+                  border: "1px solid #d8bfd8",
+                  borderRadius: "4px",
+                  padding: "1.25rem",
+                  marginBottom: "1.5rem",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.75rem",
+                }}
+              >
+                <svg
+                  width="22"
+                  height="22"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="#742284"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                  <rect x="7" y="7" width="3" height="3" />
+                  <rect x="14" y="7" width="3" height="3" />
+                  <rect x="7" y="14" width="3" height="3" />
+                  <rect x="14" y="14" width="3" height="3" />
+                </svg>
+                <div>
+                  <strong
+                    style={{
+                      display: "block",
+                      fontSize: "0.85rem",
+                      color: "#111",
+                    }}
+                  >
+                    Al confirmar, te mostraremos el QR para el pago.
+                  </strong>
+                  <span style={{ fontSize: "0.75rem", color: "#666" }}>
+                    Podrás escanearlo con Yape o Plin desde tu celular para
+                    validar tu pedido de inmediato.
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {paymentMethod === "cod" && (
+              <div
+                style={{
+                  backgroundColor: "#eef7ee",
+                  border: "1px solid #c8e6c9",
+                  borderRadius: "4px",
+                  padding: "1.25rem",
+                  marginBottom: "1.5rem",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.75rem",
+                }}
+              >
+                <svg
+                  width="22"
+                  height="22"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="#2e7d32"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <rect x="2" y="6" width="20" height="12" rx="2" />
+                  <circle cx="12" cy="12" r="2" />
+                  <path d="M6 12h.01M18 12h.01" />
+                </svg>
+                <div>
+                  <strong
+                    style={{
+                      display: "block",
+                      fontSize: "0.85rem",
+                      color: "#111",
+                    }}
+                  >
+                    Pagarás al recibir tu pedido.
+                  </strong>
+                  <span style={{ fontSize: "0.75rem", color: "#666" }}>
+                    Ten listo el monto en efectivo o solicita pagar con POS
+                    móvil al repartidor al momento de la entrega.
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {paymentMethod === "card" && (
+              <div
+                style={{
+                  backgroundColor: "#fff",
                   border: "1px solid #ddd",
                   borderRadius: "4px",
-                  fontSize: "0.9rem",
+                  padding: "1.5rem",
+                  marginBottom: "1.5rem",
                 }}
-              />
-            </div>
+              >
+                <div style={{ marginBottom: "1rem" }}>
+                  <label
+                    style={{
+                      display: "block",
+                      fontSize: "0.75rem",
+                      color: "#666",
+                      marginBottom: "0.5rem",
+                    }}
+                  >
+                    Número de Tarjeta
+                  </label>
+                  <input
+                    placeholder="•••• •••• •••• ••••"
+                    required={paymentMethod === "card"}
+                    maxLength={19}
+                    style={{
+                      width: "100%",
+                      padding: "1rem",
+                      border: "1px solid #ddd",
+                      borderRadius: "4px",
+                      fontSize: "0.9rem",
+                    }}
+                  />
+                </div>
+                <div
+                  style={{ display: "flex", gap: "1rem", marginBottom: "1rem" }}
+                >
+                  <div style={{ flex: 1 }}>
+                    <label
+                      style={{
+                        display: "block",
+                        fontSize: "0.75rem",
+                        color: "#666",
+                        marginBottom: "0.5rem",
+                      }}
+                    >
+                      Fecha de Venc.
+                    </label>
+                    <input
+                      placeholder="MM/AA"
+                      maxLength={5}
+                      required={paymentMethod === "card"}
+                      style={{
+                        width: "100%",
+                        padding: "1rem",
+                        border: "1px solid #ddd",
+                        borderRadius: "4px",
+                        fontSize: "0.9rem",
+                      }}
+                    />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <label
+                      style={{
+                        display: "block",
+                        fontSize: "0.75rem",
+                        color: "#666",
+                        marginBottom: "0.5rem",
+                      }}
+                    >
+                      CVC / CVV
+                    </label>
+                    <input
+                      placeholder="123"
+                      maxLength={4}
+                      required={paymentMethod === "card"}
+                      style={{
+                        width: "100%",
+                        padding: "1rem",
+                        border: "1px solid #ddd",
+                        borderRadius: "4px",
+                        fontSize: "0.9rem",
+                      }}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label
+                    style={{
+                      display: "block",
+                      fontSize: "0.75rem",
+                      color: "#666",
+                      marginBottom: "0.5rem",
+                    }}
+                  >
+                    Nombre del Titular
+                  </label>
+                  <input
+                    placeholder="Como figura en la tarjeta"
+                    required={paymentMethod === "card"}
+                    style={{
+                      width: "100%",
+                      padding: "1rem",
+                      border: "1px solid #ddd",
+                      borderRadius: "4px",
+                      fontSize: "0.9rem",
+                    }}
+                  />
+                </div>
+              </div>
+            )}
           </div>
         </form>
       </div>
@@ -1742,7 +2114,12 @@ export default function Checkout() {
             opacity: cart.length === 0 ? 0.5 : 1,
           }}
         >
-          Pagar Pedido <span>→</span>
+          {paymentMethod === "yape"
+            ? "Continuar con Yape / Plin"
+            : paymentMethod === "cod"
+              ? "Confirmar Contra Entrega"
+              : "Pagar Pedido"}{" "}
+          <span>→</span>
         </button>
         <p
           style={{
