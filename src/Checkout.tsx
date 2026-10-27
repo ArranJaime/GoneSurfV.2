@@ -861,8 +861,8 @@ export default function Checkout() {
                     </strong>
                   </p>
                   <a
-                    href={`https://wa.me/51999888777?text=${encodeURIComponent(
-                      `Hola Gone Surfing, adjunto mi comprobante Yape/Plin para la orden #${orderConfirmed.id} por el monto de S/. ${orderConfirmed.total.toFixed(2)}.`
+                    href={`https://wa.me/9999888777?text=${encodeURIComponent(
+                      `Hola, adjunto el comprobante de mi pago por Yape/Plin del pedido #${orderConfirmed.id} por el monto de S/. ${orderConfirmed.total.toFixed(2)}.`
                     )}`}
                     target="_blank"
                     rel="noopener noreferrer"
@@ -870,15 +870,25 @@ export default function Checkout() {
                       display: "inline-flex",
                       alignItems: "center",
                       justifyContent: "center",
-                      gap: "6px",
-                      background: "#25D366",
-                      color: "#fff",
-                      padding: "8px 16px",
-                      borderRadius: "6px",
+                      gap: "8px",
+                      background: "#ffffff",
+                      color: "#0a0a0a",
+                      padding: "10px 18px",
+                      borderRadius: "3px",
                       textDecoration: "none",
-                      fontWeight: "bold",
-                      fontSize: "0.8rem",
-                      marginTop: "10px",
+                      fontWeight: 800,
+                      fontSize: "0.85rem",
+                      fontFamily: '"Barlow Condensed", sans-serif',
+                      textTransform: "uppercase",
+                      letterSpacing: "1px",
+                      marginTop: "12px",
+                      transition: "all 0.2s ease",
+                    }}
+                    onMouseOver={(e) => {
+                      e.currentTarget.style.backgroundColor = "#e3eb1e"
+                    }}
+                    onMouseOut={(e) => {
+                      e.currentTarget.style.backgroundColor = "#ffffff"
                     }}
                   >
                     Enviar comprobante por WhatsApp
@@ -2188,8 +2198,8 @@ export default function Checkout() {
           style={{
             position: "fixed",
             inset: 0,
-            backgroundColor: "rgba(0, 0, 0, 0.78)",
-            backdropFilter: "blur(6px)",
+            backgroundColor: "rgba(0, 0, 0, 0.85)",
+            backdropFilter: "blur(8px)",
             zIndex: 9999,
             display: "flex",
             alignItems: "center",
@@ -2200,24 +2210,28 @@ export default function Checkout() {
         >
           <div
             style={{
-              backgroundColor: "#111315",
-              color: "#fff",
-              border: "1px solid #2e3238",
-              borderRadius: "12px",
-              maxWidth: "460px",
+              backgroundColor: "#0d0e12",
+              color: "#ffffff",
+              border: "1px solid #23272f",
+              borderRadius: "4px",
+              maxWidth: "440px",
               width: "100%",
               padding: "2rem",
               textAlign: "center",
-              boxShadow: "0 25px 60px rgba(0,0,0,0.85)",
+              boxShadow:
+                "0 20px 50px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(255, 255, 255, 0.05)",
               position: "relative",
             }}
           >
+            {/* Header del modal con badges Yape / Plin y Orden */}
             <div
               style={{
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "center",
-                marginBottom: "1rem",
+                marginBottom: "1.25rem",
+                paddingBottom: "0.75rem",
+                borderBottom: "1px solid #1a1e26",
               }}
             >
               <div style={{ display: "flex", gap: "6px" }}>
@@ -2225,10 +2239,11 @@ export default function Checkout() {
                   style={{
                     fontSize: "0.65rem",
                     background: "#742284",
-                    color: "#fff",
+                    color: "#ffffff",
                     padding: "3px 8px",
-                    borderRadius: "4px",
-                    fontWeight: "bold",
+                    borderRadius: "2px",
+                    fontWeight: 700,
+                    letterSpacing: "0.5px",
                   }}
                 >
                   YAPE
@@ -2237,10 +2252,11 @@ export default function Checkout() {
                   style={{
                     fontSize: "0.65rem",
                     background: "#00a1df",
-                    color: "#fff",
+                    color: "#ffffff",
                     padding: "3px 8px",
-                    borderRadius: "4px",
-                    fontWeight: "bold",
+                    borderRadius: "2px",
+                    fontWeight: 700,
+                    letterSpacing: "0.5px",
                   }}
                 >
                   PLIN
@@ -2249,105 +2265,187 @@ export default function Checkout() {
               <span
                 style={{
                   fontSize: "0.75rem",
-                  color: "#ffca28",
-                  fontWeight: "bold",
-                  letterSpacing: "0.5px",
+                  color: "#e3eb1e",
+                  fontWeight: 700,
+                  fontFamily: '"Barlow Condensed", sans-serif',
+                  letterSpacing: "1px",
+                  background: "#161920",
+                  padding: "2px 8px",
+                  borderRadius: "2px",
+                  border: "1px solid #282d38",
                 }}
               >
-                #{pendingYapeOrder.id}
+                ORDEN #{pendingYapeOrder.id}
               </span>
             </div>
 
-            <h3
+            {/* Mensaje con tipografía estilizada branding Gone Surfing */}
+            <span
               style={{
-                fontSize: "1.35rem",
-                fontWeight: 700,
-                margin: "0 0 0.8rem 0",
+                fontFamily: "serif",
+                fontStyle: "italic",
+                fontSize: "1.25rem",
+                color: "#e3eb1e",
+                display: "block",
+                marginBottom: "0.2rem",
               }}
             >
-              Paga con Yape / Plin
+              ¡Buenas olas!
+            </span>
+
+            <h3
+              style={{
+                fontFamily: '"Barlow Condensed", sans-serif',
+                fontSize: "1.75rem",
+                fontWeight: 800,
+                textTransform: "uppercase",
+                letterSpacing: "1.5px",
+                color: "#ffffff",
+                margin: "0 0 0.5rem 0",
+                lineHeight: 1.15,
+              }}
+            >
+              Tu pedido está separado
             </h3>
 
             <p
               style={{
-                fontSize: "0.95rem",
-                color: "#e0e0e0",
-                lineHeight: "1.5",
-                marginBottom: "1.4rem",
+                fontSize: "0.85rem",
+                color: "#9ca3af",
+                lineHeight: "1.45",
+                margin: "0 0 1.25rem 0",
               }}
             >
-              Escanea este QR para pagar S/. {pendingYapeOrder.total.toFixed(2)}.
-              Tu pedido ha sido reservado y está Pendiente de Pago.
+              Escanea el QR y envíanos la captura para empezar a prepararlo.
             </p>
 
-            {/* Código QR visual de prueba */}
+            {/* Monto total a pagar destacado */}
             <div
               style={{
-                width: "190px",
-                height: "190px",
-                margin: "0 auto 1.4rem auto",
-                backgroundColor: "#2a2d34",
-                border: "2px dashed #742284",
-                borderRadius: "12px",
+                background: "#14171d",
+                border: "1px solid #23272f",
+                borderRadius: "3px",
+                padding: "0.75rem 1rem",
+                marginBottom: "1.25rem",
                 display: "flex",
-                flexDirection: "column",
+                justifyContent: "space-between",
                 alignItems: "center",
-                justifyContent: "center",
-                padding: "10px",
               }}
             >
-              <svg
-                width="110"
-                height="110"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="#ffffff"
-                strokeWidth="1.6"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <rect x="3" y="3" width="7" height="7" />
-                <rect x="14" y="3" width="7" height="7" />
-                <rect x="3" y="14" width="7" height="7" />
-                <rect x="14" y="14" width="3" height="3" />
-                <rect x="18" y="14" width="3" height="3" />
-                <rect x="14" y="18" width="3" height="3" />
-                <rect x="18" y="18" width="3" height="3" />
-              </svg>
               <span
                 style={{
-                  fontSize: "0.65rem",
-                  color: "#aaa",
-                  letterSpacing: "1px",
+                  fontSize: "0.75rem",
                   textTransform: "uppercase",
-                  marginTop: "8px",
+                  letterSpacing: "1px",
+                  color: "#8b949e",
+                  fontWeight: 600,
                 }}
               >
-                QR OFICIAL TEMPORAL
+                Monto a pagar:
               </span>
+              <strong
+                style={{
+                  fontSize: "1.25rem",
+                  color: "#ffffff",
+                  fontWeight: 800,
+                  letterSpacing: "0.5px",
+                }}
+              >
+                S/. {pendingYapeOrder.total.toFixed(2)}
+              </strong>
             </div>
 
+            {/* Código QR con padding blanco SOLO alrededor del código para legibilidad de escaneo */}
+            <div style={{ marginBottom: "1.25rem", textAlign: "center" }}>
+              <div
+                style={{
+                  display: "inline-block",
+                  backgroundColor: "#ffffff",
+                  padding: "14px",
+                  borderRadius: "3px",
+                  boxShadow: "0 4px 20px rgba(0, 0, 0, 0.45)",
+                }}
+              >
+                <svg
+                  width="130"
+                  height="130"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="#0a0a0a"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  style={{ display: "block" }}
+                >
+                  <rect x="2" y="2" width="7" height="7" rx="1" />
+                  <rect x="4" y="4" width="3" height="3" fill="#0a0a0a" />
+                  <rect x="15" y="2" width="7" height="7" rx="1" />
+                  <rect x="17" y="4" width="3" height="3" fill="#0a0a0a" />
+                  <rect x="2" y="15" width="7" height="7" rx="1" />
+                  <rect x="4" y="17" width="3" height="3" fill="#0a0a0a" />
+                  <rect x="13" y="13" width="3" height="3" fill="#0a0a0a" />
+                  <rect x="18" y="13" width="4" height="2" fill="#0a0a0a" />
+                  <rect x="13" y="18" width="2" height="4" fill="#0a0a0a" />
+                  <rect x="17" y="17" width="5" height="5" fill="#0a0a0a" />
+                </svg>
+              </div>
+              <div
+                style={{
+                  fontSize: "0.65rem",
+                  color: "#6b7280",
+                  letterSpacing: "1.5px",
+                  textTransform: "uppercase",
+                  marginTop: "6px",
+                  fontFamily: '"Barlow Condensed", sans-serif',
+                }}
+              >
+                Yape / Plin QR Oficial
+              </div>
+            </div>
+
+            {/* Datos de transferencia */}
             <div
               style={{
-                backgroundColor: "#1b1d22",
-                padding: "0.8rem",
-                borderRadius: "6px",
-                marginBottom: "1.4rem",
+                backgroundColor: "#14171d",
+                border: "1px solid #23272f",
+                borderRadius: "3px",
+                padding: "0.75rem 1rem",
+                marginBottom: "1.25rem",
                 fontSize: "0.8rem",
-                color: "#bbb",
-                lineHeight: "1.5",
+                color: "#9ca3af",
+                textAlign: "left",
+                lineHeight: "1.6",
               }}
             >
-              Celular: <strong style={{ color: "#fff" }}>999 888 777</strong>
-              <br />
-              Titular:{" "}
-              <strong style={{ color: "#fff" }}>Gone Surfing Perú S.A.C.</strong>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  marginBottom: "4px",
+                }}
+              >
+                <span>Número Yape / Plin:</span>
+                <strong style={{ color: "#ffffff", letterSpacing: "0.5px" }}>
+                  999 888 777
+                </strong>
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                }}
+              >
+                <span>Titular:</span>
+                <strong style={{ color: "#ffffff" }}>
+                  Gone Surfing Perú S.A.C.
+                </strong>
+              </div>
             </div>
 
-            {/* Botón verde para enviar comprobante por WhatsApp */}
+            {/* Botón primario de estilo Gone Surfing (sólido, uppercase, alto contraste) para WhatsApp */}
             <a
-              href={`https://wa.me/51999888777?text=${encodeURIComponent(
-                `Hola Gone Surfing, adjunto mi comprobante de pago Yape/Plin para la orden #${pendingYapeOrder.id} por el monto de S/. ${pendingYapeOrder.total.toFixed(2)}.`,
+              href={`https://wa.me/9999888777?text=${encodeURIComponent(
+                `Hola, adjunto el comprobante de mi pago por Yape/Plin del pedido #${pendingYapeOrder.id} por el monto de S/. ${pendingYapeOrder.total.toFixed(2)}.`,
               )}`}
               target="_blank"
               rel="noopener noreferrer"
@@ -2355,23 +2453,29 @@ export default function Checkout() {
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                gap: "8px",
-                backgroundColor: "#25D366",
-                color: "#fff",
-                padding: "0.9rem 1.2rem",
-                borderRadius: "6px",
+                gap: "10px",
+                backgroundColor: "#ffffff",
+                color: "#0a0a0a",
+                padding: "0.95rem 1.25rem",
+                borderRadius: "3px",
                 textDecoration: "none",
-                fontWeight: "bold",
-                fontSize: "0.95rem",
-                marginBottom: "0.8rem",
-                transition: "background 0.2s ease",
+                fontWeight: 800,
+                fontFamily: '"Barlow Condensed", sans-serif',
+                fontSize: "1.05rem",
+                textTransform: "uppercase",
+                letterSpacing: "1.5px",
+                marginBottom: "0.75rem",
+                transition: "all 0.2s ease",
+                boxShadow: "0 4px 14px rgba(0, 0, 0, 0.4)",
               }}
-              onMouseOver={(e) =>
-                (e.currentTarget.style.backgroundColor = "#20ba5a")
-              }
-              onMouseOut={(e) =>
-                (e.currentTarget.style.backgroundColor = "#25D366")
-              }
+              onMouseOver={(e) => {
+                e.currentTarget.style.backgroundColor = "#e3eb1e"
+                e.currentTarget.style.color = "#0a0a0a"
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.backgroundColor = "#ffffff"
+                e.currentTarget.style.color = "#0a0a0a"
+              }}
             >
               <svg
                 width="20"
@@ -2395,25 +2499,42 @@ export default function Checkout() {
                 width: "100%",
                 padding: "0.85rem",
                 background: "transparent",
-                color: "#ccc",
-                border: "1px solid #444",
-                borderRadius: "6px",
+                color: "#9ca3af",
+                border: "1px solid #333842",
+                borderRadius: "3px",
                 cursor: "pointer",
                 fontSize: "0.85rem",
                 fontWeight: 600,
+                fontFamily: '"Barlow Condensed", sans-serif',
+                textTransform: "uppercase",
+                letterSpacing: "1px",
                 transition: "all 0.2s ease",
               }}
               onMouseOver={(e) => {
-                e.currentTarget.style.color = "#fff"
-                e.currentTarget.style.borderColor = "#888"
+                e.currentTarget.style.color = "#ffffff"
+                e.currentTarget.style.borderColor = "#ffffff"
               }}
               onMouseOut={(e) => {
-                e.currentTarget.style.color = "#ccc"
-                e.currentTarget.style.borderColor = "#444"
+                e.currentTarget.style.color = "#9ca3af"
+                e.currentTarget.style.borderColor = "#333842"
               }}
             >
               Ya envié el comprobante / Ver mi orden →
             </button>
+
+            {/* Firma de marca discreta */}
+            <div style={{ marginTop: "1rem", textAlign: "center" }}>
+              <span
+                style={{
+                  fontFamily: "serif",
+                  fontStyle: "italic",
+                  fontSize: "0.95rem",
+                  color: "#4b5563",
+                }}
+              >
+                stay real
+              </span>
+            </div>
           </div>
         </div>
       )}
