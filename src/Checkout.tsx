@@ -161,7 +161,14 @@ export default function Checkout() {
     )
   }
 
-  if (!cart.length && !orderConfirmed) {
+  // No redirigir ni expulsar al usuario si se está procesando, completando o si el modal Yape está abierto
+  if (
+    !cart.length &&
+    !orderConfirmed &&
+    !showYapeModal &&
+    !pendingYapeOrder &&
+    !isSubmitting
+  ) {
     return (
       <section
         style={{
@@ -337,9 +344,7 @@ export default function Checkout() {
         savedOrder = await api.orders.create(details, products)
       }
 
-      // Solo si el backend responde con éxito (200/201), actualizamos el estado
-      completeOrder(details, savedOrder)
-
+      // PASO 4: Preparar estado y mostrar el Modal QR / Pantalla de éxito
       const confirmedData: ConfirmedOrderState = {
         ...details,
         id: savedOrder.id,
@@ -349,15 +354,15 @@ export default function Checkout() {
         paymentMethod,
       }
 
-      // Si es Yape / Plin, mostramos el modal QR SOLO tras confirmación en DB
       if (paymentMethod === "yape_plin") {
         setPendingYapeOrder(confirmedData)
         setShowYapeModal(true)
-        return
+      } else {
+        setOrderConfirmed(confirmedData)
       }
 
-      // Si es Tarjeta o Efectivo, mostramos pantalla de confirmación directa
-      setOrderConfirmed(confirmedData)
+      // PASO 5: SOLO ENTONCES registrar en store y limpiar el carrito
+      completeOrder(details, savedOrder)
     } catch (err: any) {
       console.error("[Checkout] Error crítico procesando orden:", err)
       setValidationError(
@@ -912,7 +917,7 @@ export default function Checkout() {
                   </p>
                   <a
                     href={`https://wa.me/9999888777?text=${encodeURIComponent(
-                      `Hola, adjunto el comprobante de mi pago por Yape/Plin del pedido #${orderConfirmed.id} por el monto de S/. ${orderConfirmed.total.toFixed(2)}.`
+                      `Hola, adjunto comprobante de mi pago por Yape/Plin del pedido #${orderConfirmed.id} por el monto de S/. ${orderConfirmed.total.toFixed(2)}.`
                     )}`}
                     target="_blank"
                     rel="noopener noreferrer"
@@ -2498,7 +2503,7 @@ export default function Checkout() {
             {/* Botón primario de estilo Gone Surfing (sólido, uppercase, alto contraste) para WhatsApp */}
             <a
               href={`https://wa.me/9999888777?text=${encodeURIComponent(
-                `Hola, adjunto el comprobante de mi pago por Yape/Plin del pedido #${pendingYapeOrder.id} por el monto de S/. ${pendingYapeOrder.total.toFixed(2)}.`,
+                `Hola, adjunto comprobante de mi pago por Yape/Plin del pedido #${pendingYapeOrder.id} por el monto de S/. ${pendingYapeOrder.total.toFixed(2)}.`,
               )}`}
               target="_blank"
               rel="noopener noreferrer"

@@ -52,6 +52,7 @@ export interface Store {
   addToCart: (productId: string, size: Size) => void
   changeQuantity: (productId: string, size: Size, delta: number) => void
   changeStock: (productId: string, size: Size, delta: number) => void
+  clearCart: () => void
   completeOrder: (
     details: OrderDetailsInput,
     createdTransaction?: OrderTransaction,
@@ -280,6 +281,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     },
     [products],
   )
+
+  const clearCart = useCallback(() => {
+    setCart([])
+    safeWriteStorage("gone_cart", [])
+    broadcastSyncEvent("cart")
+  }, [])
 
   const changeStock = useCallback(
     (productId: string, size: Size, delta: number) => {
@@ -562,6 +569,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       addToCart,
       changeQuantity,
       changeStock,
+      clearCart,
       completeOrder,
       addProduct,
       updateProduct,
@@ -586,6 +594,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       addToCart,
       changeQuantity,
       changeStock,
+      clearCart,
       completeOrder,
       addProduct,
       updateProduct,
