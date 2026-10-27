@@ -96,6 +96,11 @@ function Header() {
   const location = useLocation()
   const [isSearching, setIsSearching] = useState(false)
   const [query, setQuery] = useState("")
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+
+  useEffect(() => {
+    setIsMobileMenuOpen(false)
+  }, [location.pathname])
 
   const isHiddenRoute =
     location.pathname === "/admin" || location.pathname === "/checkout"
@@ -125,6 +130,7 @@ function Header() {
   if (isHiddenRoute) return null
 
   return (
+    <>
     <header
       className="header"
       style={{
@@ -135,6 +141,36 @@ function Header() {
         zIndex: 1000,
       }}
     >
+      <button
+        type="button"
+        className="mobile-menu"
+        aria-label={isMobileMenuOpen ? "Cerrar menú" : "Abrir menú"}
+        onClick={() => setIsMobileMenuOpen((prev) => !prev)}
+      >
+        <svg
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          {isMobileMenuOpen ? (
+            <>
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </>
+          ) : (
+            <>
+              <line x1="3" y1="12" x2="21" y2="12" />
+              <line x1="3" y1="6" x2="21" y2="6" />
+              <line x1="3" y1="18" x2="21" y2="18" />
+            </>
+          )}
+        </svg>
+      </button>
       <button
         className="logo-button"
         onClick={() => navigate("/")}
@@ -431,6 +467,84 @@ function Header() {
         </button>
       </div>
     </header>
+    {isMobileMenuOpen && (
+      <div
+        className="mobile-dropdown-menu"
+        style={{
+          backgroundColor: "#111315",
+          borderBottom: "1px solid #222",
+          padding: "16px 20px",
+          display: "flex",
+          flexDirection: "column",
+          gap: "16px",
+          position: "sticky",
+          top: "52px",
+          zIndex: 999,
+        }}
+      >
+        <button
+          onClick={() => {
+            navigate("/shop")
+            setIsMobileMenuOpen(false)
+          }}
+          style={{
+            color: "#fff",
+            background: "transparent",
+            border: "none",
+            fontFamily: "'Barlow Condensed', sans-serif",
+            fontSize: "15px",
+            fontWeight: 600,
+            letterSpacing: "1.5px",
+            textAlign: "left",
+            cursor: "pointer",
+            textTransform: "uppercase",
+          }}
+        >
+          SHOP
+        </button>
+        <button
+          onClick={() => {
+            navigate("/collections")
+            setIsMobileMenuOpen(false)
+          }}
+          style={{
+            color: "#fff",
+            background: "transparent",
+            border: "none",
+            fontFamily: "'Barlow Condensed', sans-serif",
+            fontSize: "15px",
+            fontWeight: 600,
+            letterSpacing: "1.5px",
+            textAlign: "left",
+            cursor: "pointer",
+            textTransform: "uppercase",
+          }}
+        >
+          COLLECTIONS
+        </button>
+        <button
+          onClick={() => {
+            navigate("/about")
+            setIsMobileMenuOpen(false)
+          }}
+          style={{
+            color: "#fff",
+            background: "transparent",
+            border: "none",
+            fontFamily: "'Barlow Condensed', sans-serif",
+            fontSize: "15px",
+            fontWeight: 600,
+            letterSpacing: "1.5px",
+            textAlign: "left",
+            cursor: "pointer",
+            textTransform: "uppercase",
+          }}
+        >
+          ABOUT
+        </button>
+      </div>
+    )}
+    </>
   )
 }
 

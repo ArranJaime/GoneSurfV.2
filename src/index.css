@@ -141,36 +141,49 @@ td small { display: block; margin-top: 4px; color: #777; }
   .page { padding-inline: 16px; }
 }
 
-
 /* =========================================
-   FIX REPARACIÓN CABECERA MÓVIL
+   FIX DEFINITIVO CABECERA MÓVIL Y ESCRITORIO
    ========================================= */
+/* Por defecto en PC ocultamos el menú hamburguesa */
+.mobile-menu {
+  display: none;
+}
+
 @media (max-width: 850px) {
+  /* Ocultamos los textos en móvil */
   .desktop-nav {
     display: none !important;
   }
+  
+  /* Forzamos la aparición del menú hamburguesa */
   .mobile-menu {
     display: flex !important;
     align-items: center;
+    justify-content: center;
     background: none;
     border: none;
     color: inherit;
     cursor: pointer;
+    margin-right: 12px;
+    padding: 4px;
   }
+
+  /* Reorganizamos la cabecera para que todo encaje */
   header.header {
     display: flex !important;
-    justify-content: space-between !important;
+    justify-content: flex-start !important;
     align-items: center !important;
-    flex-wrap: nowrap !important;
-    padding: 10px 16px !important;
+    padding: 12px 16px !important;
   }
+
+  /* Empujamos los iconos de búsqueda y carrito hacia la derecha */
   .utilities {
     display: flex !important;
     align-items: center !important;
     gap: 12px !important;
-    flex-wrap: nowrap !important;
-    width: auto !important;
+    margin-left: auto !important; 
   }
+  
   .language-switch {
     display: none !important;
   }
