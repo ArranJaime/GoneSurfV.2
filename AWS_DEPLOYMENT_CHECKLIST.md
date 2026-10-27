@@ -1,6 +1,28 @@
 # 🚀 AWS DEPLOYMENT CHECKLIST - "GONE SURFING" E-COMMERCE
 
-Esta guía documenta la arquitectura de nube, los endpoints REST esperados por `src/services/api.ts`, la configuración de variables de entorno y los pasos detallados para migrar y desplegar el e-commerce **Gone Surfing** en **Amazon Web Services (AWS)** con alta disponibilidad, seguridad OWASP y rendimiento global.
+> [!NOTE]
+> **ESTADO DE PRODUCCIÓN:** DESPLEGADO Y OPERATIVO EN VIVO  
+> **URL Pública CloudFront:** [https://d1137rlqok2t6n.cloudfront.net](https://d1137rlqok2t6n.cloudfront.net)  
+> **API Gateway REST URL:** `https://bkvv9miw03.execute-api.us-east-1.amazonaws.com/prod`  
+> **Stack CloudFormation:** `gone-surfing-prod` (Región: `us-east-1`, Account ID: `872590157368`)
+
+---
+
+## 🟢 Recursos de Producción Desplegados en AWS
+
+| Recurso | Identificador / Nombre en AWS | Configuración Clave |
+| :--- | :--- | :--- |
+| **CloudFront CDN** | `E1YQBAZ70FTDNK` | `https://d1137rlqok2t6n.cloudfront.net` (OAC, HTTPS redirect, SPA fallback 200, Brotli/Gzip) |
+| **S3 Frontend** | `gone-surfing-frontend-872590157368` | Bucket privado, bloqueado para acceso público directo, solo accesible vía OAC CloudFront |
+| **S3 Media & Uploads** | `gone-surfing-media-872590157368` | S3 Presigned PUT para subidas directas restringidas a imágenes (JPEG/PNG/WebP/AVIF) |
+| **API Gateway** | `bkvv9miw03` (`GoneSurfing-API-prod`) | Rate Limiting estricto: **30 req/s**, Ráfaga máxima **60 req** (HTTP 429 ante saturación) |
+| **Lambda Backend** | `GoneSurfing-Backend-prod` | Node.js 20.x, 256MB RAM, timeout 15s, CommonJS bundle CJS con bcryptjs + jwt |
+| **DynamoDB Products** | `GoneSurfing-Products-prod` | `PAY_PER_REQUEST` (On-Demand), PITR activo, control atómico con `TransactWriteItems` |
+| **DynamoDB Collections**| `GoneSurfing-Collections-prod` | `PAY_PER_REQUEST` (On-Demand), catálogo de colecciones y drops dinámicos |
+| **DynamoDB Orders** | `GoneSurfing-Orders-prod` | `PAY_PER_REQUEST` (On-Demand), PITR activo, recálculo SUNAT 18% IGV en céntimos |
+| **DynamoDB Users** | `GoneSurfing-Users-prod` | `PAY_PER_REQUEST` (On-Demand), bcrypt salt 12 para credenciales de admin y clientes |
+| **AWS Budgets** | `GoneSurfingMonthlyLimit` | **$15.00 USD/mes** de tope máximo, notificaciones por email al 80% ($12) y 100% ($15) |
+| **CI/CD Automation** | `.github/workflows/deploy.yml` | Despliegue automático a S3 + Invalidation en CloudFront al hacer `git push main` |
 
 ---
 
@@ -236,18 +258,18 @@ La capa de abstracción `src/services/api.ts` está preparada para conectarse a 
 
 ---
 
-## 🛠️ 5. Pasos de Despliegue con AWS CLI
+## 🛠️ 5. Comandos de Despliegue con AWS CLI
 
 ```bash
-# 1. Compilar la aplicación para producción (Sourcemaps deshabilitados, bundle minificado)
+# 1. Compilar la aplicación para producción (Vite con VITE_STORAGE_MODE=aws)
 pnpm run build
 
 # 2. Sincronizar el directorio dist/ al bucket S3 del frontend
-aws s3 sync dist/ s3://gone-surfing-web-frontend/ --delete
+aws s3 sync dist/ s3://gone-surfing-frontend-872590157368 --delete
 
-# 3. Invalidar la caché de CloudFront para reflejar los cambios al instante
+# 3. Invalidar la caché de CloudFront para reflejar los cambios al instante en el CDN
 aws cloudfront create-invalidation \
-  --distribution-id E1A2B3C4D5E6F7 \
+  --distribution-id E1YQBAZ70FTDNK \
   --paths "/*"
 ```
 

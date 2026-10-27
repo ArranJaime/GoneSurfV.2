@@ -143,6 +143,7 @@ function Header() {
         <Logo />
       </button>
       <nav
+        className="desktop-nav"
         style={{ display: "flex", gap: "2rem", backgroundColor: "transparent" }}
       >
         <button
@@ -186,7 +187,7 @@ function Header() {
         </button>
       </nav>
       <div
-        className="header-actions"
+        className="header-actions utilities"
         style={{
           display: "flex",
           gap: "1.5rem",

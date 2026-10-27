@@ -695,6 +695,20 @@ export const api = {
     },
 
     async delete(id: string): Promise<boolean> {
+      if (STORAGE_MODE === "aws" && API_GATEWAY_URL) {
+        try {
+          const res = await fetchWithAuth(`/collections/${id}`, {
+            method: "DELETE",
+          })
+          if (res.ok) {
+            broadcastSyncEvent("collections")
+            broadcastSyncEvent("products")
+          }
+        } catch (err) {
+          console.error("Fallo al eliminar colección en AWS:", err)
+        }
+      }
+
       const current = readStorage<CollectionData[]>(
         "gone_collections",
         INITIAL_COLLECTIONS,
@@ -850,6 +864,23 @@ export const api = {
       id: string,
       nextStatus: OrderStatus,
     ): Promise<OrderTransaction> {
+      if (STORAGE_MODE === "aws" && API_GATEWAY_URL) {
+        try {
+          const res = await fetchWithAuth(`/orders/${id}/status`, {
+            method: "PATCH",
+            body: JSON.stringify({ status: nextStatus }),
+          })
+          if (res.ok) {
+            const updated = await res.json()
+            broadcastSyncEvent("orders")
+            broadcastSyncEvent("products")
+            return updated
+          }
+        } catch (err) {
+          console.error("Fallo al actualizar estado de orden en AWS:", err)
+        }
+      }
+
       const orders = readStorage<OrderTransaction[]>("gone_transactions", [])
       const target = orders.find((o) => o.id === id)
       if (!target) throw new Error("Pedido no encontrado.")

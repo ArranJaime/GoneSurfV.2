@@ -140,3 +140,38 @@ td small { display: block; margin-top: 4px; color: #777; }
   .product-photo { height: 110vw; }
   .page { padding-inline: 16px; }
 }
+
+
+/* =========================================
+   FIX REPARACIÓN CABECERA MÓVIL
+   ========================================= */
+@media (max-width: 850px) {
+  .desktop-nav {
+    display: none !important;
+  }
+  .mobile-menu {
+    display: flex !important;
+    align-items: center;
+    background: none;
+    border: none;
+    color: inherit;
+    cursor: pointer;
+  }
+  header.header {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    flex-wrap: nowrap !important;
+    padding: 10px 16px !important;
+  }
+  .utilities {
+    display: flex !important;
+    align-items: center !important;
+    gap: 12px !important;
+    flex-wrap: nowrap !important;
+    width: auto !important;
+  }
+  .language-switch {
+    display: none !important;
+  }
+}

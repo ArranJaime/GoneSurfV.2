@@ -1,0 +1,684 @@
+import { DynamoDBClient } from "@aws-sdk/client-dynamodb"
+import {
+  DynamoDBDocumentClient,
+  GetCommand,
+  PutCommand,
+  UpdateCommand,
+  DeleteCommand,
+  ScanCommand,
+  TransactWriteCommand,
+} from "@aws-sdk/lib-dynamodb"
+import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3"
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner"
+import bcrypt from "bcryptjs"
+import jwt from "jsonwebtoken"
+
+// -----------------------------------------------------------------------------
+// AWS SDK & Environment Configuration
+// -----------------------------------------------------------------------------
+const REGION = process.env.AWS_REGION || "us-east-1"
+const ddbClient = new DynamoDBClient({ region: REGION })
+const docClient = DynamoDBDocumentClient.from(ddbClient, {
+  marshallOptions: { removeUndefinedValues: true },
+})
+const s3Client = new S3Client({ region: REGION })
+
+const PRODUCTS_TABLE = process.env.PRODUCTS_TABLE || "GoneSurfing-Products"
+const COLLECTIONS_TABLE = process.env.COLLECTIONS_TABLE || "GoneSurfing-Collections"
+const ORDERS_TABLE = process.env.ORDERS_TABLE || "GoneSurfing-Orders"
+const USERS_TABLE = process.env.USERS_TABLE || "GoneSurfing-Users"
+const MEDIA_BUCKET = process.env.MEDIA_BUCKET || ""
+const CLOUDFRONT_DOMAIN = process.env.CLOUDFRONT_DOMAIN || ""
+const JWT_SECRET = process.env.JWT_SECRET || "gone_surfing_super_secret_jwt_key_2026_sunat"
+const ADMIN_USER_DEFAULT = process.env.ADMIN_USER || "admin"
+const ADMIN_PASSWORD_DEFAULT = process.env.ADMIN_PASSWORD || "admin666"
+
+// CORS headers for all responses
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token",
+  "Access-Control-Allow-Methods": "GET,POST,PUT,PATCH,DELETE,OPTIONS",
+}
+
+function response(statusCode, body) {
+  return {
+    statusCode,
+    headers: {
+      "Content-Type": "application/json",
+      ...CORS_HEADERS,
+    },
+    body: JSON.stringify(body),
+  }
+}
+
+// -----------------------------------------------------------------------------
+// JWT & Auth Helpers
+// -----------------------------------------------------------------------------
+function authenticate(headers) {
+  const auth = headers.Authorization || headers.authorization || ""
+  const token = auth.replace(/^Bearer\s+/i, "").trim()
+  if (!token) return null
+  try {
+    return jwt.verify(token, JWT_SECRET)
+  } catch {
+    return null
+  }
+}
+
+function parseBody(event) {
+  if (!event.body) return {}
+  try {
+    return typeof event.body === "string" ? JSON.parse(event.body) : event.body
+  } catch {
+    return {}
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Initial Seed Data
+// -----------------------------------------------------------------------------
+const INITIAL_PRODUCTS = [
+  {
+    id: "p1",
+    name: "Stay Real Tee",
+    price: 109.0,
+    category: "Merch",
+    collectionName: "The slow days",
+    image: "/assets/hero-surf.jpg",
+    stocks: { S: 8, M: 12, L: 9, XL: 4 },
+  },
+  {
+    id: "p2",
+    name: "Stay Real Cap",
+    price: 89.0,
+    category: "Accesorios",
+    collectionName: "Catálogo General",
+    image: "/assets/cap.jpg",
+    stocks: { Única: 18 },
+  },
+  {
+    id: "p3",
+    name: "Gone Surf Leash",
+    price: 119.0,
+    category: "Accesorios",
+    collectionName: "The Blue",
+    image: "/assets/leash.jpg",
+    stocks: { Única: 12 },
+  },
+  {
+    id: "p4",
+    name: "Off Duty Tee",
+    price: 99.0,
+    category: "Merch",
+    collectionName: "The slow days",
+    image: "/assets/story.jpg",
+    stocks: { S: 10, M: 15, L: 15, XL: 5 },
+  },
+]
+
+const INITIAL_COLLECTIONS = [
+  {
+    id: "c1",
+    category: "ESENCIALES DE LA COSTA",
+    subtitle: "No plans. Just tides.",
+    title: "The slow days",
+    image: "/assets/underwater.jpg",
+    active: true,
+  },
+  {
+    id: "c2",
+    category: "HIGH PERFORMANCE",
+    subtitle: "Born to conquer.",
+    title: "The Blue",
+    image: "/assets/hero-surf.jpg",
+    active: true,
+  },
+]
+
+let isSeeded = false
+async function autoSeedDatabase() {
+  if (isSeeded) return
+  try {
+    // 1. Seed Admin User with bcrypt salt 12
+    const adminCheck = await docClient.send(
+      new GetCommand({
+        TableName: USERS_TABLE,
+        Key: { email: "admin@gonesurfing.pe" },
+      })
+    )
+    if (!adminCheck.Item) {
+      const passwordHash = bcrypt.hashSync(ADMIN_PASSWORD_DEFAULT, 12)
+      await docClient.send(
+        new PutCommand({
+          TableName: USERS_TABLE,
+          Item: {
+            email: "admin@gonesurfing.pe",
+            username: ADMIN_USER_DEFAULT,
+            role: "admin",
+            passwordHash,
+            createdAt: new Date().toISOString(),
+          },
+        })
+      )
+    }
+
+    // 2. Seed Products if empty
+    const prodsScan = await docClient.send(new ScanCommand({ TableName: PRODUCTS_TABLE, Limit: 1 }))
+    if (!prodsScan.Items || prodsScan.Items.length === 0) {
+      for (const p of INITIAL_PRODUCTS) {
+        await docClient.send(new PutCommand({ TableName: PRODUCTS_TABLE, Item: p }))
+      }
+    }
+
+    // 3. Seed Collections if empty
+    const colsScan = await docClient.send(new ScanCommand({ TableName: COLLECTIONS_TABLE, Limit: 1 }))
+    if (!colsScan.Items || colsScan.Items.length === 0) {
+      for (const c of INITIAL_COLLECTIONS) {
+        await docClient.send(new PutCommand({ TableName: COLLECTIONS_TABLE, Item: c }))
+      }
+    }
+
+    isSeeded = true
+  } catch (err) {
+    console.warn("Auto-seed notice (may already exist):", err.message)
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Main Lambda Router
+// -----------------------------------------------------------------------------
+export async function handler(event) {
+  // Support both REST API v1 and HTTP API v2 payloads
+  const httpMethod = event.httpMethod || event.requestContext?.http?.method || "GET"
+  
+  // Robust path extraction across API Gateway v1 proxy, direct routes, and stages
+  let path = "/"
+  if (event.pathParameters && event.pathParameters.proxy) {
+    path = `/${event.pathParameters.proxy}`
+  } else {
+    const rawPath = event.path || event.rawPath || "/"
+    path = rawPath.replace(/^\/(prod|dev|staging)(\/|$)/, "/")
+  }
+  if (!path.startsWith("/")) path = `/${path}`
+  if (path.length > 1 && path.endsWith("/")) {
+    path = path.slice(0, -1)
+  }
+
+  const headers = event.headers || {}
+
+  // Handle CORS Preflight
+  if (httpMethod === "OPTIONS") {
+    return {
+      statusCode: 200,
+      headers: CORS_HEADERS,
+      body: "",
+    }
+  }
+
+  // Ensure initial seed
+  await autoSeedDatabase()
+
+  try {
+    // -------------------------------------------------------------------------
+    // 1. AUTH ROUTES
+    // -------------------------------------------------------------------------
+    if (httpMethod === "POST" && path === "/auth/admin/login") {
+      const { user, password } = parseBody(event)
+      if (!user || !password) {
+        return response(400, { message: "Usuario y contraseña requeridos." })
+      }
+
+      // Check against DB or environment defaults
+      let isValid = false
+      const userScan = await docClient.send(
+        new ScanCommand({
+          TableName: USERS_TABLE,
+          FilterExpression: "username = :u OR email = :u",
+          ExpressionAttributeValues: { ":u": user },
+        })
+      )
+
+      if (userScan.Items && userScan.Items.length > 0) {
+        const found = userScan.Items[0]
+        if (found.role === "admin" && found.passwordHash) {
+          isValid = bcrypt.compareSync(password, found.passwordHash)
+        }
+      } else if (user === ADMIN_USER_DEFAULT && password === ADMIN_PASSWORD_DEFAULT) {
+        isValid = true
+      }
+
+      if (!isValid) {
+        return response(401, { message: "Credenciales de administrador inválidas." })
+      }
+
+      const expiresAt = Date.now() + 4 * 3600 * 1000 // 4 hours
+      const token = jwt.sign(
+        { user, role: "admin", exp: Math.floor(expiresAt / 1000) },
+        JWT_SECRET
+      )
+      return response(200, { ok: true, token, expiresAt })
+    }
+
+    if (httpMethod === "POST" && path === "/auth/customers/register") {
+      const data = parseBody(event)
+      const cleanEmail = (data.email || "").trim().toLowerCase()
+      if (!cleanEmail || !data.password) {
+        return response(400, { message: "Correo y contraseña son obligatorios." })
+      }
+
+      const existing = await docClient.send(
+        new GetCommand({ TableName: USERS_TABLE, Key: { email: cleanEmail } })
+      )
+      if (existing.Item) {
+        return response(400, { message: "Este correo electrónico ya está registrado." })
+      }
+
+      const passwordHash = bcrypt.hashSync(data.password, 12) // salt >= 12
+      const customerItem = {
+        email: cleanEmail,
+        firstName: (data.firstName || "").trim(),
+        lastName: (data.lastName || "").trim(),
+        documentType: data.documentType || "DNI",
+        document: (data.document || "").trim(),
+        phone: (data.phone || "").trim(),
+        address: (data.address || "").trim(),
+        district: (data.district || "").trim(),
+        role: "customer",
+        passwordHash,
+        createdAt: new Date().toISOString(),
+      }
+
+      await docClient.send(new PutCommand({ TableName: USERS_TABLE, Item: customerItem }))
+      const { passwordHash: _, ...safeUser } = customerItem
+      return response(201, safeUser)
+    }
+
+    if (httpMethod === "POST" && path === "/auth/customers/login") {
+      const { email, password } = parseBody(event)
+      const cleanEmail = (email || "").trim().toLowerCase()
+      if (!cleanEmail || !password) {
+        return response(400, { message: "Correo y contraseña requeridos." })
+      }
+
+      const userRecord = await docClient.send(
+        new GetCommand({ TableName: USERS_TABLE, Key: { email: cleanEmail } })
+      )
+      if (!userRecord.Item || !userRecord.Item.passwordHash) {
+        return response(401, { message: "Correo o contraseña incorrectos." })
+      }
+
+      const match = bcrypt.compareSync(password, userRecord.Item.passwordHash)
+      if (!match) {
+        return response(401, { message: "Correo o contraseña incorrectos." })
+      }
+
+      const { passwordHash: _, ...safeUser } = userRecord.Item
+      const token = jwt.sign({ email: cleanEmail, role: "customer" }, JWT_SECRET, { expiresIn: "7d" })
+      return response(200, { ok: true, user: safeUser, token })
+    }
+
+    // -------------------------------------------------------------------------
+    // 2. PRODUCTS ROUTES
+    // -------------------------------------------------------------------------
+    if (httpMethod === "GET" && path === "/products") {
+      const scanResult = await docClient.send(new ScanCommand({ TableName: PRODUCTS_TABLE }))
+      return response(200, scanResult.Items || [])
+    }
+
+    if (httpMethod === "GET" && path.startsWith("/products/")) {
+      const id = path.replace("/products/", "")
+      const res = await docClient.send(new GetCommand({ TableName: PRODUCTS_TABLE, Key: { id } }))
+      if (!res.Item) return response(404, { message: "Producto no encontrado." })
+      return response(200, res.Item)
+    }
+
+    if (httpMethod === "POST" && path === "/products") {
+      const user = authenticate(headers)
+      if (!user || user.role !== "admin") return response(403, { message: "Acceso denegado: Requiere rol admin." })
+
+      const data = parseBody(event)
+      const price = parseFloat(data.price)
+      if (!data.name || Number.isNaN(price) || price <= 0) {
+        return response(400, { message: "Nombre válido y precio mayor a 0 son obligatorios." })
+      }
+
+      const isAcc = data.category === "Accesorios"
+      const stocks = isAcc
+        ? { Única: Math.max(0, parseInt(data.stocks?.["Única"] || 0, 10)) }
+        : {
+            S: Math.max(0, parseInt(data.stocks?.S || 0, 10)),
+            M: Math.max(0, parseInt(data.stocks?.M || 0, 10)),
+            L: Math.max(0, parseInt(data.stocks?.L || 0, 10)),
+            XL: Math.max(0, parseInt(data.stocks?.XL || 0, 10)),
+          }
+
+      const newProduct = {
+        id: `prod-${Date.now()}`,
+        name: data.name.trim(),
+        price: Number(price.toFixed(2)),
+        category: data.category || "New Arrivals",
+        collectionName: data.collectionName || "Catálogo General",
+        image: data.image || "/assets/hero-surf.jpg",
+        stocks,
+        createdAt: new Date().toISOString(),
+      }
+
+      await docClient.send(new PutCommand({ TableName: PRODUCTS_TABLE, Item: newProduct }))
+      return response(201, newProduct)
+    }
+
+    if (httpMethod === "PUT" && path.startsWith("/products/")) {
+      const user = authenticate(headers)
+      if (!user || user.role !== "admin") return response(403, { message: "Acceso denegado." })
+
+      const id = path.replace("/products/", "")
+      const data = parseBody(event)
+
+      const existing = await docClient.send(new GetCommand({ TableName: PRODUCTS_TABLE, Key: { id } }))
+      if (!existing.Item) return response(404, { message: "Producto no encontrado." })
+
+      const updated = {
+        ...existing.Item,
+        ...(data.name ? { name: data.name.trim() } : {}),
+        ...(data.price !== undefined ? { price: Number(parseFloat(data.price).toFixed(2)) } : {}),
+        ...(data.category ? { category: data.category } : {}),
+        ...(data.collectionName ? { collectionName: data.collectionName } : {}),
+        ...(data.image ? { image: data.image } : {}),
+        ...(data.stocks ? { stocks: data.stocks } : {}),
+        updatedAt: new Date().toISOString(),
+      }
+
+      await docClient.send(new PutCommand({ TableName: PRODUCTS_TABLE, Item: updated }))
+      return response(200, updated)
+    }
+
+    if (httpMethod === "DELETE" && path.startsWith("/products/")) {
+      const user = authenticate(headers)
+      if (!user || user.role !== "admin") return response(403, { message: "Acceso denegado." })
+
+      const id = path.replace("/products/", "")
+      await docClient.send(new DeleteCommand({ TableName: PRODUCTS_TABLE, Key: { id } }))
+      return response(200, { success: true })
+    }
+
+    // -------------------------------------------------------------------------
+    // 3. COLLECTIONS ROUTES
+    // -------------------------------------------------------------------------
+    if (httpMethod === "GET" && path === "/collections") {
+      const scanResult = await docClient.send(new ScanCommand({ TableName: COLLECTIONS_TABLE }))
+      return response(200, scanResult.Items || [])
+    }
+
+    if (httpMethod === "POST" && path === "/collections") {
+      const user = authenticate(headers)
+      if (!user || user.role !== "admin") return response(403, { message: "Acceso denegado." })
+
+      const data = parseBody(event)
+      if (!data.title || !data.image) {
+        return response(400, { message: "Título e imagen son requeridos." })
+      }
+
+      const newCol = {
+        id: `col-${Date.now()}`,
+        title: data.title.trim(),
+        subtitle: (data.subtitle || "").trim(),
+        category: (data.category || "LIFESTYLE").trim(),
+        image: data.image,
+        active: true,
+        createdAt: new Date().toISOString(),
+      }
+
+      await docClient.send(new PutCommand({ TableName: COLLECTIONS_TABLE, Item: newCol }))
+      return response(201, newCol)
+    }
+
+    if (httpMethod === "PATCH" && path.includes("/toggle")) {
+      const user = authenticate(headers)
+      if (!user || user.role !== "admin") return response(403, { message: "Acceso denegado." })
+
+      const id = path.split("/")[2]
+      const current = await docClient.send(new GetCommand({ TableName: COLLECTIONS_TABLE, Key: { id } }))
+      if (!current.Item) return response(404, { message: "Colección no encontrada." })
+
+      const updated = { ...current.Item, active: !current.Item.active }
+      await docClient.send(new PutCommand({ TableName: COLLECTIONS_TABLE, Item: updated }))
+      return response(200, updated)
+    }
+
+    if (httpMethod === "DELETE" && path.startsWith("/collections/")) {
+      const user = authenticate(headers)
+      if (!user || user.role !== "admin") return response(403, { message: "Acceso denegado." })
+
+      const id = path.replace("/collections/", "")
+      const colRecord = await docClient.send(new GetCommand({ TableName: COLLECTIONS_TABLE, Key: { id } }))
+
+      // Reassign affected products to General Catalog
+      if (colRecord.Item && colRecord.Item.title) {
+        const title = colRecord.Item.title
+        const prods = await docClient.send(
+          new ScanCommand({
+            TableName: PRODUCTS_TABLE,
+            FilterExpression: "collectionName = :c",
+            ExpressionAttributeValues: { ":c": title },
+          })
+        )
+        if (prods.Items) {
+          for (const p of prods.Items) {
+            await docClient.send(
+              new UpdateCommand({
+                TableName: PRODUCTS_TABLE,
+                Key: { id: p.id },
+                UpdateExpression: "SET collectionName = :cat",
+                ExpressionAttributeValues: { ":cat": "Catálogo General" },
+              })
+            )
+          }
+        }
+      }
+
+      await docClient.send(new DeleteCommand({ TableName: COLLECTIONS_TABLE, Key: { id } }))
+      return response(200, { success: true })
+    }
+
+    // -------------------------------------------------------------------------
+    // 4. ORDERS ROUTES (STRICT SUNAT & ATOMIC DYNAMODB STOCK TRANSACTIONS)
+    // -------------------------------------------------------------------------
+    if (httpMethod === "GET" && path === "/orders") {
+      const user = authenticate(headers)
+      if (!user || user.role !== "admin") return response(403, { message: "Acceso denegado." })
+
+      const res = await docClient.send(new ScanCommand({ TableName: ORDERS_TABLE }))
+      const sorted = (res.Items || []).sort((a, b) => new Date(b.date) - new Date(a.date))
+      return response(200, sorted)
+    }
+
+    if (httpMethod === "POST" && path === "/orders") {
+      const orderInput = parseBody(event)
+      const items = orderInput.items
+      if (!Array.isArray(items) || items.length === 0) {
+        return response(400, { message: "El carrito está vacío o el formato es incorrecto." })
+      }
+
+      // Step 1: Fetch and verify official catalog products
+      const catalogProducts = []
+      for (const item of items) {
+        const prodRes = await docClient.send(
+          new GetCommand({ TableName: PRODUCTS_TABLE, Key: { id: item.productId } })
+        )
+        if (!prodRes.Item) {
+          return response(400, { message: `Producto con ID ${item.productId} no encontrado.` })
+        }
+        catalogProducts.push(prodRes.Item)
+      }
+
+      // Step 2: Atomic Condition Check and Stock Decrement using DynamoDB TransactWriteItems
+      const transactItems = items.map((item) => {
+        return {
+          Update: {
+            TableName: PRODUCTS_TABLE,
+            Key: { id: item.productId },
+            UpdateExpression: "SET stocks.#sz = stocks.#sz - :qty",
+            ConditionExpression: "attribute_exists(id) AND stocks.#sz >= :qty",
+            ExpressionAttributeNames: { "#sz": item.size },
+            ExpressionAttributeValues: { ":qty": item.quantity },
+          },
+        }
+      })
+
+      try {
+        await docClient.send(new TransactWriteCommand({ TransactItems: transactItems }))
+      } catch (err) {
+        console.error("DynamoDB atomic transaction failed:", err)
+        return response(400, {
+          message: "Stock insuficiente para una o más prendas de su pedido. Por favor revise el inventario disponible.",
+        })
+      }
+
+      // Step 3: Strict SUNAT Perú accounting recalculation in integer cents
+      let itemsTotalCents = 0
+      const detailParts = []
+      items.forEach((item, index) => {
+        const product = catalogProducts[index]
+        const unitPriceCents = Math.round(product.price * 100)
+        itemsTotalCents += unitPriceCents * item.quantity
+        detailParts.push(`${item.quantity}x ${product.name} (${item.size})`)
+      })
+
+      // Shipping rules: Express = S/. 30.00 | Standard = S/. 15.00 (Gratis si >= S/. 300.00)
+      const shippingMethod = orderInput.shippingMethod === "express" ? "express" : "standard"
+      let shippingCents = 0
+      if (shippingMethod === "express") {
+        shippingCents = 3000
+      } else {
+        shippingCents = itemsTotalCents >= 30000 ? 0 : 1500
+      }
+
+      // SUNAT 18% IGV included in retail prices
+      const subtotalCents = Math.round(itemsTotalCents / 1.18) // Base Imponible
+      const igvCents = itemsTotalCents - subtotalCents        // IGV
+      const totalCents = itemsTotalCents + shippingCents       // Monto Total
+
+      const orderId = `ORD-${Math.floor(1000 + Math.random() * 9000)}`
+      const transaction = {
+        id: orderId,
+        customer: (orderInput.customer || "Cliente Invitado").trim(),
+        documentType: orderInput.documentType || "DNI",
+        document: (orderInput.document || "").trim(),
+        email: (orderInput.email || "").trim().toLowerCase(),
+        phone: (orderInput.phone || "").trim(),
+        districtCode: orderInput.districtCode || "LIM",
+        districtName: orderInput.districtName || "Lima",
+        districtX: orderInput.districtX || 260,
+        districtY: orderInput.districtY || 55,
+        address: (orderInput.address || "").trim(),
+        shippingMethod,
+        shipping: Number((shippingCents / 100).toFixed(2)),
+        itemsTotal: Number((itemsTotalCents / 100).toFixed(2)),
+        subtotal: Number((subtotalCents / 100).toFixed(2)),
+        igv: Number((igvCents / 100).toFixed(2)),
+        total: Number((totalCents / 100).toFixed(2)),
+        items,
+        detail: detailParts.join(", "),
+        date: new Date().toISOString(),
+        status: "Procesando",
+      }
+
+      await docClient.send(new PutCommand({ TableName: ORDERS_TABLE, Item: transaction }))
+      return response(201, transaction)
+    }
+
+    if (httpMethod === "PATCH" && path.includes("/status")) {
+      const user = authenticate(headers)
+      if (!user || user.role !== "admin") return response(403, { message: "Acceso denegado." })
+
+      const id = path.split("/")[2]
+      const { status } = parseBody(event)
+      const orderRes = await docClient.send(new GetCommand({ TableName: ORDERS_TABLE, Key: { id } }))
+      if (!orderRes.Item) return response(404, { message: "Orden no encontrada." })
+
+      const currentStatus = orderRes.Item.status
+      if (currentStatus !== status) {
+        // Stock rollback if cancelled
+        if (status === "Cancelado" && currentStatus !== "Cancelado") {
+          for (const item of orderRes.Item.items || []) {
+            await docClient.send(
+              new UpdateCommand({
+                TableName: PRODUCTS_TABLE,
+                Key: { id: item.productId },
+                UpdateExpression: "SET stocks.#sz = stocks.#sz + :qty",
+                ExpressionAttributeNames: { "#sz": item.size },
+                ExpressionAttributeValues: { ":qty": item.quantity },
+              })
+            )
+          }
+        } else if (currentStatus === "Cancelado" && status !== "Cancelado") {
+          // Re-deduct if un-cancelled
+          for (const item of orderRes.Item.items || []) {
+            await docClient.send(
+              new UpdateCommand({
+                TableName: PRODUCTS_TABLE,
+                Key: { id: item.productId },
+                UpdateExpression: "SET stocks.#sz = stocks.#sz - :qty",
+                ExpressionAttributeNames: { "#sz": item.size },
+                ExpressionAttributeValues: { ":qty": item.quantity },
+              })
+            )
+          }
+        }
+
+        await docClient.send(
+          new UpdateCommand({
+            TableName: ORDERS_TABLE,
+            Key: { id },
+            UpdateExpression: "SET #st = :s",
+            ExpressionAttributeNames: { "#st": "status" },
+            ExpressionAttributeValues: { ":s": status },
+          })
+        )
+      }
+
+      return response(200, { ...orderRes.Item, status })
+    }
+
+    // -------------------------------------------------------------------------
+    // 5. S3 PRESIGNED IMAGE UPLOADS
+    // -------------------------------------------------------------------------
+    if (httpMethod === "POST" && (path === "/admin/upload-url" || path === "/media/presign")) {
+      const { fileName, contentType } = parseBody(event)
+      const allowedMimes = ["image/jpeg", "image/png", "image/webp", "image/avif", "image/gif"]
+
+      if (!contentType || !allowedMimes.includes(contentType.toLowerCase())) {
+        return response(400, {
+          message: "Formato no permitido. Solo se aceptan imágenes (JPEG, PNG, WebP, AVIF).",
+        })
+      }
+
+      const safeName = (fileName || "upload.webp").replace(/[^a-zA-Z0-9.-]/g, "_")
+      const fileKey = `media/${Date.now()}-${safeName}`
+
+      const putCommand = new PutObjectCommand({
+        Bucket: MEDIA_BUCKET,
+        Key: fileKey,
+        ContentType: contentType,
+      })
+
+      const uploadUrl = await getSignedUrl(s3Client, putCommand, { expiresIn: 300 })
+      const publicUrl = CLOUDFRONT_DOMAIN
+        ? `https://${CLOUDFRONT_DOMAIN}/${fileKey}`
+        : `https://${MEDIA_BUCKET}.s3.${REGION}.amazonaws.com/${fileKey}`
+
+      return response(200, {
+        uploadUrl,
+        fileKey,
+        publicUrl,
+      })
+    }
+
+    return response(404, { message: `Ruta no encontrada: ${httpMethod} ${path}` })
+  } catch (err) {
+    console.error("Unhandled API error:", err)
+    return response(500, { message: "Error interno del servidor", error: err.message })
+  }
+}
+
+

@@ -21,3 +21,9 @@ logs/
 # beside it.
 /.plugins/
 /.opencode-skills/
+
+# Backend artifacts
+backend/dist/
+backend/node_modules/
+backend/*.zip
+backend/.env*
