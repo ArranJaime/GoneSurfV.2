@@ -1,74 +1,45 @@
-import { createContext, useContext, useState, useEffect, useCallback, useMemo, type ReactNode } from "react"
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  type ReactNode,
+} from "react"
+import {
+  api,
+  broadcastSyncEvent,
+  INITIAL_COLLECTIONS,
+  INITIAL_PRODUCTS,
+  type Product,
+  type CollectionData,
+  type CartItem,
+  type CustomerUser,
+  type OrderDetailsInput,
+  type OrderTransaction,
+  type Size,
+  type OrderStatus,
+} from "./services/api"
+import { calculateOrderAmounts } from "./utils/accounting"
 
-export type Size = "S" | "M" | "L" | "XL" | "Única"
-export type OrderStatus = "Procesando" | "Enviado" | "Entregado" | "Cancelado"
-
-export interface CollectionData {
-  id: string
-  category: string
-  subtitle: string
-  title: string
-  image: string
-  active: boolean
+export type {
+  Product,
+  CollectionData,
+  CartItem,
+  CustomerUser,
+  OrderDetailsInput,
+  OrderTransaction,
+  Size,
+  OrderStatus,
 }
 
-export interface Product {
-  id: string
-  name: string
-  price: number
-  category: string
-  collectionName?: string
-  image: string
-  stocks: Record<string, number>
+export interface RegisterResult {
+  ok: boolean
+  error?: string
 }
 
-export interface CartItem {
-  productId: string
-  size: Size
-  quantity: number
-}
-
-export interface CustomerUser {
-  firstName: string
-  lastName: string
-  email: string
-  documentType?: "DNI" | "CE"
-  document?: string
-  phone?: string
-  address?: string
-  district?: string
-  password?: string
-}
-
-export interface OrderDetailsInput {
-  customer: string
-  documentType?: "DNI" | "CE"
-  document: string
-  email: string
-  phone: string
-  districtCode: string
-  districtName: string
-  districtX: number
-  districtY: number
-  address: string
-  shippingMethod?: "standard" | "express"
-  shipping: number
-  total?: number
-  subtotal?: number
-  items: CartItem[]
-}
-
-export interface OrderTransaction extends OrderDetailsInput {
-  id: string
-  total: number
-  subtotal: number
-  igv: number
-  date: string
-  detail: string
-  status: OrderStatus
-}
-
-interface Store {
+export interface Store {
   products: Product[]
   collections: CollectionData[]
   cart: CartItem[]
@@ -79,6 +50,7 @@ interface Store {
   changeStock: (productId: string, size: Size, delta: number) => void
   completeOrder: (details: OrderDetailsInput) => { id: string }
   addProduct: (product: Omit<Product, "id">) => void
+  updateProduct: (id: string, updates: Partial<Omit<Product, "id">>) => void
   updateProductPrice: (productId: string, newPrice: number) => void
   updateProductCollection: (productId: string, collectionName: string) => void
   addCollection: (col: Omit<CollectionData, "id" | "active">) => void
@@ -86,7 +58,7 @@ interface Store {
   deleteCollection: (id: string) => void
   deleteProduct: (id: string) => void
   updateOrderStatus: (id: string, status: OrderStatus) => void
-  registerUser: (newUser: CustomerUser) => { ok: boolean; error?: string }
+  registerUser: (newUser: CustomerUser) => RegisterResult
   authenticateUser: (email: string, password: string) => CustomerUser | null
   deleteUser: (email: string) => void
   resetDemoData: () => void
@@ -94,19 +66,11 @@ interface Store {
 
 const StoreContext = createContext<Store | null>(null)
 
-const initialCollections: CollectionData[] = [
-  { id: "c1", category: "ESENCIALES DE LA COSTA", subtitle: "No plans. Just tides.", title: "The slow days", image: "/assets/underwater.jpg", active: true },
-  { id: "c2", category: "HIGH PERFORMANCE", subtitle: "Born to conquer.", title: "The Blue", image: "/assets/hero-surf.jpg", active: true }
-]
-
-const initialProducts: Product[] = [
-  { id: "p1", name: "Stay Real Tee", price: 109.0, category: "Merch", collectionName: "The slow days", image: "/assets/hero-surf.jpg", stocks: { S: 8, M: 12, L: 9, XL: 4 } },
-  { id: "p2", name: "Stay Real Cap", price: 89.0, category: "Accesorios", collectionName: "Catálogo General", image: "/assets/cap.jpg", stocks: { Única: 18 } },
-  { id: "p3", name: "Gone Surf Leash", price: 119.0, category: "Accesorios", collectionName: "The Blue", image: "/assets/leash.jpg", stocks: { Única: 12 } },
-  { id: "p4", name: "Off Duty Tee", price: 99.0, category: "Merch", collectionName: "The slow days", image: "/assets/story.jpg", stocks: { S: 10, M: 15, L: 15, XL: 5 } },
-]
-
-export function safeReadStorage<T>(key: string, fallback: T, validator?: (val: unknown) => T | null): T {
+export function safeReadStorage<T>(
+  key: string,
+  fallback: T,
+  validator?: (val: unknown) => T | null,
+): T {
   try {
     const saved = localStorage.getItem(key)
     if (!saved) return fallback
@@ -115,7 +79,7 @@ export function safeReadStorage<T>(key: string, fallback: T, validator?: (val: u
       const validated = validator(parsed)
       return validated !== null ? validated : fallback
     }
-    return (parsed as T) ?? fallback
+    return parsed as T ?? fallback
   } catch (error) {
     console.error(`Error leyendo ${key} desde localStorage:`, error)
     return fallback
@@ -133,68 +97,94 @@ export function safeWriteStorage(key: string, value: unknown): boolean {
 }
 
 export function getCurrentSessionUser(): CustomerUser | null {
-  try {
-    const parsed = JSON.parse(sessionStorage.getItem("gone_current_user") || "null")
-    return parsed && typeof parsed === "object" && typeof parsed.email === "string" ? (parsed as CustomerUser) : null
-  } catch {
-    return null
-  }
+  return api.auth.getCurrentCustomer()
 }
 
 export function StoreProvider({ children }: { children: ReactNode }) {
   const [collections, setCollections] = useState<CollectionData[]>(() =>
-    safeReadStorage("gone_collections", initialCollections, (parsed) => {
+    safeReadStorage("gone_collections", INITIAL_COLLECTIONS, (parsed) => {
       if (!Array.isArray(parsed)) return null
-      const valid = parsed.filter((c): c is CollectionData => Boolean(c && typeof c.title === "string" && c.title.trim() !== ""))
-      return valid.length > 0 ? valid : initialCollections
-    })
+      const valid = parsed.filter((c): c is CollectionData =>
+        Boolean(c && typeof c.title === "string" && c.title.trim() !== ""),
+      )
+      return valid.length > 0 ? valid : INITIAL_COLLECTIONS
+    }),
   )
 
   const [products, setProducts] = useState<Product[]>(() =>
-    safeReadStorage("gone_products", initialProducts, (parsed) => {
+    safeReadStorage("gone_products", INITIAL_PRODUCTS, (parsed) => {
       if (!Array.isArray(parsed)) return null
-      const valid = parsed.filter((p): p is Product => Boolean(p && typeof p.name === "string" && p.name.trim() !== ""))
-      return valid.length > 0 ? valid : initialProducts
-    })
+      const valid = parsed.filter((p): p is Product =>
+        Boolean(p && typeof p.name === "string" && p.name.trim() !== ""),
+      )
+      return valid.length > 0 ? valid : INITIAL_PRODUCTS
+    }),
   )
 
   const [cart, setCart] = useState<CartItem[]>(() =>
-    safeReadStorage("gone_cart", [], (parsed) => (Array.isArray(parsed) ? (parsed as CartItem[]) : []))
+    safeReadStorage("gone_cart", [], (parsed) =>
+      Array.isArray(parsed) ? parsed as CartItem[] : [],
+    ),
   )
 
   const [transactions, setTransactions] = useState<OrderTransaction[]>(() =>
-    safeReadStorage("gone_transactions", [], (parsed) => (Array.isArray(parsed) ? (parsed as OrderTransaction[]) : []))
+    safeReadStorage("gone_transactions", [], (parsed) =>
+      Array.isArray(parsed) ? parsed as OrderTransaction[] : [],
+    ),
   )
 
   const [users, setUsers] = useState<CustomerUser[]>(() =>
-    safeReadStorage("gone_users", [], (parsed) => (Array.isArray(parsed) ? (parsed as CustomerUser[]) : []))
+    safeReadStorage("gone_users", [], (parsed) =>
+      Array.isArray(parsed) ? parsed as CustomerUser[] : [],
+    ),
   )
 
-  useEffect(() => { safeWriteStorage("gone_collections", collections) }, [collections])
-  useEffect(() => { safeWriteStorage("gone_products", products) }, [products])
-  useEffect(() => { safeWriteStorage("gone_transactions", transactions) }, [transactions])
-  useEffect(() => { safeWriteStorage("gone_cart", cart) }, [cart])
-  useEffect(() => { safeWriteStorage("gone_users", users) }, [users])
-
-  // Sincronización en tiempo real si el usuario prueba Tienda y Admin en dos pestañas distintas
-  useEffect(() => {
-    const handleStorageSync = (e: StorageEvent) => {
-      if (e.key === "gone_collections") {
-        setCollections(safeReadStorage("gone_collections", initialCollections))
-      } else if (e.key === "gone_products") {
-        setProducts(safeReadStorage("gone_products", initialProducts))
-      } else if (e.key === "gone_transactions") {
-        setTransactions(safeReadStorage("gone_transactions", []))
-      } else if (e.key === "gone_cart") {
-        setCart(safeReadStorage("gone_cart", []))
-      } else if (e.key === "gone_users") {
-        setUsers(safeReadStorage("gone_users", []))
-      }
-    }
-    window.addEventListener("storage", handleStorageSync)
-    return () => window.removeEventListener("storage", handleStorageSync)
+  // Real-time synchronization across storage and internal event bus
+  const reloadFromStorage = useCallback(() => {
+    setCollections(safeReadStorage("gone_collections", INITIAL_COLLECTIONS))
+    setProducts(safeReadStorage("gone_products", INITIAL_PRODUCTS))
+    setTransactions(safeReadStorage("gone_transactions", []))
+    setCart(safeReadStorage("gone_cart", []))
+    setUsers(safeReadStorage("gone_users", []))
   }, [])
 
+  useEffect(() => {
+    const handleStorageSync = (e: StorageEvent) => {
+      if (e.key?.startsWith("gone_")) {
+        reloadFromStorage()
+      }
+    }
+
+    const handleCustomSync = () => {
+      reloadFromStorage()
+    }
+
+    window.addEventListener("storage", handleStorageSync)
+    window.addEventListener("gonesurf:sync", handleCustomSync)
+    return () => {
+      window.removeEventListener("storage", handleStorageSync)
+      window.removeEventListener("gonesurf:sync", handleCustomSync)
+    }
+  }, [reloadFromStorage])
+
+  // Persist local changes and broadcast
+  useEffect(() => {
+    safeWriteStorage("gone_collections", collections)
+  }, [collections])
+  useEffect(() => {
+    safeWriteStorage("gone_products", products)
+  }, [products])
+  useEffect(() => {
+    safeWriteStorage("gone_transactions", transactions)
+  }, [transactions])
+  useEffect(() => {
+    safeWriteStorage("gone_cart", cart)
+  }, [cart])
+  useEffect(() => {
+    safeWriteStorage("gone_users", users)
+  }, [users])
+
+  // Ensure cart quantities never exceed live inventory
   useEffect(() => {
     setCart((prevCart) => {
       let changed = false
@@ -217,216 +207,300 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     })
   }, [products])
 
-  const addToCart = useCallback((productId: string, size: Size) => {
-    const product = products.find((p) => p.id === productId)
-    if (!product) return
-    const availableStock = product.stocks[size] ?? 0
-    if (availableStock <= 0) return
+  const addToCart = useCallback(
+    (productId: string, size: Size) => {
+      const product = products.find((p) => p.id === productId)
+      if (!product) return
+      const availableStock = product.stocks[size] ?? 0
+      if (availableStock <= 0) return
 
-    setCart((prev) => {
-      const existing = prev.find((i) => i.productId === productId && i.size === size)
-      if (existing) {
-        if (existing.quantity >= availableStock) return prev
-        return prev.map((i) => (i.productId === productId && i.size === size ? { ...i, quantity: i.quantity + 1 } : i))
+      setCart((prev) => {
+        const existing = prev.find(
+          (i) => i.productId === productId && i.size === size,
+        )
+        if (existing) {
+          if (existing.quantity >= availableStock) return prev
+          const updated = prev.map((i) =>
+            i.productId === productId && i.size === size
+              ? { ...i, quantity: i.quantity + 1 }
+              : i,
+          )
+          safeWriteStorage("gone_cart", updated)
+          return updated
+        }
+        const updated = [...prev, { productId, size, quantity: 1 }]
+        safeWriteStorage("gone_cart", updated)
+        return updated
+      })
+    },
+    [products],
+  )
+
+  const changeQuantity = useCallback(
+    (productId: string, size: Size, delta: number) => {
+      const product = products.find((p) => p.id === productId)
+      const availableStock = product ? (product.stocks[size] ?? 0) : 0
+
+      setCart((prev) => {
+        const updated = prev
+          .map((i) => {
+            if (i.productId !== productId || i.size !== size) return i
+            const nextQuantity = Math.min(
+              availableStock,
+              Math.max(0, i.quantity + delta),
+            )
+            return { ...i, quantity: nextQuantity }
+          })
+          .filter((i) => i.quantity > 0)
+        safeWriteStorage("gone_cart", updated)
+        return updated
+      })
+    },
+    [products],
+  )
+
+  const changeStock = useCallback(
+    (productId: string, size: Size, delta: number) => {
+      api.products.updateStock(productId, size, delta).then(() => {
+        setProducts((prev) =>
+          prev.map((p) => {
+            if (p.id !== productId) return p
+            return {
+              ...p,
+              stocks: {
+                ...p.stocks,
+                [size]: Math.max(0, (p.stocks[size] || 0) + delta),
+              },
+            }
+          }),
+        )
+      })
+    },
+    [],
+  )
+
+  const completeOrder = useCallback(
+    (details: OrderDetailsInput): { id: string } => {
+      // 1. Verify stock against catalog products
+      const validCartItems = cart.filter((item) => {
+        const prod = products.find((p) => p.id === item.productId)
+        return Boolean(
+          prod &&
+            (prod.stocks[item.size] ?? 0) >= item.quantity &&
+            item.quantity > 0,
+        )
+      })
+
+      if (validCartItems.length === 0) {
+        throw new Error("Stock insuficiente o carrito vacío.")
       }
-      return [...prev, { productId, size, quantity: 1 }]
-    })
-  }, [products])
 
-  const changeQuantity = useCallback((productId: string, size: Size, delta: number) => {
-    const product = products.find((p) => p.id === productId)
-    const availableStock = product ? (product.stocks[size] ?? 0) : 0
+      // 2. SUNAT Accounting recalculation strictly in integer cents
+      const accounting = calculateOrderAmounts(
+        validCartItems,
+        products,
+        details.shippingMethod || "standard",
+      )
 
-    setCart((prev) =>
-      prev
-        .map((i) => {
-          if (i.productId !== productId || i.size !== size) return i
-          const nextQuantity = Math.min(availableStock, Math.max(0, i.quantity + delta))
-          return { ...i, quantity: nextQuantity }
+      const id = `ORD-${String(Math.floor(1000 + Math.random() * 9000))}`
+      const detailString = accounting.items
+        .map((i) => `${i.quantity}x ${i.name} (${i.size})`)
+        .join(", ")
+
+      const newTransaction: OrderTransaction = {
+        ...details,
+        items: validCartItems,
+        id,
+        total: accounting.total,
+        subtotal: accounting.subtotal,
+        igv: accounting.igv,
+        shipping: accounting.shipping,
+        date: new Date().toISOString(),
+        detail: detailString,
+        status: "Procesando",
+      }
+
+      // 3. Atomically decrement stock
+      setProducts((prevProducts) => {
+        const updated = prevProducts.map((product) => {
+          const itemsForProduct = validCartItems.filter(
+            (item) => item.productId === product.id,
+          )
+          if (itemsForProduct.length === 0) return product
+          const updatedStocks = { ...product.stocks }
+          itemsForProduct.forEach((item) => {
+            updatedStocks[item.size] = Math.max(
+              0,
+              (updatedStocks[item.size] || 0) - item.quantity,
+            )
+          })
+          return { ...product, stocks: updatedStocks }
         })
-        .filter((i) => i.quantity > 0)
-    )
-  }, [products])
-
-  const changeStock = useCallback((productId: string, size: Size, delta: number) => {
-    setProducts((prev) =>
-      prev.map((p) => {
-        if (p.id !== productId) return p
-        return { ...p, stocks: { ...p.stocks, [size]: Math.max(0, (p.stocks[size] || 0) + delta) } }
+        safeWriteStorage("gone_products", updated)
+        return updated
       })
-    )
-  }, [])
 
-  const completeOrder = useCallback((details: OrderDetailsInput) => {
-    const validCartItems = cart.filter((item) => {
-      const prod = products.find((p) => p.id === item.productId)
-      return Boolean(prod && (prod.stocks[item.size] ?? 0) >= item.quantity && item.quantity > 0)
-    })
-
-    if (validCartItems.length === 0) {
-      throw new Error("Stock insuficiente o carrito vacío.")
-    }
-
-    const itemsTotalCents = validCartItems.reduce((sum, item) => {
-      const unitPrice = products.find((p) => p.id === item.productId)?.price || 0
-      return sum + Math.round(unitPrice * 100) * item.quantity
-    }, 0)
-
-    const shippingCents = Math.round((details.shipping || 0) * 100)
-    const totalCents = itemsTotalCents + shippingCents
-    const subtotalCents = Math.round(itemsTotalCents / 1.18)
-    const taxCents = itemsTotalCents - subtotalCents
-
-    const total = Number((totalCents / 100).toFixed(2))
-    const subtotal = Number((subtotalCents / 100).toFixed(2))
-    const igv = Number((taxCents / 100).toFixed(2))
-    const id = `ORD-${String(Math.floor(1000 + Math.random() * 9000))}`
-    const detailString = validCartItems
-      .map((i) => `${i.quantity}x ${products.find((p) => p.id === i.productId)?.name ?? "Producto"} (${i.size})`)
-      .join(", ")
-
-    const newTransaction: OrderTransaction = {
-      ...details,
-      items: validCartItems,
-      id,
-      total,
-      subtotal,
-      igv,
-      date: new Date().toISOString(),
-      detail: detailString,
-      status: "Procesando",
-    }
-
-    setTransactions((prev) => [...prev, newTransaction])
-
-    setProducts((prevProducts) =>
-      prevProducts.map((product) => {
-        const itemsForProduct = validCartItems.filter((item) => item.productId === product.id)
-        if (itemsForProduct.length === 0) return product
-        const updatedStocks = { ...product.stocks }
-        itemsForProduct.forEach((item) => {
-          updatedStocks[item.size] = Math.max(0, (updatedStocks[item.size] || 0) - item.quantity)
-        })
-        return { ...product, stocks: updatedStocks }
+      setTransactions((prev) => {
+        const updated = [newTransaction, ...prev]
+        safeWriteStorage("gone_transactions", updated)
+        return updated
       })
-    )
 
-    setCart([])
-    return { id }
-  }, [cart, products])
+      setCart([])
+      safeWriteStorage("gone_cart", [])
+
+      // Broadcast across tabs
+      broadcastSyncEvent("products")
+      broadcastSyncEvent("orders")
+      broadcastSyncEvent("cart")
+
+      return { id }
+    },
+    [cart, products],
+  )
 
   const addProduct = useCallback((product: Omit<Product, "id">) => {
-    setProducts((prev) => [{ ...product, id: `prod-${Date.now()}` }, ...prev])
+    api.products.create(product).then((saved) => {
+      setProducts((prev) => [saved, ...prev.filter((p) => p.id !== saved.id)])
+    })
   }, [])
 
-  const updateProductPrice = useCallback((productId: string, newPrice: number) => {
-    if (Number.isNaN(newPrice) || newPrice <= 0) return
-    setProducts((prev) => prev.map((p) => (p.id === productId ? { ...p, price: Number(newPrice.toFixed(2)) } : p)))
-  }, [])
+  const updateProduct = useCallback(
+    (id: string, updates: Partial<Omit<Product, "id">>) => {
+      api.products.update(id, updates).then((updated) => {
+        setProducts((prev) => prev.map((p) => (p.id === id ? updated : p)))
+      })
+    },
+    [],
+  )
 
-  const updateProductCollection = useCallback((productId: string, collectionName: string) => {
-    setProducts((prev) => prev.map((p) => (p.id === productId ? { ...p, collectionName } : p)))
-  }, [])
+  const updateProductPrice = useCallback(
+    (productId: string, newPrice: number) => {
+      if (Number.isNaN(newPrice) || newPrice <= 0) return
+      updateProduct(productId, { price: Number(newPrice.toFixed(2)) })
+    },
+    [updateProduct],
+  )
 
-  const addCollection = useCallback((col: Omit<CollectionData, "id" | "active">) => {
-    setCollections((prev) => [...prev, { ...col, id: `col-${Date.now()}`, active: true }])
-  }, [])
+  const updateProductCollection = useCallback(
+    (productId: string, collectionName: string) => {
+      updateProduct(productId, { collectionName })
+    },
+    [updateProduct],
+  )
+
+  const addCollection = useCallback(
+    (col: Omit<CollectionData, "id" | "active">) => {
+      api.collections.create(col).then((saved) => {
+        setCollections((prev) => [...prev, saved])
+      })
+    },
+    [],
+  )
 
   const toggleCollection = useCallback((id: string) => {
-    setCollections((prev) => prev.map((c) => (c.id === id ? { ...c, active: !c.active } : c)))
-  }, [])
-
-  const deleteCollection = useCallback((id: string) => {
-    setCollections((prev) => {
-      const target = prev.find((c) => c.id === id)
-      if (target?.title) {
-        setProducts((prevProducts) =>
-          prevProducts.map((p) => (p.collectionName === target.title ? { ...p, collectionName: "Catálogo General" } : p))
-        )
-      }
-      return prev.filter((c) => c.id !== id)
+    api.collections.toggle(id).then((toggled) => {
+      setCollections((prev) => prev.map((c) => (c.id === id ? toggled : c)))
     })
   }, [])
+
+  const deleteCollection = useCallback(
+    (id: string) => {
+      api.collections.delete(id).then(() => {
+        setCollections((prev) => prev.filter((c) => c.id !== id))
+        reloadFromStorage()
+      })
+    },
+    [reloadFromStorage],
+  )
 
   const deleteProduct = useCallback((id: string) => {
-    setProducts((prev) => prev.filter((p) => p.id !== id))
-    setCart((prev) => prev.filter((item) => item.productId !== id))
-  }, [])
-
-  const updateOrderStatus = useCallback((id: string, nextStatus: OrderStatus) => {
-    setTransactions((prev) => {
-      const target = prev.find((t) => t.id === id)
-      if (!target || target.status === nextStatus) return prev
-
-      const wasCancelled = target.status === "Cancelado"
-      const isNowCancelled = nextStatus === "Cancelado"
-
-      if (!wasCancelled && isNowCancelled && Array.isArray(target.items)) {
-        setProducts((prevProducts) =>
-          prevProducts.map((product) => {
-            const orderItems = target.items.filter((i) => i.productId === product.id)
-            if (orderItems.length === 0) return product
-            const updatedStocks = { ...product.stocks }
-            orderItems.forEach((item) => {
-              updatedStocks[item.size] = (updatedStocks[item.size] || 0) + item.quantity
-            })
-            return { ...product, stocks: updatedStocks }
-          })
-        )
-      } else if (wasCancelled && !isNowCancelled && Array.isArray(target.items)) {
-        setProducts((prevProducts) =>
-          prevProducts.map((product) => {
-            const orderItems = target.items.filter((i) => i.productId === product.id)
-            if (orderItems.length === 0) return product
-            const updatedStocks = { ...product.stocks }
-            orderItems.forEach((item) => {
-              updatedStocks[item.size] = Math.max(0, (updatedStocks[item.size] || 0) - item.quantity)
-            })
-            return { ...product, stocks: updatedStocks }
-          })
-        )
-      }
-
-      return prev.map((t) => (t.id === id ? { ...t, status: nextStatus } : t))
+    api.products.delete(id).then(() => {
+      setProducts((prev) => prev.filter((p) => p.id !== id))
+      setCart((prev) => prev.filter((item) => item.productId !== id))
     })
   }, [])
 
-  const registerUser = useCallback((newUser: CustomerUser): { ok: boolean; error?: string } => {
-    const cleanEmail = newUser.email.trim().toLowerCase()
-    if (!cleanEmail) return { ok: false, error: "El correo electrónico es obligatorio." }
+  const updateOrderStatus = useCallback(
+    (id: string, nextStatus: OrderStatus) => {
+      api.orders.updateStatus(id, nextStatus).then(() => {
+        reloadFromStorage()
+      })
+    },
+    [reloadFromStorage],
+  )
 
-    const exists = users.some((u) => (u.email || "").toLowerCase() === cleanEmail)
-    if (exists) {
-      return { ok: false, error: "Este correo ya está registrado. Intenta iniciar sesión." }
-    }
+  const registerUser = useCallback(
+    (newUser: CustomerUser): RegisterResult => {
+      const cleanEmail = newUser.email.trim().toLowerCase()
+      if (!cleanEmail)
+        return { ok: false, error: "El correo electrónico es obligatorio." }
 
-    const normalizedUser: CustomerUser = { ...newUser, email: newUser.email.trim() }
-    setUsers((prev) => [...prev, normalizedUser])
-    sessionStorage.setItem("gone_customer", "true")
-    sessionStorage.setItem("gone_current_user", JSON.stringify(normalizedUser))
-    return { ok: true }
-  }, [users])
+      const exists = users.some(
+        (u) => (u.email || "").toLowerCase() === cleanEmail,
+      )
+      if (exists) {
+        return {
+          ok: false,
+          error: "Este correo ya está registrado. Intenta iniciar sesión.",
+        }
+      }
 
-  const authenticateUser = useCallback((email: string, password: string): CustomerUser | null => {
-    const cleanEmail = email.trim().toLowerCase()
-    const foundUser = users.find((u) => (u.email || "").toLowerCase() === cleanEmail && u.password === password)
-    if (foundUser) {
+      const normalizedUser: CustomerUser = { ...newUser, email: cleanEmail }
+      const updatedUsers = [...users, normalizedUser]
+      setUsers(updatedUsers)
+      safeWriteStorage("gone_users", updatedUsers)
       sessionStorage.setItem("gone_customer", "true")
-      sessionStorage.setItem("gone_current_user", JSON.stringify(foundUser))
-      return foundUser
-    }
-    return null
-  }, [users])
+      sessionStorage.setItem(
+        "gone_current_user",
+        JSON.stringify(normalizedUser),
+      )
+      broadcastSyncEvent("users")
+      return { ok: true }
+    },
+    [users],
+  )
 
-  const deleteUser = useCallback((email: string) => {
-    const cleanEmail = email.trim().toLowerCase()
-    setUsers((prev) => prev.filter((u) => (u.email || "").toLowerCase() !== cleanEmail))
-    const currentSession = getCurrentSessionUser()
-    if (currentSession && (currentSession.email || "").toLowerCase() === cleanEmail) {
-      sessionStorage.removeItem("gone_customer")
-      sessionStorage.removeItem("gone_current_user")
-    }
-  }, [])
+  const authenticateUser = useCallback(
+    (email: string, password: string): CustomerUser | null => {
+      const cleanEmail = email.trim().toLowerCase()
+      const foundUser = users.find(
+        (u) =>
+          (u.email || "").toLowerCase() === cleanEmail &&
+          u.password === password,
+      )
+      if (foundUser) {
+        sessionStorage.setItem("gone_customer", "true")
+        sessionStorage.setItem("gone_current_user", JSON.stringify(foundUser))
+        broadcastSyncEvent("users")
+        return foundUser
+      }
+      return null
+    },
+    [users],
+  )
+
+  const deleteUser = useCallback(
+    (email: string) => {
+      const cleanEmail = email.trim().toLowerCase()
+      const updatedUsers = users.filter(
+        (u) => (u.email || "").toLowerCase() !== cleanEmail,
+      )
+      setUsers(updatedUsers)
+      safeWriteStorage("gone_users", updatedUsers)
+
+      const currentSession = getCurrentSessionUser()
+      if (
+        currentSession &&
+        (currentSession.email || "").toLowerCase() === cleanEmail
+      ) {
+        sessionStorage.removeItem("gone_customer")
+        sessionStorage.removeItem("gone_current_user")
+      }
+      broadcastSyncEvent("users")
+    },
+    [users],
+  )
 
   const resetDemoData = useCallback(() => {
     localStorage.removeItem("gone_transactions")
@@ -437,6 +511,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setTransactions([])
     setUsers([])
     setCart([])
+    broadcastSyncEvent("orders")
+    broadcastSyncEvent("users")
+    broadcastSyncEvent("cart")
   }, [])
 
   const storeValue = useMemo<Store>(
@@ -451,6 +528,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       changeStock,
       completeOrder,
       addProduct,
+      updateProduct,
       updateProductPrice,
       updateProductCollection,
       addCollection,
@@ -474,6 +552,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       changeStock,
       completeOrder,
       addProduct,
+      updateProduct,
       updateProductPrice,
       updateProductCollection,
       addCollection,
@@ -485,10 +564,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       authenticateUser,
       deleteUser,
       resetDemoData,
-    ]
+    ],
   )
 
-  return <StoreContext.Provider value={storeValue}>{children}</StoreContext.Provider>
+  return (
+    <StoreContext.Provider value={storeValue}>{children}</StoreContext.Provider>
+  )
 }
 
 export const useStore = () => {
@@ -496,3 +577,5 @@ export const useStore = () => {
   if (!context) throw new Error("useStore must be used within StoreProvider")
   return context
 }
+
+export default StoreProvider

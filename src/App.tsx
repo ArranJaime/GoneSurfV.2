@@ -1,5 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react"
-import { BrowserRouter, Link, Route, Routes, useLocation, useNavigate, useSearchParams } from "react-router-dom"
+import {
+  BrowserRouter,
+  Link,
+  Route,
+  Routes,
+  useLocation,
+  useNavigate,
+  useSearchParams,
+} from "react-router-dom"
 import {
   StoreProvider,
   getCurrentSessionUser,
@@ -12,19 +20,73 @@ import {
 import Admin from "./Admin"
 import Collections from "./Collections"
 import Checkout, { LIMA_DISTRICTS } from "./Checkout"
+import { formatPEN } from "./utils/accounting"
+import {
+  sanitizeString,
+  sanitizeUrlParam,
+  validateDocument,
+  validateEmail,
+  validatePhone,
+} from "./utils/security"
 
 const SIZES: Size[] = ["S", "M", "L", "XL"]
 const UNIQUE_SIZES: Size[] = ["Única"]
-const money = (value: number) => `S/. ${(Number(value) || 0).toFixed(2)}`
-const getSubtotal = (cart: CartItem[], products: Product[]) =>
-  cart.reduce((sum, item) => sum + (products.find((p) => p.id === item.productId)?.price ?? 0) * item.quantity, 0)
+const money = (value: number) => formatPEN(value)
 
-function Logo() { return <span className="logo" aria-label="Gone Surfing" style={{ color: '#fff' }}>GONE<br />SURFING</span> }
+const getSubtotal = (cart: CartItem[], products: Product[]) =>
+  cart.reduce(
+    (sum, item) =>
+      sum +
+      (products.find((p) => p.id === item.productId)?.price ?? 0) *
+        item.quantity,
+    0,
+  )
+
+function Logo() {
+  return (
+    <span className="logo" aria-label="Gone Surfing" style={{ color: "#fff" }}>
+      GONE
+      <br />
+      SURFING
+    </span>
+  )
+}
 
 function Icon({ name }: { name: "search" | "user" | "bag" }) {
-  if (name === "search") return <svg viewBox="0 0 24 24" aria-hidden="true" style={{ fill: 'none', stroke: 'currentColor', strokeWidth: 2 }}><circle cx="10.8" cy="10.8" r="6.8" /><path d="m16 16 5 5" /></svg>
-  if (name === "user") return <svg viewBox="0 0 24 24" aria-hidden="true" style={{ fill: 'none', stroke: 'currentColor', strokeWidth: 2 }}><circle cx="12" cy="7" r="4" /><path d="M4.5 21v-2.2a7.5 7.5 0 0 1 15 0V21z" /></svg>
-  return <svg viewBox="0 0 24 24" aria-hidden="true" style={{ fill: 'currentColor' }}><path d="M4 8h16l-1 13H5L4 8Z" /><path d="M8.5 9V6a3.5 3.5 0 0 1 7 0v3" /></svg>
+  if (name === "search") {
+    return (
+      <svg
+        viewBox="0 0 24 24"
+        aria-hidden="true"
+        style={{ fill: "none", stroke: "currentColor", strokeWidth: 2 }}
+      >
+        <circle cx="10.8" cy="10.8" r="6.8" />
+        <path d="m16 16 5 5" />
+      </svg>
+    )
+  }
+  if (name === "user") {
+    return (
+      <svg
+        viewBox="0 0 24 24"
+        aria-hidden="true"
+        style={{ fill: "none", stroke: "currentColor", strokeWidth: 2 }}
+      >
+        <circle cx="12" cy="7" r="4" />
+        <path d="M4.5 21v-2.2a7.5 7.5 0 0 1 15 0V21z" />
+      </svg>
+    )
+  }
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      style={{ fill: "currentColor" }}
+    >
+      <path d="M4 8h16l-1 13H5L4 8Z" />
+      <path d="M8.5 9V6a3.5 3.5 0 0 1 7 0v3" />
+    </svg>
+  )
 }
 
 function Header() {
@@ -35,12 +97,12 @@ function Header() {
   const [isSearching, setIsSearching] = useState(false)
   const [query, setQuery] = useState("")
 
-  // Los hooks ya se declararon arriba de forma consistente; ahora evaluamos la condición de visibilidad de manera segura
-  const isHiddenRoute = location.pathname === '/admin' || location.pathname === '/checkout'
+  const isHiddenRoute =
+    location.pathname === "/admin" || location.pathname === "/checkout"
 
   const handleSearch = (e?: React.FormEvent | React.MouseEvent) => {
     if (e && e.preventDefault) e.preventDefault()
-    const cleanQuery = query.trim()
+    const cleanQuery = sanitizeString(query)
     if (cleanQuery) {
       navigate(`/shop?search=${encodeURIComponent(cleanQuery)}`)
       setIsSearching(false)
@@ -49,51 +111,322 @@ function Header() {
   }
 
   const liveResults = useMemo(() => {
-    const cleanQuery = query.trim().toLowerCase()
+    const cleanQuery = sanitizeString(query).toLowerCase()
     if (!cleanQuery) return []
     return products
-      .filter((p) => p.name.toLowerCase().includes(cleanQuery) || p.category.toLowerCase().includes(cleanQuery))
+      .filter(
+        (p) =>
+          p.name.toLowerCase().includes(cleanQuery) ||
+          p.category.toLowerCase().includes(cleanQuery),
+      )
       .slice(0, 3)
   }, [products, query])
 
   if (isHiddenRoute) return null
 
   return (
-    <header className="header" style={{ backgroundColor: '#000000', color: '#ffffff', borderBottom: '1px solid #1a1a1a', position: 'relative', zIndex: 1000 }}>
-      <button className="logo-button" onClick={() => navigate("/")} style={{ background: 'transparent' }}><Logo /></button>
-      <nav style={{ display: 'flex', gap: '2rem', backgroundColor: 'transparent' }}>
-        <button onClick={() => navigate("/shop")} style={{ color: '#fff', background: 'transparent', border: 'none', fontWeight: 'bold', cursor: 'pointer', textTransform: 'uppercase' }}>SHOP⌄</button>
-        <button onClick={() => navigate("/collections")} style={{ color: '#fff', background: 'transparent', border: 'none', fontWeight: 'bold', cursor: 'pointer', textTransform: 'uppercase' }}>COLLECTIONS⌄</button>
-        <button onClick={() => navigate("/about")} style={{ color: '#fff', background: 'transparent', border: 'none', fontWeight: 'bold', cursor: 'pointer', textTransform: 'uppercase' }}>ABOUT</button>
+    <header
+      className="header"
+      style={{
+        backgroundColor: "#000000",
+        color: "#ffffff",
+        borderBottom: "1px solid #1a1a1a",
+        position: "relative",
+        zIndex: 1000,
+      }}
+    >
+      <button
+        className="logo-button"
+        onClick={() => navigate("/")}
+        style={{ background: "transparent" }}
+      >
+        <Logo />
+      </button>
+      <nav
+        style={{ display: "flex", gap: "2rem", backgroundColor: "transparent" }}
+      >
+        <button
+          onClick={() => navigate("/shop")}
+          style={{
+            color: "#fff",
+            background: "transparent",
+            border: "none",
+            fontWeight: "bold",
+            cursor: "pointer",
+            textTransform: "uppercase",
+          }}
+        >
+          SHOP⌄
+        </button>
+        <button
+          onClick={() => navigate("/collections")}
+          style={{
+            color: "#fff",
+            background: "transparent",
+            border: "none",
+            fontWeight: "bold",
+            cursor: "pointer",
+            textTransform: "uppercase",
+          }}
+        >
+          COLLECTIONS⌄
+        </button>
+        <button
+          onClick={() => navigate("/about")}
+          style={{
+            color: "#fff",
+            background: "transparent",
+            border: "none",
+            fontWeight: "bold",
+            cursor: "pointer",
+            textTransform: "uppercase",
+          }}
+        >
+          ABOUT
+        </button>
       </nav>
-      <div className="header-actions" style={{ display: 'flex', gap: '1.5rem', color: '#fff', alignItems: 'center' }}>
+      <div
+        className="header-actions"
+        style={{
+          display: "flex",
+          gap: "1.5rem",
+          color: "#fff",
+          alignItems: "center",
+        }}
+      >
         {isSearching ? (
-          <div style={{ position: 'relative' }}>
-            <form onSubmit={handleSearch} style={{ display: 'flex', margin: 0 }}>
-              <input autoFocus type="text" placeholder="Buscar prenda..." value={query} onChange={e => setQuery(e.target.value)} onBlur={() => { if (!query) setIsSearching(false) }} style={{ padding: '0.4rem 2rem 0.4rem 1rem', borderRadius: '20px', border: '1px solid #333', outline: 'none', background: '#111', color: '#fff', fontSize: '0.8rem', width: '200px', transition: 'all 0.3s ease' }} />
-              <button type="button" onClick={() => { setIsSearching(false); setQuery(""); }} style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: '12px' }}>✕</button>
+          <div style={{ position: "relative" }}>
+            <form
+              onSubmit={handleSearch}
+              style={{ display: "flex", margin: 0 }}
+            >
+              <input
+                autoFocus
+                type="text"
+                placeholder="Buscar prenda..."
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onBlur={() => {
+                  if (!query) setIsSearching(false)
+                }}
+                style={{
+                  padding: "0.4rem 2rem 0.4rem 1rem",
+                  borderRadius: "20px",
+                  border: "1px solid #333",
+                  outline: "none",
+                  background: "#111",
+                  color: "#fff",
+                  fontSize: "0.8rem",
+                  width: "200px",
+                  transition: "all 0.3s ease",
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  setIsSearching(false)
+                  setQuery("")
+                }}
+                style={{
+                  position: "absolute",
+                  right: "10px",
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  background: "none",
+                  border: "none",
+                  color: "#888",
+                  cursor: "pointer",
+                  fontSize: "12px",
+                }}
+              >
+                ✕
+              </button>
             </form>
             {query.trim().length > 0 && (
-              <div style={{ position: 'absolute', top: 'calc(100% + 12px)', right: 0, width: '320px', background: '#0a0a0a', borderRadius: '8px', boxShadow: '0 10px 40px rgba(0,0,0,0.8)', overflow: 'hidden', zIndex: 100, color: '#fff', border: '1px solid #222' }}>
+              <div
+                style={{
+                  position: "absolute",
+                  top: "calc(100% + 12px)",
+                  right: 0,
+                  width: "320px",
+                  background: "#0a0a0a",
+                  borderRadius: "8px",
+                  boxShadow: "0 10px 40px rgba(0,0,0,0.8)",
+                  overflow: "hidden",
+                  zIndex: 100,
+                  color: "#fff",
+                  border: "1px solid #222",
+                }}
+              >
                 {liveResults.length > 0 ? (
                   <>
-                    {liveResults.map(p => (
-                      <div key={p.id} onMouseDown={() => { navigate(`/shop?search=${encodeURIComponent(p.name)}`); setIsSearching(false); setQuery(""); }} style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem', cursor: 'pointer', borderBottom: '1px solid #1a1a1a', transition: 'background 0.2s' }} onMouseOver={e => e.currentTarget.style.backgroundColor = '#161616'} onMouseOut={e => e.currentTarget.style.backgroundColor = 'transparent'}>
-                        <div style={{ width: '48px', height: '48px', flexShrink: 0, borderRadius: '4px', overflow: 'hidden', backgroundColor: '#111', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><img src={p.image} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover', imageRendering: 'high-quality' as any }} /></div>
-                        <div style={{ overflow: 'hidden' }}><strong style={{ display: 'block', fontSize: '0.85rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: '#fff' }}>{p.name}</strong><span style={{ fontSize: '0.75rem', color: '#888' }}>{money(p.price)}</span></div>
+                    {liveResults.map((p) => (
+                      <div
+                        key={p.id}
+                        onMouseDown={() => {
+                          navigate(`/shop?search=${encodeURIComponent(p.name)}`)
+                          setIsSearching(false)
+                          setQuery("")
+                        }}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "1rem",
+                          padding: "1rem",
+                          cursor: "pointer",
+                          borderBottom: "1px solid #1a1a1a",
+                          transition: "background 0.2s",
+                        }}
+                        onMouseOver={(e) =>
+                          (e.currentTarget.style.backgroundColor = "#161616")
+                        }
+                        onMouseOut={(e) =>
+                          (e.currentTarget.style.backgroundColor =
+                            "transparent")
+                        }
+                      >
+                        <div
+                          style={{
+                            width: "48px",
+                            height: "48px",
+                            flexShrink: 0,
+                            borderRadius: "4px",
+                            overflow: "hidden",
+                            backgroundColor: "#111",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                          }}
+                        >
+                          <img
+                            src={p.image}
+                            alt={p.name}
+                            style={{
+                              width: "100%",
+                              height: "100%",
+                              objectFit: "cover",
+                            }}
+                          />
+                        </div>
+                        <div style={{ overflow: "hidden" }}>
+                          <strong
+                            style={{
+                              display: "block",
+                              fontSize: "0.85rem",
+                              whiteSpace: "nowrap",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              color: "#fff",
+                            }}
+                          >
+                            {p.name}
+                          </strong>
+                          <span style={{ fontSize: "0.75rem", color: "#888" }}>
+                            {money(p.price)}
+                          </span>
+                        </div>
                       </div>
                     ))}
-                    <div onMouseDown={handleSearch} style={{ padding: '1rem', textAlign: 'center', fontSize: '0.75rem', fontWeight: 'bold', background: '#111', cursor: 'pointer', color: '#fff' }} onMouseOver={e => e.currentTarget.style.backgroundColor = '#1a1a1a'} onMouseOut={e => e.currentTarget.style.backgroundColor = '#111'}>Ver todos los resultados →</div>
+                    <div
+                      onMouseDown={handleSearch}
+                      style={{
+                        padding: "1rem",
+                        textAlign: "center",
+                        fontSize: "0.75rem",
+                        fontWeight: "bold",
+                        background: "#111",
+                        cursor: "pointer",
+                        color: "#fff",
+                      }}
+                      onMouseOver={(e) =>
+                        (e.currentTarget.style.backgroundColor = "#1a1a1a")
+                      }
+                      onMouseOut={(e) =>
+                        (e.currentTarget.style.backgroundColor = "#111")
+                      }
+                    >
+                      Ver todos los resultados →
+                    </div>
                   </>
-                ) : (<div style={{ padding: '1.5rem 1rem', textAlign: 'center', fontSize: '0.8rem', color: '#666' }}>No se encontraron prendas para "{query}"</div>)}
+                ) : (
+                  <div
+                    style={{
+                      padding: "1.5rem 1rem",
+                      textAlign: "center",
+                      fontSize: "0.8rem",
+                      color: "#666",
+                    }}
+                  >
+                    No se encontraron prendas para "{query}"
+                  </div>
+                )}
               </div>
             )}
           </div>
-        ) : (<button aria-label="Buscar" onClick={() => setIsSearching(true)} style={{ color: '#fff', background: 'transparent', border: 'none', cursor: 'pointer', width: '24px' }}><Icon name="search" /></button>)}
-        <button aria-label="Cuenta" onClick={() => navigate("/profile")} style={{ color: '#fff', background: 'transparent', border: 'none', cursor: 'pointer', width: '24px' }}><Icon name="user" /></button>
-        <button className="bag" aria-label="Carrito" onClick={() => navigate("/cart")} style={{ color: '#fff', background: 'transparent', border: 'none', cursor: 'pointer', width: '24px', position: 'relative' }}>
+        ) : (
+          <button
+            aria-label="Buscar"
+            onClick={() => setIsSearching(true)}
+            style={{
+              color: "#fff",
+              background: "transparent",
+              border: "none",
+              cursor: "pointer",
+              width: "24px",
+            }}
+          >
+            <Icon name="search" />
+          </button>
+        )}
+        <button
+          aria-label="Cuenta"
+          onClick={() => navigate("/profile")}
+          style={{
+            color: "#fff",
+            background: "transparent",
+            border: "none",
+            cursor: "pointer",
+            width: "24px",
+          }}
+        >
+          <Icon name="user" />
+        </button>
+        <button
+          className="bag"
+          aria-label="Carrito"
+          onClick={() => navigate("/cart")}
+          style={{
+            color: "#fff",
+            background: "transparent",
+            border: "none",
+            cursor: "pointer",
+            width: "24px",
+            position: "relative",
+          }}
+        >
           <Icon name="bag" />
-          {count > 0 && (<span style={{ position: 'absolute', top: '-8px', right: '-8px', background: 'white', color: 'black', borderRadius: '50%', width: '18px', height: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 'bold', boxShadow: '0 2px 4px rgba(0,0,0,0.3)' }}>{count}</span>)}
+          {count > 0 && (
+            <span
+              style={{
+                position: "absolute",
+                top: "-8px",
+                right: "-8px",
+                background: "white",
+                color: "black",
+                borderRadius: "50%",
+                width: "18px",
+                height: "18px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: "10px",
+                fontWeight: "bold",
+                boxShadow: "0 2px 4px rgba(0,0,0,0.3)",
+              }}
+            >
+              {count}
+            </span>
+          )}
         </button>
       </div>
     </header>
@@ -106,23 +439,59 @@ function Home(_props: { openPanel: (panel: string) => void }) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const [isPlaying, setIsPlaying] = useState(false)
 
+  // Dynamically uses images from real products matching category or default fallback
   const categories = useMemo(() => {
-    const findImage = (id: string, fallbackAsset: string) =>
-      products.find((p) => p.id === id)?.image || fallbackAsset
+    const findCategoryImg = (
+      cat: string,
+      fallbackId: string,
+      fallbackAsset: string,
+    ) => {
+      const matchCat = products.find(
+        (p) => p.category?.toUpperCase() === cat.toUpperCase() && p.image,
+      )
+      if (matchCat?.image) return matchCat.image
+      const matchId = products.find((p) => p.id === fallbackId && p.image)
+      return matchId?.image || fallbackAsset
+    }
 
     return [
-      { title: "NEW ARRIVALS", image: findImage("p2", "/assets/cap.jpg") },
-      { title: "ACCESORIOS", image: findImage("p3", "/assets/leash.jpg") },
-      { title: "MERCH", image: findImage("p1", "/assets/hero-surf.jpg") },
-      { title: "BEST SELLERS", image: findImage("p4", "/assets/story.jpg") },
+      {
+        title: "NEW ARRIVALS",
+        image: findCategoryImg("NEW ARRIVALS", "p2", "/assets/cap.jpg"),
+      },
+      {
+        title: "ACCESORIOS",
+        image: findCategoryImg("ACCESORIOS", "p3", "/assets/leash.jpg"),
+      },
+      {
+        title: "MERCH",
+        image: findCategoryImg("MERCH", "p1", "/assets/hero-surf.jpg"),
+      },
+      {
+        title: "BEST SELLERS",
+        image: findCategoryImg("BEST SELLERS", "p4", "/assets/story.jpg"),
+      },
     ]
   }, [products])
 
   const stories = [
     { title: "STAY REAL", image: "/assets/story.jpg", url: "about" },
-    { title: "YOUTUBE", image: "/assets/underwater.jpg", word: "NEW\nWAVES", url: "https://www.youtube.com/c/WorldSurfLeague" },
-    { title: "STORIES / MAGAZINE", image: "/assets/magazine.jpg", url: "https://www.surfer.com/" },
-    { title: "SURF TRIPS", image: "/assets/trips.jpg", url: "https://www.surfline.com/travel/" },
+    {
+      title: "YOUTUBE",
+      image: "/assets/underwater.jpg",
+      word: "NEW\nWAVES",
+      url: "https://www.youtube.com/c/WorldSurfLeague",
+    },
+    {
+      title: "STORIES / MAGAZINE",
+      image: "/assets/magazine.jpg",
+      url: "https://www.surfer.com/",
+    },
+    {
+      title: "SURF TRIPS",
+      image: "/assets/trips.jpg",
+      url: "https://www.surfline.com/travel/",
+    },
   ]
 
   const togglePlay = () => {
@@ -132,7 +501,10 @@ function Home(_props: { openPanel: (panel: string) => void }) {
       video.pause()
       setIsPlaying(false)
     } else {
-      video.play().then(() => setIsPlaying(true)).catch(() => setIsPlaying(false))
+      video
+        .play()
+        .then(() => setIsPlaying(true))
+        .catch(() => setIsPlaying(false))
     }
   }
 
@@ -146,31 +518,158 @@ function Home(_props: { openPanel: (panel: string) => void }) {
 
   return (
     <main>
-      <button className="hero" aria-label="Ver colección" onClick={() => navigate("/shop")}><img src="/assets/hero-surf.jpg" alt="Surfista" /></button>
-      <section className="category-grid" aria-label="Colecciones">{categories.map((category) => (<Link key={category.title} to={`/shop?category=${encodeURIComponent(category.title)}`} style={{ padding: 0, border: 0, background: "white", textAlign: "left", color: "inherit", textDecoration: "none" }}><span className="category-image"><img src={category.image} alt="" /></span><strong>{category.title}</strong></Link>))}</section>
-      <section className="video-block" style={{ position: "relative", width: "100%", aspectRatio: "16/9", maxHeight: "80vh", backgroundColor: "#000", overflow: "hidden", display: "flex", cursor: "pointer" }} onClick={togglePlay}>
-        <video ref={videoRef} src="/assets/video.mp4" style={{ width: "100%", height: "100%", objectFit: "cover" }} loop playsInline onEnded={() => setIsPlaying(false)} />
-        {!isPlaying && <div style={{ position: "absolute", inset: 0, backgroundColor: "rgba(0,0,0,0.3)", pointerEvents: "none" }}></div>}
-        <button aria-label={isPlaying ? "Pausar video" : "Reproducir video"} onClick={(e) => { e.stopPropagation(); togglePlay(); }} style={{ position: "absolute", bottom: "2rem", left: "2.5rem", width: "48px", height: "48px", borderRadius: "50%", border: "2px solid rgba(255, 255, 255, 0.8)", backgroundColor: "rgba(0,0,0,0.4)", display: "flex", justifyContent: "center", alignItems: "center", cursor: "pointer", zIndex: 2, backdropFilter: "blur(4px)", transition: "transform 0.2s ease" }} onMouseOver={(e) => (e.currentTarget.style.transform = "scale(1.1)")} onMouseOut={(e) => (e.currentTarget.style.transform = "scale(1)")}>
-          {isPlaying ? <svg viewBox="0 0 24 24" style={{ fill: "white", width: "20px", height: "20px" }}><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" /></svg> : <svg viewBox="0 0 24 24" style={{ fill: "white", width: "22px", height: "22px", marginLeft: "4px" }}><path d="M8 5v14l11-7z" /></svg>}
+      <button
+        className="hero"
+        aria-label="Ver colección"
+        onClick={() => navigate("/shop")}
+      >
+        <img src="/assets/hero-surf.jpg" alt="Surfista" />
+      </button>
+      <section className="category-grid" aria-label="Colecciones">
+        {categories.map((category) => (
+          <Link
+            key={category.title}
+            to={`/shop?category=${encodeURIComponent(category.title)}`}
+            style={{
+              padding: 0,
+              border: 0,
+              background: "white",
+              textAlign: "left",
+              color: "inherit",
+              textDecoration: "none",
+            }}
+          >
+            <span className="category-image">
+              <img src={category.image} alt={category.title} />
+            </span>
+            <strong>{category.title}</strong>
+          </Link>
+        ))}
+      </section>
+      <section
+        className="video-block"
+        style={{
+          position: "relative",
+          width: "100%",
+          aspectRatio: "16/9",
+          maxHeight: "80vh",
+          backgroundColor: "#000",
+          overflow: "hidden",
+          display: "flex",
+          cursor: "pointer",
+        }}
+        onClick={togglePlay}
+      >
+        <video
+          ref={videoRef}
+          src="/assets/video.mp4"
+          style={{ width: "100%", height: "100%", objectFit: "cover" }}
+          loop
+          playsInline
+          onEnded={() => setIsPlaying(false)}
+        />
+        {!isPlaying && (
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              backgroundColor: "rgba(0,0,0,0.3)",
+              pointerEvents: "none",
+            }}
+          ></div>
+        )}
+        <button
+          aria-label={isPlaying ? "Pausar video" : "Reproducir video"}
+          onClick={(e) => {
+            e.stopPropagation()
+            togglePlay()
+          }}
+          style={{
+            position: "absolute",
+            bottom: "2rem",
+            left: "2.5rem",
+            width: "48px",
+            height: "48px",
+            borderRadius: "50%",
+            border: "2px solid rgba(255, 255, 255, 0.8)",
+            backgroundColor: "rgba(0,0,0,0.4)",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            cursor: "pointer",
+            zIndex: 2,
+            backdropFilter: "blur(4px)",
+            transition: "transform 0.2s ease",
+          }}
+          onMouseOver={(e) => (e.currentTarget.style.transform = "scale(1.1)")}
+          onMouseOut={(e) => (e.currentTarget.style.transform = "scale(1)")}
+        >
+          {isPlaying ? (
+            <svg
+              viewBox="0 0 24 24"
+              style={{ fill: "white", width: "20px", height: "20px" }}
+            >
+              <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
+            </svg>
+          ) : (
+            <svg
+              viewBox="0 0 24 24"
+              style={{
+                fill: "white",
+                width: "22px",
+                height: "22px",
+                marginLeft: "4px",
+              }}
+            >
+              <path d="M8 5v14l11-7z" />
+            </svg>
+          )}
         </button>
       </section>
-      <section className="story-grid">{stories.map((story) => (<article key={story.title} role="button" tabIndex={0} onClick={() => openStory(story.url)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openStory(story.url) } }}><img src={story.image} alt="" />{story.word && <b>{story.word}</b>}<span>{story.title}</span></article>))}</section>
+      <section className="story-grid">
+        {stories.map((story) => (
+          <article
+            key={story.title}
+            role="button"
+            tabIndex={0}
+            onClick={() => openStory(story.url)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault()
+                openStory(story.url)
+              }
+            }}
+          >
+            <img src={story.image} alt="" />
+            {story.word && <b>{story.word}</b>}
+            <span>{story.title}</span>
+          </article>
+        ))}
+      </section>
     </main>
   )
 }
 
 function ProductCard({ product }: { product: Product }) {
   const { addToCart, cart } = useStore()
-  const isUnique = product.category === "Accesorios" || /gorra/i.test(product.name)
+  const isUnique =
+    product.category === "Accesorios" || /gorra/i.test(product.name)
   const sizes = isUnique ? UNIQUE_SIZES : SIZES
-  const [size, setSize] = useState<Size>(() => sizes.find((s) => (product.stocks[s] ?? 0) > 0) ?? sizes[0])
+
+  const [size, setSize] = useState<Size>(
+    () => sizes.find((s) => (product.stocks[s] ?? 0) > 0) ?? sizes[0],
+  )
   const [added, setAdded] = useState(false)
   const timerRef = useRef<number | null>(null)
 
   useEffect(() => {
-    const firstAvailable = sizes.find((s) => (product.stocks[s] ?? 0) > 0) ?? sizes[0]
-    setSize((current) => (sizes.includes(current) && (product.stocks[current] ?? 0) > 0 ? current : firstAvailable))
+    const firstAvailable =
+      sizes.find((s) => (product.stocks[s] ?? 0) > 0) ?? sizes[0]
+    setSize((current) =>
+      sizes.includes(current) && (product.stocks[current] ?? 0) > 0
+        ? current
+        : firstAvailable,
+    )
   }, [product, sizes])
 
   useEffect(() => {
@@ -179,8 +678,15 @@ function ProductCard({ product }: { product: Product }) {
     }
   }, [])
 
-  const inCartQty = cart.find((item) => item.productId === product.id && item.size === size)?.quantity ?? 0
+  const inCartQty =
+    cart.find((item) => item.productId === product.id && item.size === size)
+      ?.quantity ?? 0
   const availableStock = product.stocks[size] ?? 0
+  const totalProductStock = Object.values(product.stocks).reduce(
+    (sum, v) => sum + (v || 0),
+    0,
+  )
+  const isEntirelyOutOfStock = totalProductStock <= 0
   const reachedMaxStock = availableStock <= 0 || inCartQty >= availableStock
 
   const add = () => {
@@ -193,12 +699,41 @@ function ProductCard({ product }: { product: Product }) {
 
   return (
     <article className="product-card">
-      <div className="product-photo"><img src={product.image} alt={product.name} /><span>{product.category}</span></div>
+      <div className="product-photo">
+        <img src={product.image} alt={product.name} />
+        <span>{product.category}</span>
+      </div>
       <div className="product-info">
-        <div><h2>{product.name}</h2><p>{money(product.price)}</p></div>
-        <div className="sizes" aria-label="Seleccionar talla">{sizes.map((opt) => (<button key={opt} className={size === opt ? "selected" : ""} disabled={(product.stocks[opt] ?? 0) === 0} onClick={() => setSize(opt)}>{opt}</button>))}</div>
-        <button className="black-button" onClick={add} disabled={reachedMaxStock}>
-          {added ? "AÑADIDO" : availableStock === 0 ? "AGOTADO" : reachedMaxStock ? "MÁX. EN BOLSA" : "AGREGAR AL CARRITO"}
+        <div>
+          <h2>{product.name}</h2>
+          <p>{money(product.price)}</p>
+        </div>
+        <div className="sizes" aria-label="Seleccionar talla">
+          {sizes.map((opt) => (
+            <button
+              key={opt}
+              className={size === opt ? "selected" : ""}
+              disabled={(product.stocks[opt] ?? 0) === 0}
+              onClick={() => setSize(opt)}
+            >
+              {opt}
+            </button>
+          ))}
+        </div>
+        <button
+          className="black-button"
+          onClick={add}
+          disabled={reachedMaxStock}
+        >
+          {added
+            ? "AÑADIDO"
+            : isEntirelyOutOfStock
+              ? "AGOTADO"
+              : availableStock === 0
+                ? "TALLA AGOTADA"
+                : reachedMaxStock
+                  ? "MÁX. EN BOLSA"
+                  : "AGREGAR AL CARRITO"}
         </button>
       </div>
     </article>
@@ -208,43 +743,156 @@ function ProductCard({ product }: { product: Product }) {
 function Shop() {
   const { products } = useStore()
   const [params, setParams] = useSearchParams()
-  const category = params.get("category")?.toUpperCase()
-  const collectionParam = params.get("collection")
-  const searchParam = params.get("search")?.toLowerCase()
+  const category = sanitizeUrlParam(params.get("category")).toUpperCase()
+  const collectionParam = sanitizeUrlParam(params.get("collection"))
+  const searchParam = sanitizeUrlParam(params.get("search")).toLowerCase()
   const navigate = useNavigate()
 
   const visibleProducts = useMemo(() => {
     return products.filter((p) => {
-      if (searchParam) return p.name.toLowerCase().includes(searchParam) || p.category.toLowerCase().includes(searchParam)
+      if (searchParam)
+        return (
+          p.name.toLowerCase().includes(searchParam) ||
+          p.category.toLowerCase().includes(searchParam)
+        )
       if (collectionParam) return p.collectionName === collectionParam
       if (!category || category === "ALL PRODUCTS") return true
       const prodCat = p.category.toUpperCase().trim()
-      if (category === "NEW ARRIVALS") return prodCat === "NEW ARRIVALS" || prodCat === "ACCESORIOS" || /tee/i.test(p.name)
-      if (category === "BEST SELLERS") return prodCat === "BEST SELLERS" || prodCat === "MERCH" || /leash/i.test(p.name)
+      if (category === "NEW ARRIVALS")
+        return (
+          prodCat === "NEW ARRIVALS" ||
+          prodCat === "ACCESORIOS" ||
+          /tee/i.test(p.name)
+        )
+      if (category === "BEST SELLERS")
+        return (
+          prodCat === "BEST SELLERS" ||
+          prodCat === "MERCH" ||
+          /leash/i.test(p.name)
+        )
       return prodCat === category
     })
   }, [products, searchParam, collectionParam, category])
 
-  const pageTitle = searchParam ? `RESULTADOS PARA: "${searchParam.toUpperCase()}"` : collectionParam ? `COLECCIÓN: ${collectionParam}` : (category || "ALL PRODUCTS")
-  const shopCategories = ["ALL PRODUCTS", "NEW ARRIVALS", "ACCESORIOS", "MERCH", "BEST SELLERS"]
+  const pageTitle = searchParam
+    ? `RESULTADOS PARA: "${searchParam.toUpperCase()}"`
+    : collectionParam
+      ? `COLECCIÓN: ${collectionParam}`
+      : category || "ALL PRODUCTS"
+  const shopCategories = [
+    "ALL PRODUCTS",
+    "NEW ARRIVALS",
+    "ACCESORIOS",
+    "MERCH",
+    "BEST SELLERS",
+  ]
 
   return (
-    <main className="page shop-page" style={{ padding: "2rem 5%", minHeight: '80vh' }}>
-      <div className="page-title" style={{ marginBottom: "1.5rem" }}><p style={{ margin: 0, fontSize: "0.75rem", fontWeight: "bold", color: "#666", textTransform: "uppercase" }}>GONE SURFING / SHOP</p><h1 style={{ margin: "0.5rem 0", fontSize: "3rem", textTransform: "uppercase", letterSpacing: "-1px" }}>{pageTitle}</h1></div>
+    <main
+      className="page shop-page"
+      style={{ padding: "2rem 5%", minHeight: "80vh" }}
+    >
+      <div className="page-title" style={{ marginBottom: "1.5rem" }}>
+        <p
+          style={{
+            margin: 0,
+            fontSize: "0.75rem",
+            fontWeight: "bold",
+            color: "#666",
+            textTransform: "uppercase",
+          }}
+        >
+          GONE SURFING / SHOP
+        </p>
+        <h1
+          style={{
+            margin: "0.5rem 0",
+            fontSize: "3rem",
+            textTransform: "uppercase",
+            letterSpacing: "-1px",
+          }}
+        >
+          {pageTitle}
+        </h1>
+      </div>
       {!searchParam && (
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #e5e5e5", paddingBottom: "1rem", marginBottom: "2.5rem" }}>
-          <nav style={{ display: "flex", gap: "1.5rem", flexWrap: "wrap", alignItems: "center" }}>
-            {shopCategories.map(cat => {
-              const isActive = (!collectionParam && (category === cat || (!category && cat === "ALL PRODUCTS")))
-              return (<button key={cat} onClick={() => { if (cat === "ALL PRODUCTS") { navigate("/shop") } else { setParams({ category: cat }) } }} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "0.85rem", fontWeight: isActive ? "bold" : "600", color: isActive ? "#000" : "#999", textTransform: "uppercase", padding: "0.5rem 0", transition: "color 0.2s ease" }}>{cat}</button>)
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            borderBottom: "1px solid #e5e5e5",
+            paddingBottom: "1rem",
+            marginBottom: "2.5rem",
+          }}
+        >
+          <nav
+            style={{
+              display: "flex",
+              gap: "1.5rem",
+              flexWrap: "wrap",
+              alignItems: "center",
+            }}
+          >
+            {shopCategories.map((cat) => {
+              const isActive =
+                !collectionParam &&
+                (category === cat || (!category && cat === "ALL PRODUCTS"))
+              return (
+                <button
+                  key={cat}
+                  onClick={() => {
+                    if (cat === "ALL PRODUCTS") {
+                      navigate("/shop")
+                    } else {
+                      setParams({ category: cat })
+                    }
+                  }}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    fontSize: "0.85rem",
+                    fontWeight: isActive ? "bold" : "600",
+                    color: isActive ? "#000" : "#999",
+                    textTransform: "uppercase",
+                    padding: "0.5rem 0",
+                    transition: "color 0.2s ease",
+                  }}
+                >
+                  {cat}
+                </button>
+              )
             })}
           </nav>
-          <span style={{ fontSize: "0.85rem", fontWeight: "bold", color: "#666" }}>{visibleProducts.length} ITEMS</span>
+          <span
+            style={{ fontSize: "0.85rem", fontWeight: "bold", color: "#666" }}
+          >
+            {visibleProducts.length} ITEMS
+          </span>
         </div>
       )}
       {visibleProducts.length === 0 ? (
-        <div style={{ padding: "4rem 0", textAlign: "center" }}><h2>No encontramos productos.</h2><p style={{ color: '#666', marginTop: '0.5rem' }}>Prueba buscando con otras palabras o explora todo el catálogo.</p><button onClick={() => navigate("/shop")} className="black-button" style={{ marginTop: "2rem", width: 'auto', padding: '1rem 3rem' }}>VER TODO EL CATÁLOGO</button></div>
-      ) : (<section className="product-grid">{visibleProducts.map((p) => <ProductCard key={p.id} product={p} />)}</section>)}
+        <div style={{ padding: "4rem 0", textAlign: "center" }}>
+          <h2>No encontramos productos.</h2>
+          <p style={{ color: "#666", marginTop: "0.5rem" }}>
+            Prueba buscando con otras palabras o explora todo el catálogo.
+          </p>
+          <button
+            onClick={() => navigate("/shop")}
+            className="black-button"
+            style={{ marginTop: "2rem", width: "auto", padding: "1rem 3rem" }}
+          >
+            VER TODO EL CATÁLOGO
+          </button>
+        </div>
+      ) : (
+        <section className="product-grid">
+          {visibleProducts.map((p) => (
+            <ProductCard key={p.id} product={p} />
+          ))}
+        </section>
+      )}
     </main>
   )
 }
@@ -253,11 +901,23 @@ function Cart() {
   const { products, cart, changeQuantity } = useStore()
   const navigate = useNavigate()
   const subtotal = getSubtotal(cart, products)
+
   return (
     <main className="page cart-page">
-      <div className="page-title row-title"><div><p>GONE SURFING / BAG</p><h1>YOUR BAG</h1></div><span>{cart.reduce((sum, item) => sum + item.quantity, 0)} ITEMS</span></div>
+      <div className="page-title row-title">
+        <div>
+          <p>GONE SURFING / BAG</p>
+          <h1>YOUR BAG</h1>
+        </div>
+        <span>{cart.reduce((sum, item) => sum + item.quantity, 0)} ITEMS</span>
+      </div>
       {cart.length === 0 ? (
-        <section className="empty"><h2>YOUR BAG IS EMPTY</h2><button className="black-button" onClick={() => navigate("/shop")}>EXPLORE SHOP</button></section>
+        <section className="empty">
+          <h2>YOUR BAG IS EMPTY</h2>
+          <button className="black-button" onClick={() => navigate("/shop")}>
+            EXPLORE SHOP
+          </button>
+        </section>
       ) : (
         <div className="cart-layout">
           <section>
@@ -266,20 +926,53 @@ function Cart() {
               if (!product) return null
               const maxStock = product.stocks[item.size] ?? 0
               return (
-                <article className="cart-item" key={`${item.productId}-${item.size}`}>
+                <article
+                  className="cart-item"
+                  key={`${item.productId}-${item.size}`}
+                >
                   <img src={product.image} alt={product.name} />
-                  <div className="cart-copy"><h2>{product.name}</h2><p>SIZE: {item.size}</p><p>{money(product.price)}</p></div>
+                  <div className="cart-copy">
+                    <h2>{product.name}</h2>
+                    <p>SIZE: {item.size}</p>
+                    <p>{money(product.price)}</p>
+                  </div>
                   <div className="quantity">
-                    <button onClick={() => changeQuantity(item.productId, item.size, -1)}>−</button>
+                    <button
+                      onClick={() =>
+                        changeQuantity(item.productId, item.size, -1)
+                      }
+                    >
+                      −
+                    </button>
                     <span>{item.quantity}</span>
-                    <button onClick={() => changeQuantity(item.productId, item.size, 1)} disabled={item.quantity >= maxStock}>+</button>
+                    <button
+                      onClick={() =>
+                        changeQuantity(item.productId, item.size, 1)
+                      }
+                      disabled={item.quantity >= maxStock}
+                    >
+                      +
+                    </button>
                   </div>
                   <strong>{money(product.price * item.quantity)}</strong>
                 </article>
               )
             })}
           </section>
-          <aside className="summary"><h2>ORDER SUMMARY</h2><div><span>SUBTOTAL</span><b>{money(subtotal)}</b></div><p>Shipping calculated at checkout.</p><button className="black-button" onClick={() => navigate("/checkout")}>CHECKOUT</button></aside>
+          <aside className="summary">
+            <h2>ORDER SUMMARY</h2>
+            <div>
+              <span>SUBTOTAL</span>
+              <b>{money(subtotal)}</b>
+            </div>
+            <p>Shipping calculated at checkout.</p>
+            <button
+              className="black-button"
+              onClick={() => navigate("/checkout")}
+            >
+              CHECKOUT
+            </button>
+          </aside>
         </div>
       )}
     </main>
@@ -291,9 +984,17 @@ function Profile() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
 
-  const [currentUser, setCurrentUser] = useState<CustomerUser | null>(() => getCurrentSessionUser())
-  const [isAuth, setIsAuth] = useState(() => sessionStorage.getItem("gone_customer") === "true" && Boolean(getCurrentSessionUser()))
-  const [authMode, setAuthMode] = useState<"login" | "register">(searchParams.get("mode") === "register" ? "register" : "login")
+  const [currentUser, setCurrentUser] = useState<CustomerUser | null>(() =>
+    getCurrentSessionUser(),
+  )
+  const [isAuth, setIsAuth] = useState(
+    () =>
+      sessionStorage.getItem("gone_customer") === "true" &&
+      Boolean(getCurrentSessionUser()),
+  )
+  const [authMode, setAuthMode] = useState<"login" | "register">(
+    searchParams.get("mode") === "register" ? "register" : "login",
+  )
   const [error, setError] = useState(false)
   const [registerError, setRegisterError] = useState("")
   const [currentTab, setCurrentTab] = useState<"pedidos" | "perfil">("pedidos")
@@ -310,7 +1011,7 @@ function Profile() {
   const handleLogin = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     const data = new FormData(e.currentTarget)
-    const email = String(data.get("email") || "").trim()
+    const email = sanitizeString(data.get("email")).toLowerCase()
     const pass = String(data.get("password") || "")
 
     const authenticated = authenticateUser(email, pass)
@@ -327,15 +1028,34 @@ function Profile() {
     e.preventDefault()
     const data = new FormData(e.currentTarget)
 
+    const rawEmail = sanitizeString(data.get("email")).toLowerCase()
+    if (!validateEmail(rawEmail)) {
+      setRegisterError("Por favor ingresa un correo electrónico válido.")
+      return
+    }
+
+    const rawDoc = sanitizeString(data.get("document"))
+    const docCheck = validateDocument("DNI", rawDoc)
+    if (!docCheck.valid) {
+      setRegisterError(docCheck.error || "DNI no válido.")
+      return
+    }
+
+    const rawPhone = sanitizeString(data.get("phone"))
+    if (!validatePhone(rawPhone)) {
+      setRegisterError("Número de teléfono no válido.")
+      return
+    }
+
     const newUser: CustomerUser = {
-      firstName: String(data.get("firstName") || "").trim(),
-      lastName: String(data.get("lastName") || "").trim(),
+      firstName: sanitizeString(data.get("firstName")),
+      lastName: sanitizeString(data.get("lastName")),
       documentType: "DNI",
-      document: String(data.get("document") || "").trim(),
-      phone: String(data.get("phone") || "").trim(),
-      address: String(data.get("address") || "").trim(),
-      district: String(data.get("district") || ""),
-      email: String(data.get("email") || "").trim(),
+      document: rawDoc,
+      phone: rawPhone,
+      address: sanitizeString(data.get("address")),
+      district: sanitizeString(data.get("district")),
+      email: rawEmail,
       password: String(data.get("password") || ""),
     }
 
@@ -361,46 +1081,383 @@ function Profile() {
 
   if (!isAuth || !currentUser) {
     return (
-      <main style={{ backgroundColor: '#f9f9f9', minHeight: '80vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem' }}>
-        <div style={{ background: '#fff', padding: '3rem', width: '100%', maxWidth: authMode === 'login' ? '400px' : '550px', borderTop: '4px solid #000', boxShadow: '0 10px 30px rgba(0,0,0,0.05)', borderRadius: '4px', transition: 'max-width 0.3s' }}>
-          
-          <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem' }}>
-            <button onClick={() => {setAuthMode("login"); setError(false); setRegisterError("")}} style={{ flex: 1, padding: '0.8rem', background: authMode === 'login' ? '#000' : '#f5f5f5', color: authMode === 'login' ? '#fff' : '#666', border: 'none', fontWeight: 'bold', cursor: 'pointer', borderRadius: '4px' }}>INICIAR SESIÓN</button>
-            <button onClick={() => {setAuthMode("register"); setError(false); setRegisterError("")}} style={{ flex: 1, padding: '0.8rem', background: authMode === 'register' ? '#000' : '#f5f5f5', color: authMode === 'register' ? '#fff' : '#666', border: 'none', fontWeight: 'bold', cursor: 'pointer', borderRadius: '4px' }}>CREAR CUENTA</button>
+      <main
+        style={{
+          backgroundColor: "#f9f9f9",
+          minHeight: "80vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: "2rem",
+        }}
+      >
+        <div
+          style={{
+            background: "#fff",
+            padding: "3rem",
+            width: "100%",
+            maxWidth: authMode === "login" ? "400px" : "550px",
+            borderTop: "4px solid #000",
+            boxShadow: "0 10px 30px rgba(0,0,0,0.05)",
+            borderRadius: "4px",
+            transition: "max-width 0.3s",
+          }}
+        >
+          <div style={{ display: "flex", gap: "1rem", marginBottom: "2rem" }}>
+            <button
+              onClick={() => {
+                setAuthMode("login")
+                setError(false)
+                setRegisterError("")
+              }}
+              style={{
+                flex: 1,
+                padding: "0.8rem",
+                background: authMode === "login" ? "#000" : "#f5f5f5",
+                color: authMode === "login" ? "#fff" : "#666",
+                border: "none",
+                fontWeight: "bold",
+                cursor: "pointer",
+                borderRadius: "4px",
+              }}
+            >
+              INICIAR SESIÓN
+            </button>
+            <button
+              onClick={() => {
+                setAuthMode("register")
+                setError(false)
+                setRegisterError("")
+              }}
+              style={{
+                flex: 1,
+                padding: "0.8rem",
+                background: authMode === "register" ? "#000" : "#f5f5f5",
+                color: authMode === "register" ? "#fff" : "#666",
+                border: "none",
+                fontWeight: "bold",
+                cursor: "pointer",
+                borderRadius: "4px",
+              }}
+            >
+              CREAR CUENTA
+            </button>
           </div>
 
           {authMode === "login" ? (
-            <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem', animation: 'fadeIn 0.3s ease' }}>
-              <div><label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 'bold', marginBottom: '0.5rem', textTransform: 'uppercase' }}>Correo Electrónico</label><input name="email" type="email" required style={{ width: '100%', padding: '1rem', border: '1px solid #ddd', borderRadius: '4px' }} /></div>
-              <div><label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 'bold', marginBottom: '0.5rem', textTransform: 'uppercase' }}>Contraseña</label><input name="password" type="password" required style={{ width: '100%', padding: '1rem', border: '1px solid #ddd', borderRadius: '4px' }} /></div>
-              {error && <small style={{ color: '#d32f2f', fontWeight: 'bold' }}>El correo o la contraseña son incorrectos.</small>}
-              <button style={{ background: '#000', color: '#fff', border: 'none', padding: '1rem', fontWeight: 'bold', textTransform: 'uppercase', cursor: 'pointer', marginTop: '1rem', borderRadius: '4px' }}>Entrar a mi cuenta</button>
+            <form
+              onSubmit={handleLogin}
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "1.2rem",
+                animation: "fadeIn 0.3s ease",
+              }}
+            >
+              <div>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: "0.75rem",
+                    fontWeight: "bold",
+                    marginBottom: "0.5rem",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  Correo Electrónico
+                </label>
+                <input
+                  name="email"
+                  type="email"
+                  required
+                  style={{
+                    width: "100%",
+                    padding: "1rem",
+                    border: "1px solid #ddd",
+                    borderRadius: "4px",
+                  }}
+                />
+              </div>
+              <div>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: "0.75rem",
+                    fontWeight: "bold",
+                    marginBottom: "0.5rem",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  Contraseña
+                </label>
+                <input
+                  name="password"
+                  type="password"
+                  required
+                  style={{
+                    width: "100%",
+                    padding: "1rem",
+                    border: "1px solid #ddd",
+                    borderRadius: "4px",
+                  }}
+                />
+              </div>
+              {error && (
+                <small style={{ color: "#d32f2f", fontWeight: "bold" }}>
+                  El correo o la contraseña son incorrectos.
+                </small>
+              )}
+              <button
+                style={{
+                  background: "#000",
+                  color: "#fff",
+                  border: "none",
+                  padding: "1rem",
+                  fontWeight: "bold",
+                  textTransform: "uppercase",
+                  cursor: "pointer",
+                  marginTop: "1rem",
+                  borderRadius: "4px",
+                }}
+              >
+                Entrar a mi cuenta
+              </button>
             </form>
           ) : (
-            <form onSubmit={handleRegister} style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem', animation: 'fadeIn 0.3s ease' }}>
-              <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-                <div style={{ flex: '1 1 200px' }}><label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 'bold', marginBottom: '0.5rem', textTransform: 'uppercase' }}>Nombres</label><input name="firstName" required style={{ width: '100%', padding: '1rem', border: '1px solid #ddd', borderRadius: '4px' }} /></div>
-                <div style={{ flex: '1 1 200px' }}><label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 'bold', marginBottom: '0.5rem', textTransform: 'uppercase' }}>Apellidos</label><input name="lastName" required style={{ width: '100%', padding: '1rem', border: '1px solid #ddd', borderRadius: '4px' }} /></div>
+            <form
+              onSubmit={handleRegister}
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "1.2rem",
+                animation: "fadeIn 0.3s ease",
+              }}
+            >
+              <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
+                <div style={{ flex: "1 1 200px" }}>
+                  <label
+                    style={{
+                      display: "block",
+                      fontSize: "0.75rem",
+                      fontWeight: "bold",
+                      marginBottom: "0.5rem",
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    Nombres
+                  </label>
+                  <input
+                    name="firstName"
+                    required
+                    style={{
+                      width: "100%",
+                      padding: "1rem",
+                      border: "1px solid #ddd",
+                      borderRadius: "4px",
+                    }}
+                  />
+                </div>
+                <div style={{ flex: "1 1 200px" }}>
+                  <label
+                    style={{
+                      display: "block",
+                      fontSize: "0.75rem",
+                      fontWeight: "bold",
+                      marginBottom: "0.5rem",
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    Apellidos
+                  </label>
+                  <input
+                    name="lastName"
+                    required
+                    style={{
+                      width: "100%",
+                      padding: "1rem",
+                      border: "1px solid #ddd",
+                      borderRadius: "4px",
+                    }}
+                  />
+                </div>
               </div>
-              <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-                <div style={{ flex: '1 1 200px' }}><label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 'bold', marginBottom: '0.5rem', textTransform: 'uppercase' }}>DNI</label><input name="document" required maxLength={8} pattern="\d{8}" title="Ingresa los 8 dígitos de tu DNI" style={{ width: '100%', padding: '1rem', border: '1px solid #ddd', borderRadius: '4px' }} /></div>
-                <div style={{ flex: '1 1 200px' }}><label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 'bold', marginBottom: '0.5rem', textTransform: 'uppercase' }}>Teléfono</label><input name="phone" required type="tel" style={{ width: '100%', padding: '1rem', border: '1px solid #ddd', borderRadius: '4px' }} /></div>
+              <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
+                <div style={{ flex: "1 1 200px" }}>
+                  <label
+                    style={{
+                      display: "block",
+                      fontSize: "0.75rem",
+                      fontWeight: "bold",
+                      marginBottom: "0.5rem",
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    DNI
+                  </label>
+                  <input
+                    name="document"
+                    required
+                    maxLength={8}
+                    pattern="\d{8}"
+                    title="Ingresa los 8 dígitos de tu DNI"
+                    style={{
+                      width: "100%",
+                      padding: "1rem",
+                      border: "1px solid #ddd",
+                      borderRadius: "4px",
+                    }}
+                  />
+                </div>
+                <div style={{ flex: "1 1 200px" }}>
+                  <label
+                    style={{
+                      display: "block",
+                      fontSize: "0.75rem",
+                      fontWeight: "bold",
+                      marginBottom: "0.5rem",
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    Teléfono
+                  </label>
+                  <input
+                    name="phone"
+                    required
+                    type="tel"
+                    style={{
+                      width: "100%",
+                      padding: "1rem",
+                      border: "1px solid #ddd",
+                      borderRadius: "4px",
+                    }}
+                  />
+                </div>
               </div>
-              <div><label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 'bold', marginBottom: '0.5rem', textTransform: 'uppercase' }}>Dirección Completa</label><input name="address" required placeholder="Calle, número, departamento" style={{ width: '100%', padding: '1rem', border: '1px solid #ddd', borderRadius: '4px' }} /></div>
               <div>
-                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 'bold', marginBottom: '0.5rem', textTransform: 'uppercase' }}>Distrito</label>
-                <select name="district" required style={{ width: '100%', padding: '1rem', border: '1px solid #ddd', borderRadius: '4px', backgroundColor: '#fff' }}>
-                  {LIMA_DISTRICTS.map(d => <option key={d.code} value={d.name}>{d.name}</option>)}
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: "0.75rem",
+                    fontWeight: "bold",
+                    marginBottom: "0.5rem",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  Dirección Completa
+                </label>
+                <input
+                  name="address"
+                  required
+                  placeholder="Calle, número, departamento"
+                  style={{
+                    width: "100%",
+                    padding: "1rem",
+                    border: "1px solid #ddd",
+                    borderRadius: "4px",
+                  }}
+                />
+              </div>
+              <div>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: "0.75rem",
+                    fontWeight: "bold",
+                    marginBottom: "0.5rem",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  Distrito
+                </label>
+                <select
+                  name="district"
+                  required
+                  style={{
+                    width: "100%",
+                    padding: "1rem",
+                    border: "1px solid #ddd",
+                    borderRadius: "4px",
+                    backgroundColor: "#fff",
+                  }}
+                >
+                  {LIMA_DISTRICTS.map((d) => (
+                    <option key={d.code} value={d.name}>
+                      {d.name}
+                    </option>
+                  ))}
                 </select>
               </div>
-              <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-                <div style={{ flex: '1 1 200px' }}><label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 'bold', marginBottom: '0.5rem', textTransform: 'uppercase' }}>Correo Electrónico</label><input name="email" type="email" required style={{ width: '100%', padding: '1rem', border: '1px solid #ddd', borderRadius: '4px' }} /></div>
-                <div style={{ flex: '1 1 200px' }}><label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 'bold', marginBottom: '0.5rem', textTransform: 'uppercase' }}>Contraseña</label><input name="password" type="password" required minLength={6} style={{ width: '100%', padding: '1rem', border: '1px solid #ddd', borderRadius: '4px' }} /></div>
+              <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
+                <div style={{ flex: "1 1 200px" }}>
+                  <label
+                    style={{
+                      display: "block",
+                      fontSize: "0.75rem",
+                      fontWeight: "bold",
+                      marginBottom: "0.5rem",
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    Correo Electrónico
+                  </label>
+                  <input
+                    name="email"
+                    type="email"
+                    required
+                    style={{
+                      width: "100%",
+                      padding: "1rem",
+                      border: "1px solid #ddd",
+                      borderRadius: "4px",
+                    }}
+                  />
+                </div>
+                <div style={{ flex: "1 1 200px" }}>
+                  <label
+                    style={{
+                      display: "block",
+                      fontSize: "0.75rem",
+                      fontWeight: "bold",
+                      marginBottom: "0.5rem",
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    Contraseña
+                  </label>
+                  <input
+                    name="password"
+                    type="password"
+                    required
+                    minLength={6}
+                    style={{
+                      width: "100%",
+                      padding: "1rem",
+                      border: "1px solid #ddd",
+                      borderRadius: "4px",
+                    }}
+                  />
+                </div>
               </div>
-              
-              {registerError && <small style={{ color: '#d32f2f', fontWeight: 'bold' }}>{registerError}</small>}
-              
-              <button style={{ background: '#000', color: '#fff', border: 'none', padding: '1rem', fontWeight: 'bold', textTransform: 'uppercase', cursor: 'pointer', marginTop: '1rem', borderRadius: '4px' }}>Registrarme de manera segura</button>
+              {registerError && (
+                <small style={{ color: "#d32f2f", fontWeight: "bold" }}>
+                  {registerError}
+                </small>
+              )}
+              <button
+                style={{
+                  background: "#000",
+                  color: "#fff",
+                  border: "none",
+                  padding: "1rem",
+                  fontWeight: "bold",
+                  textTransform: "uppercase",
+                  cursor: "pointer",
+                  marginTop: "1rem",
+                  borderRadius: "4px",
+                }}
+              >
+                Registrarme de manera segura
+              </button>
             </form>
           )}
         </div>
@@ -408,46 +1465,268 @@ function Profile() {
     )
   }
 
-  const displayOrders = transactions.filter((t) => (t.email || "").toLowerCase() === (currentUser.email || "").toLowerCase())
+  const displayOrders = transactions.filter(
+    (t) =>
+      (t.email || "").toLowerCase() === (currentUser.email || "").toLowerCase(),
+  )
 
   return (
-    <main style={{ padding: "4rem 5%", minHeight: "80vh", display: "flex", flexDirection: "row", gap: "4rem", flexWrap: "wrap", fontFamily: '"Inter", sans-serif' }}>
+    <main
+      style={{
+        padding: "4rem 5%",
+        minHeight: "80vh",
+        display: "flex",
+        flexDirection: "row",
+        gap: "4rem",
+        flexWrap: "wrap",
+        fontFamily: '"Inter", sans-serif',
+      }}
+    >
       <aside style={{ flex: "1 1 250px", maxWidth: "300px" }}>
-        <h1 style={{ fontSize: "2rem", textTransform: "uppercase", marginBottom: "0.5rem", letterSpacing: "-1px" }}>Mi Cuenta</h1>
-        <p style={{ color: "#666", marginBottom: "2.5rem" }}>Hola, {currentUser.firstName}</p>
+        <h1
+          style={{
+            fontSize: "2rem",
+            textTransform: "uppercase",
+            marginBottom: "0.5rem",
+            letterSpacing: "-1px",
+          }}
+        >
+          Mi Cuenta
+        </h1>
+        <p style={{ color: "#666", marginBottom: "2.5rem" }}>
+          Hola, {currentUser.firstName}
+        </p>
         <nav style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-          <button onClick={() => setCurrentTab("pedidos")} style={{ textAlign: "left", background: "none", border: "none", cursor: "pointer", fontSize: "0.9rem", fontWeight: currentTab === "pedidos" ? "bold" : "normal", color: currentTab === "pedidos" ? "#000" : "#666", textTransform: "uppercase", letterSpacing: "1px", transition: "color 0.2s" }}>Mis Pedidos</button>
-          <button onClick={() => setCurrentTab("perfil")} style={{ textAlign: "left", background: "none", border: "none", cursor: "pointer", fontSize: "0.9rem", fontWeight: currentTab === "perfil" ? "bold" : "normal", color: currentTab === "perfil" ? "#000" : "#666", textTransform: "uppercase", letterSpacing: "1px", transition: "color 0.2s" }}>Mi Perfil</button>
-          <button onClick={handleLogout} style={{ textAlign: "left", background: "none", border: "none", cursor: "pointer", fontSize: "0.9rem", color: "#d32f2f", textTransform: "uppercase", letterSpacing: "1px", marginTop: "2rem" }}>Cerrar Sesión</button>
+          <button
+            onClick={() => setCurrentTab("pedidos")}
+            style={{
+              textAlign: "left",
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              fontSize: "0.9rem",
+              fontWeight: currentTab === "pedidos" ? "bold" : "normal",
+              color: currentTab === "pedidos" ? "#000" : "#666",
+              textTransform: "uppercase",
+              letterSpacing: "1px",
+              transition: "color 0.2s",
+            }}
+          >
+            Mis Pedidos
+          </button>
+          <button
+            onClick={() => setCurrentTab("perfil")}
+            style={{
+              textAlign: "left",
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              fontSize: "0.9rem",
+              fontWeight: currentTab === "perfil" ? "bold" : "normal",
+              color: currentTab === "perfil" ? "#000" : "#666",
+              textTransform: "uppercase",
+              letterSpacing: "1px",
+              transition: "color 0.2s",
+            }}
+          >
+            Mi Perfil
+          </button>
+          <button
+            onClick={handleLogout}
+            style={{
+              textAlign: "left",
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              fontSize: "0.9rem",
+              color: "#d32f2f",
+              textTransform: "uppercase",
+              letterSpacing: "1px",
+              marginTop: "2rem",
+            }}
+          >
+            Cerrar Sesión
+          </button>
         </nav>
       </aside>
-      
+
       <section style={{ flex: "2 1 500px" }}>
         {currentTab === "pedidos" && (
-          <div style={{ animation: 'fadeIn 0.3s ease' }}>
-            <h2 style={{ fontSize: "1.5rem", textTransform: "uppercase", marginBottom: "2rem", borderBottom: "1px solid #eee", paddingBottom: "1rem" }}>Historial de Compras</h2>
+          <div style={{ animation: "fadeIn 0.3s ease" }}>
+            <h2
+              style={{
+                fontSize: "1.5rem",
+                textTransform: "uppercase",
+                marginBottom: "2rem",
+                borderBottom: "1px solid #eee",
+                paddingBottom: "1rem",
+              }}
+            >
+              Historial de Compras
+            </h2>
             {displayOrders.length === 0 ? (
-              <div style={{ padding: '3rem', textAlign: 'center', background: '#f9f9f9', borderRadius: '8px', border: '1px dashed #ccc' }}>
-                <p style={{ color: "#666", marginBottom: '1rem' }}>No tienes pedidos recientes con el correo {currentUser.email}.</p>
-                <button onClick={() => navigate("/shop")} className="black-button" style={{ padding: '0.8rem 2rem', width: 'auto' }}>Ir a la tienda</button>
+              <div
+                style={{
+                  padding: "3rem",
+                  textAlign: "center",
+                  background: "#f9f9f9",
+                  borderRadius: "8px",
+                  border: "1px dashed #ccc",
+                }}
+              >
+                <p style={{ color: "#666", marginBottom: "1rem" }}>
+                  No tienes pedidos recientes con el correo {currentUser.email}.
+                </p>
+                <button
+                  onClick={() => navigate("/shop")}
+                  className="black-button"
+                  style={{ padding: "0.8rem 2rem", width: "auto" }}
+                >
+                  Ir a la tienda
+                </button>
               </div>
             ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
-                {[...displayOrders].reverse().map((o, i) => {
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "1.5rem",
+                }}
+              >
+                {displayOrders.map((o, i) => {
                   const status = o.status || "Procesando"
                   const statusColor =
-                    status === "Entregado" ? "#2e7d32" : status === "Enviado" ? "#0277bd" : status === "Cancelado" ? "#c62828" : "#e65100"
+                    status === "Entregado"
+                      ? "#2e7d32"
+                      : status === "Enviado"
+                        ? "#0277bd"
+                        : status === "Cancelado"
+                          ? "#c62828"
+                          : "#e65100"
                   const statusBg =
-                    status === "Entregado" ? "#e8f5e9" : status === "Enviado" ? "#e3f2fd" : status === "Cancelado" ? "#ffebee" : "#fff3e0"
+                    status === "Entregado"
+                      ? "#e8f5e9"
+                      : status === "Enviado"
+                        ? "#e3f2fd"
+                        : status === "Cancelado"
+                          ? "#ffebee"
+                          : "#fff3e0"
                   return (
-                    <div key={o.id || i} style={{ border: "1px solid #eee", borderRadius: "8px", padding: "1.5rem", background: "#fff", transition: "box-shadow 0.2s" }} onMouseOver={e => e.currentTarget.style.boxShadow = "0 4px 15px rgba(0,0,0,0.05)"} onMouseOut={e => e.currentTarget.style.boxShadow = "none"}>
-                      <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: "1rem", marginBottom: "1rem", borderBottom: "1px solid #f5f5f5", paddingBottom: "1rem" }}>
-                          <div><span style={{ display: "block", fontSize: "0.65rem", color: "#888", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "4px" }}>Orden</span><strong style={{ fontSize: "0.9rem" }}>{o.id}</strong></div>
-                          <div><span style={{ display: "block", fontSize: "0.65rem", color: "#888", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "4px" }}>Fecha</span><strong style={{ fontSize: "0.9rem" }}>{new Date(o.date).toLocaleDateString('es-PE')}</strong></div>
-                          <div><span style={{ display: "block", fontSize: "0.65rem", color: "#888", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "4px" }}>Total</span><strong style={{ fontSize: "0.9rem" }}>{money(o.total)}</strong></div>
-                          <div style={{ textAlign: "right" }}><span style={{ display: "block", fontSize: "0.65rem", color: "#888", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "4px" }}>Estado</span><span style={{ background: statusBg, color: statusColor, padding: "4px 8px", borderRadius: "4px", fontSize: "0.75rem", fontWeight: "bold" }}>{status}</span></div>
+                    <div
+                      key={o.id || i}
+                      style={{
+                        border: "1px solid #eee",
+                        borderRadius: "8px",
+                        padding: "1.5rem",
+                        background: "#fff",
+                        transition: "box-shadow 0.2s",
+                      }}
+                      onMouseOver={(e) =>
+                        (e.currentTarget.style.boxShadow =
+                          "0 4px 15px rgba(0,0,0,0.05)")
+                      }
+                      onMouseOut={(e) =>
+                        (e.currentTarget.style.boxShadow = "none")
+                      }
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          flexWrap: "wrap",
+                          gap: "1rem",
+                          marginBottom: "1rem",
+                          borderBottom: "1px solid #f5f5f5",
+                          paddingBottom: "1rem",
+                        }}
+                      >
+                        <div>
+                          <span
+                            style={{
+                              display: "block",
+                              fontSize: "0.65rem",
+                              color: "#888",
+                              textTransform: "uppercase",
+                              letterSpacing: "1px",
+                              marginBottom: "4px",
+                            }}
+                          >
+                            Orden
+                          </span>
+                          <strong style={{ fontSize: "0.9rem" }}>{o.id}</strong>
+                        </div>
+                        <div>
+                          <span
+                            style={{
+                              display: "block",
+                              fontSize: "0.65rem",
+                              color: "#888",
+                              textTransform: "uppercase",
+                              letterSpacing: "1px",
+                              marginBottom: "4px",
+                            }}
+                          >
+                            Fecha
+                          </span>
+                          <strong style={{ fontSize: "0.9rem" }}>
+                            {new Date(o.date).toLocaleDateString("es-PE")}
+                          </strong>
+                        </div>
+                        <div>
+                          <span
+                            style={{
+                              display: "block",
+                              fontSize: "0.65rem",
+                              color: "#888",
+                              textTransform: "uppercase",
+                              letterSpacing: "1px",
+                              marginBottom: "4px",
+                            }}
+                          >
+                            Total
+                          </span>
+                          <strong style={{ fontSize: "0.9rem" }}>
+                            {money(o.total)}
+                          </strong>
+                        </div>
+                        <div style={{ textAlign: "right" }}>
+                          <span
+                            style={{
+                              display: "block",
+                              fontSize: "0.65rem",
+                              color: "#888",
+                              textTransform: "uppercase",
+                              letterSpacing: "1px",
+                              marginBottom: "4px",
+                            }}
+                          >
+                            Estado
+                          </span>
+                          <span
+                            style={{
+                              background: statusBg,
+                              color: statusColor,
+                              padding: "4px 8px",
+                              borderRadius: "4px",
+                              fontSize: "0.75rem",
+                              fontWeight: "bold",
+                            }}
+                          >
+                            {status}
+                          </span>
+                        </div>
                       </div>
-                      <div><span style={{ fontSize: "0.85rem", color: "#555", lineHeight: "1.5" }}>{o.detail}</span></div>
+                      <div>
+                        <span
+                          style={{
+                            fontSize: "0.85rem",
+                            color: "#555",
+                            lineHeight: "1.5",
+                          }}
+                        >
+                          {o.detail}
+                        </span>
+                      </div>
                     </div>
                   )
                 })}
@@ -456,24 +1735,220 @@ function Profile() {
           </div>
         )}
         {currentTab === "perfil" && (
-          <div style={{ animation: 'fadeIn 0.3s ease' }}>
-            <h2 style={{ fontSize: "1.5rem", textTransform: "uppercase", marginBottom: "2rem", borderBottom: "1px solid #eee", paddingBottom: "1rem" }}>Detalles de Contacto</h2>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: "3rem" }}>
+          <div style={{ animation: "fadeIn 0.3s ease" }}>
+            <h2
+              style={{
+                fontSize: "1.5rem",
+                textTransform: "uppercase",
+                marginBottom: "2rem",
+                borderBottom: "1px solid #eee",
+                paddingBottom: "1rem",
+              }}
+            >
+              Detalles de Contacto
+            </h2>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
+                gap: "3rem",
+              }}
+            >
               <div>
-                <h3 style={{ fontSize: "0.85rem", textTransform: "uppercase", marginBottom: "1.5rem", color: "#000", letterSpacing: "1px" }}>Información Personal</h3>
-                <div style={{ display: "flex", flexDirection: "column", gap: "1.2rem" }}>
-                  <div><label style={{ fontSize: "0.7rem", color: "#888", textTransform: "uppercase", letterSpacing: "1px" }}>Nombres</label><p style={{ margin: "0.2rem 0 0 0", fontWeight: "500", fontSize: "0.9rem" }}>{currentUser.firstName}</p></div>
-                  <div><label style={{ fontSize: "0.7rem", color: "#888", textTransform: "uppercase", letterSpacing: "1px" }}>Apellidos</label><p style={{ margin: "0.2rem 0 0 0", fontWeight: "500", fontSize: "0.9rem" }}>{currentUser.lastName}</p></div>
-                  {currentUser.document && <div><label style={{ fontSize: "0.7rem", color: "#888", textTransform: "uppercase", letterSpacing: "1px" }}>DNI</label><p style={{ margin: "0.2rem 0 0 0", fontWeight: "500", fontSize: "0.9rem" }}>{currentUser.document}</p></div>}
-                  <div><label style={{ fontSize: "0.7rem", color: "#888", textTransform: "uppercase", letterSpacing: "1px" }}>Correo Electrónico</label><p style={{ margin: "0.2rem 0 0 0", fontWeight: "500", fontSize: "0.9rem" }}>{currentUser.email}</p></div>
-                  {currentUser.phone && <div><label style={{ fontSize: "0.7rem", color: "#888", textTransform: "uppercase", letterSpacing: "1px" }}>Teléfono</label><p style={{ margin: "0.2rem 0 0 0", fontWeight: "500", fontSize: "0.9rem" }}>{currentUser.phone}</p></div>}
+                <h3
+                  style={{
+                    fontSize: "0.85rem",
+                    textTransform: "uppercase",
+                    marginBottom: "1.5rem",
+                    color: "#000",
+                    letterSpacing: "1px",
+                  }}
+                >
+                  Información Personal
+                </h3>
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "1.2rem",
+                  }}
+                >
+                  <div>
+                    <label
+                      style={{
+                        fontSize: "0.7rem",
+                        color: "#888",
+                        textTransform: "uppercase",
+                        letterSpacing: "1px",
+                      }}
+                    >
+                      Nombres
+                    </label>
+                    <p
+                      style={{
+                        margin: "0.2rem 0 0 0",
+                        fontWeight: "500",
+                        fontSize: "0.9rem",
+                      }}
+                    >
+                      {currentUser.firstName}
+                    </p>
+                  </div>
+                  <div>
+                    <label
+                      style={{
+                        fontSize: "0.7rem",
+                        color: "#888",
+                        textTransform: "uppercase",
+                        letterSpacing: "1px",
+                      }}
+                    >
+                      Apellidos
+                    </label>
+                    <p
+                      style={{
+                        margin: "0.2rem 0 0 0",
+                        fontWeight: "500",
+                        fontSize: "0.9rem",
+                      }}
+                    >
+                      {currentUser.lastName}
+                    </p>
+                  </div>
+                  {currentUser.document && (
+                    <div>
+                      <label
+                        style={{
+                          fontSize: "0.7rem",
+                          color: "#888",
+                          textTransform: "uppercase",
+                          letterSpacing: "1px",
+                        }}
+                      >
+                        DNI
+                      </label>
+                      <p
+                        style={{
+                          margin: "0.2rem 0 0 0",
+                          fontWeight: "500",
+                          fontSize: "0.9rem",
+                        }}
+                      >
+                        {currentUser.document}
+                      </p>
+                    </div>
+                  )}
+                  <div>
+                    <label
+                      style={{
+                        fontSize: "0.7rem",
+                        color: "#888",
+                        textTransform: "uppercase",
+                        letterSpacing: "1px",
+                      }}
+                    >
+                      Correo Electrónico
+                    </label>
+                    <p
+                      style={{
+                        margin: "0.2rem 0 0 0",
+                        fontWeight: "500",
+                        fontSize: "0.9rem",
+                      }}
+                    >
+                      {currentUser.email}
+                    </p>
+                  </div>
+                  {currentUser.phone && (
+                    <div>
+                      <label
+                        style={{
+                          fontSize: "0.7rem",
+                          color: "#888",
+                          textTransform: "uppercase",
+                          letterSpacing: "1px",
+                        }}
+                      >
+                        Teléfono
+                      </label>
+                      <p
+                        style={{
+                          margin: "0.2rem 0 0 0",
+                          fontWeight: "500",
+                          fontSize: "0.9rem",
+                        }}
+                      >
+                        {currentUser.phone}
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
               <div>
-                <h3 style={{ fontSize: "0.85rem", textTransform: "uppercase", marginBottom: "1.5rem", color: "#000", letterSpacing: "1px" }}>Dirección Predeterminada</h3>
-                <div style={{ display: "flex", flexDirection: "column", gap: "1.2rem" }}>
-                  {currentUser.address && <div><label style={{ fontSize: "0.7rem", color: "#888", textTransform: "uppercase", letterSpacing: "1px" }}>Dirección Completa</label><p style={{ margin: "0.2rem 0 0 0", fontWeight: "500", fontSize: "0.9rem" }}>{currentUser.address}</p></div>}
-                  {currentUser.district && <div><label style={{ fontSize: "0.7rem", color: "#888", textTransform: "uppercase", letterSpacing: "1px" }}>Distrito</label><p style={{ margin: "0.2rem 0 0 0", fontWeight: "500", fontSize: "0.9rem" }}>{currentUser.district}</p></div>}
+                <h3
+                  style={{
+                    fontSize: "0.85rem",
+                    textTransform: "uppercase",
+                    marginBottom: "1.5rem",
+                    color: "#000",
+                    letterSpacing: "1px",
+                  }}
+                >
+                  Dirección Predeterminada
+                </h3>
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "1.2rem",
+                  }}
+                >
+                  {currentUser.address && (
+                    <div>
+                      <label
+                        style={{
+                          fontSize: "0.7rem",
+                          color: "#888",
+                          textTransform: "uppercase",
+                          letterSpacing: "1px",
+                        }}
+                      >
+                        Dirección Completa
+                      </label>
+                      <p
+                        style={{
+                          margin: "0.2rem 0 0 0",
+                          fontWeight: "500",
+                          fontSize: "0.9rem",
+                        }}
+                      >
+                        {currentUser.address}
+                      </p>
+                    </div>
+                  )}
+                  {currentUser.district && (
+                    <div>
+                      <label
+                        style={{
+                          fontSize: "0.7rem",
+                          color: "#888",
+                          textTransform: "uppercase",
+                          letterSpacing: "1px",
+                        }}
+                      >
+                        Distrito
+                      </label>
+                      <p
+                        style={{
+                          margin: "0.2rem 0 0 0",
+                          fontWeight: "500",
+                          fontSize: "0.9rem",
+                        }}
+                      >
+                        {currentUser.district}
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -486,14 +1961,22 @@ function Profile() {
 
 function Footer({ openChat }: { openChat: () => void }) {
   const location = useLocation()
-  if (location.pathname === '/admin' || location.pathname === '/checkout') return null
-  return (<footer><Logo /><p>SURF CULTURE FROM LIMA, PERÚ.</p><button onClick={openChat}>◯ &nbsp; Chat</button></footer>)
+  if (location.pathname === "/admin" || location.pathname === "/checkout")
+    return null
+  return (
+    <footer>
+      <Logo />
+      <p>SURF CULTURE FROM LIMA, PERÚ.</p>
+      <button onClick={openChat}>◯ &nbsp; Chat</button>
+    </footer>
+  )
 }
 
 function AppContent() {
   const location = useLocation()
   const [panel, setPanel] = useState<string | null>(null)
   const dialog = useRef<HTMLDialogElement>(null)
+
   useEffect(() => {
     const d = dialog.current
     if (!d) return
@@ -503,20 +1986,92 @@ function AppContent() {
       d.close()
     }
   }, [panel])
-  useEffect(() => { window.scrollTo({ top: 0 }) }, [location.pathname])
+
+  useEffect(() => {
+    window.scrollTo({ top: 0 })
+  }, [location.pathname])
+
   return (
     <>
       <Header />
       <Routes>
-        <Route path="/" element={<Home openPanel={setPanel} />} /><Route path="/shop" element={<Shop />} /><Route path="/collections" element={<Collections />} /><Route path="/cart" element={<Cart />} /><Route path="/checkout" element={<Checkout />} /><Route path="/profile" element={<Profile />} /><Route path="/about" element={<main className="page"><div className="page-title"><h1>STAY REAL</h1></div><p>SURF CULTURE FROM LIMA, PERÚ.</p></main>} /><Route path="/admin" element={<Admin />} />
+        <Route path="/" element={<Home openPanel={setPanel} />} />
+        <Route path="/shop" element={<Shop />} />
+        <Route path="/collections" element={<Collections />} />
+        <Route path="/cart" element={<Cart />} />
+        <Route path="/checkout" element={<Checkout />} />
+        <Route path="/profile" element={<Profile />} />
+        <Route
+          path="/about"
+          element={
+            <main className="page">
+              <div className="page-title">
+                <h1>STAY REAL</h1>
+              </div>
+              <p>SURF CULTURE FROM LIMA, PERÚ.</p>
+            </main>
+          }
+        />
+        <Route path="/admin" element={<Admin />} />
       </Routes>
       <Footer openChat={() => setPanel("chat")} />
-      <dialog ref={dialog} onCancel={() => setPanel(null)} style={{ position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)", margin: 0, padding: 0, border: "none", background: "black", width: "90vw", maxWidth: "900px", zIndex: 9999, boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5)" }}>
-        <div style={{ padding: "10px", display: "flex", justifyContent: "flex-end", backgroundColor: "black" }}><button aria-label="Cerrar" onClick={() => setPanel(null)} style={{ background: "transparent", border: "none", color: "white", cursor: "pointer", fontSize: "16px" }}>Cerrar ✕</button></div>
-        <div style={{ padding: "3rem", color: "white", textAlign: "center" }}><h2 style={{ textTransform: "uppercase", marginBottom: "1rem" }}>{panel || "Chat"}</h2><p>Contenido pendiente de proporcionar.</p></div>
+      <dialog
+        ref={dialog}
+        onCancel={() => setPanel(null)}
+        style={{
+          position: "fixed",
+          top: "50%",
+          left: "50%",
+          transform: "translate(-50%, -50%)",
+          margin: 0,
+          padding: 0,
+          border: "none",
+          background: "black",
+          width: "90vw",
+          maxWidth: "900px",
+          zIndex: 9999,
+          boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5)",
+        }}
+      >
+        <div
+          style={{
+            padding: "10px",
+            display: "flex",
+            justifyContent: "flex-end",
+            backgroundColor: "black",
+          }}
+        >
+          <button
+            aria-label="Cerrar"
+            onClick={() => setPanel(null)}
+            style={{
+              background: "transparent",
+              border: "none",
+              color: "white",
+              cursor: "pointer",
+              fontSize: "16px",
+            }}
+          >
+            Cerrar ✕
+          </button>
+        </div>
+        <div style={{ padding: "3rem", color: "white", textAlign: "center" }}>
+          <h2 style={{ textTransform: "uppercase", marginBottom: "1rem" }}>
+            {panel || "Chat"}
+          </h2>
+          <p>Contenido pendiente de proporcionar.</p>
+        </div>
       </dialog>
     </>
   )
 }
 
-export default function App() { return (<BrowserRouter><StoreProvider><AppContent /></StoreProvider></BrowserRouter>) }
+export default function App() {
+  return (
+    <BrowserRouter>
+      <StoreProvider>
+        <AppContent />
+      </StoreProvider>
+    </BrowserRouter>
+  )
+}
