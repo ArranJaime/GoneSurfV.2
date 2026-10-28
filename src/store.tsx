@@ -12,17 +12,19 @@ import {
   broadcastSyncEvent,
   INITIAL_COLLECTIONS,
   INITIAL_PRODUCTS,
-  type Product,
-  type CollectionData,
-  type CartItem,
-  type CustomerUser,
-  type OrderDetailsInput,
-  type OrderTransaction,
-  type Order,
-  type OrderPaymentMethod,
-  type Size,
-  type OrderStatus,
 } from "./services/api"
+import type {
+  Product,
+  CollectionData,
+  CartItem,
+  CustomerUser,
+  OrderDetailsInput,
+  OrderTransaction,
+  Order,
+  OrderPaymentMethod,
+  Size,
+  OrderStatus,
+} from "./types"
 import { calculateOrderAmounts } from "./utils/accounting"
 
 export type {
@@ -72,7 +74,7 @@ export interface Store {
   resetDemoData: () => void
 }
 
-const StoreContext = createContext<Store | null>(null)
+export const StoreContext = createContext<Store | null>(null)
 
 export function safeReadStorage<T>(
   key: string,
