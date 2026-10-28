@@ -1,7 +1,11 @@
 {
-  "description": "Manage a retail store with synchronized catalog and admin panel featuring smart cart, stock control by size, tax calculations, order tracking, and CSV exports.",
+  "title": "Gone Surfing | Surf Apparel & Accessories",
+  "description": "Gone Surfing - Tienda oficial de ropa y accesorios de surf inspirados en el océano y la cultura de olas de Lima, Perú.",
+  "icons": {
+    "icon": "/logo-gone-surfing.png"
+  },
   "robots": {
-    "index": false
+    "index": true
   },
   "accessibility": {
     "addBypassLinks": false,

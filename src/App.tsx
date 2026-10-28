@@ -44,33 +44,11 @@ const getSubtotal = (cart: CartItem[], products: Product[]) =>
 
 function Logo() {
   return (
-    <span
-      className="logo"
-      aria-label="Gone Surfing"
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: "9px",
-        textDecoration: "none",
-      }}
-    >
-      <img
-        src="/favicon.svg"
-        alt="Gone Surfing Logo"
-        style={{
-          width: "22px",
-          height: "22px",
-          borderRadius: "3px",
-          display: "inline-block",
-          flexShrink: 0,
-        }}
-      />
-      <span>
-        GONE
-        <br />
-        SURFING
-      </span>
-    </span>
+    <img
+      src="/logo-gone-surfing.png"
+      alt="Gone Surfing Logo"
+      className="brand-logo"
+    />
   )
 }
 
@@ -196,9 +174,21 @@ function Header() {
       <button
         className="logo-button"
         onClick={() => navigate("/")}
-        style={{ background: "transparent" }}
+        style={{
+          background: "transparent",
+          border: 0,
+          padding: 0,
+          display: "flex",
+          alignItems: "center",
+          cursor: "pointer",
+        }}
+        aria-label="Gone Surfing Home"
       >
-        <Logo />
+        <img
+          src="/logo-gone-surfing.png"
+          alt="Gone Surfing Logo"
+          className="brand-logo"
+        />
       </button>
       <nav
         className="desktop-nav"
@@ -2097,12 +2087,30 @@ function Profile() {
 }
 
 function Footer({ openChat }: { openChat: () => void }) {
+  const navigate = useNavigate()
   const location = useLocation()
   if (location.pathname === "/admin" || location.pathname === "/checkout")
     return null
   return (
     <footer>
-      <Logo />
+      <button
+        onClick={() => navigate("/")}
+        style={{
+          background: "transparent",
+          border: 0,
+          padding: 0,
+          display: "flex",
+          alignItems: "center",
+          cursor: "pointer",
+        }}
+        aria-label="Gone Surfing Home"
+      >
+        <img
+          src="/logo-gone-surfing.png"
+          alt="Gone Surfing Logo"
+          className="brand-logo"
+        />
+      </button>
       <p>SURF CULTURE FROM LIMA, PERÚ.</p>
       <button onClick={openChat}>◯ &nbsp; Chat</button>
     </footer>

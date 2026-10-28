@@ -860,7 +860,7 @@ export default function Checkout() {
                       fontSize: "0.75rem",
                       textTransform: "uppercase",
                       letterSpacing: "1px",
-                      color: "#e3eb1e",
+                      color: "#ffffff",
                       margin: "0 0 0.8rem 0",
                       fontWeight: "bold",
                     }}
@@ -941,7 +941,7 @@ export default function Checkout() {
                       transition: "all 0.2s ease",
                     }}
                     onMouseOver={(e) => {
-                      e.currentTarget.style.backgroundColor = "#e3eb1e"
+                      e.currentTarget.style.backgroundColor = "#e0e0e0"
                     }}
                     onMouseOut={(e) => {
                       e.currentTarget.style.backgroundColor = "#ffffff"
@@ -2337,7 +2337,7 @@ export default function Checkout() {
               <span
                 style={{
                   fontSize: "0.75rem",
-                  color: "#e3eb1e",
+                  color: "#ffffff",
                   fontWeight: 700,
                   fontFamily: '"Barlow Condensed", sans-serif',
                   letterSpacing: "1px",
@@ -2357,7 +2357,7 @@ export default function Checkout() {
                 fontFamily: "serif",
                 fontStyle: "italic",
                 fontSize: "1.25rem",
-                color: "#e3eb1e",
+                color: "#ffffff",
                 display: "block",
                 marginBottom: "0.2rem",
               }}
@@ -2541,7 +2541,7 @@ export default function Checkout() {
                 boxShadow: "0 4px 14px rgba(0, 0, 0, 0.4)",
               }}
               onMouseOver={(e) => {
-                e.currentTarget.style.backgroundColor = "#e3eb1e"
+                e.currentTarget.style.backgroundColor = "#e0e0e0"
                 e.currentTarget.style.color = "#0a0a0a"
               }}
               onMouseOut={(e) => {
