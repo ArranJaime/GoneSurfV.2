@@ -44,21 +44,11 @@ const getSubtotal = (cart: CartItem[], products: Product[]) =>
 
 function Logo() {
   return (
-    <span
-      className="logo-container"
-      style={{
-        background: "transparent",
-        display: "inline-flex",
-        alignItems: "center",
-      }}
-    >
-      <img
-        src="/logo-gone-surfing.png"
-        alt="Gone Surfing Logo"
-        className="brand-logo"
-        style={{ mixBlendMode: "screen" }}
-      />
-    </span>
+    <img
+      src="/logo-gone-surfing.png"
+      alt="Gone Surfing Logo"
+      className="brand-logo"
+    />
   )
 }
 
@@ -182,7 +172,7 @@ function Header() {
         </svg>
       </button>
       <button
-        className="logo-button logo-container"
+        className="logo-button"
         onClick={() => navigate("/")}
         style={{
           background: "transparent",
@@ -198,7 +188,6 @@ function Header() {
           src="/logo-gone-surfing.png"
           alt="Gone Surfing Logo"
           className="brand-logo"
-          style={{ mixBlendMode: "screen" }}
         />
       </button>
       <nav
@@ -2105,7 +2094,6 @@ function Footer({ openChat }: { openChat: () => void }) {
   return (
     <footer>
       <button
-        className="logo-container"
         onClick={() => navigate("/")}
         style={{
           background: "transparent",
@@ -2121,7 +2109,6 @@ function Footer({ openChat }: { openChat: () => void }) {
           src="/logo-gone-surfing.png"
           alt="Gone Surfing Logo"
           className="brand-logo"
-          style={{ mixBlendMode: "screen" }}
         />
       </button>
       <p>SURF CULTURE FROM LIMA, PERÚ.</p>

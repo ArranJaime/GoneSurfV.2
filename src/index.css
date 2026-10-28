@@ -7,41 +7,9 @@ html, body { margin: 0; min-width: 320px; overflow-x: hidden; }
 button, input { font: inherit; }
 button { color: inherit; cursor: pointer; }
 button:disabled { cursor: not-allowed; opacity: .45; }
-/* Centrado y alineación vertical de los elementos del navbar */
-header.header, .header {
-  height: 80px !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: space-between !important;
-  background-color: #000000 !important;
-  border-bottom: 1px solid #111111 !important;
-  padding: 0 24px !important;
-  position: sticky;
-  top: 0;
-  z-index: 30;
-  color: white;
-}
-.logo-button, .logo-container {
-  justify-self: start;
-  padding: 0;
-  border: 0;
-  background: transparent !important;
-  color: white;
-  display: flex;
-  align-items: center;
-  cursor: pointer;
-}
-/* Estilos específicos para el logo de Gone Surfing */
-.brand-logo {
-  height: 50px !important;
-  max-height: 55px !important;
-  width: auto !important;
-  object-fit: contain !important;
-  mix-blend-mode: screen !important;
-  display: block !important;
-  padding: 4px 0 !important;
-  margin-left: 8px !important;
-}
+.header { height: 56px; padding: 0 24px; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; background: #0a0a0a; color: white; border-bottom: 1px solid #1a1a1a; position: sticky; top: 0; z-index: 30; }
+.logo-button { justify-self: start; padding: 0; border: 0; background: transparent; color: white; display: flex; align-items: center; cursor: pointer; }
+.brand-logo { max-height: 35px; width: auto; object-fit: contain; display: block; }
 .logo { display: inline-block; font-family: Arial Black, sans-serif; font-size: 19px; font-weight: 900; line-height: .75; letter-spacing: -1.7px; transform: skew(-3deg); text-align: left; }
 .header nav { align-self: stretch; display: flex; background: transparent; padding: 0 30px; gap: 38px; }
 .header nav button { background: transparent; border: 0; color: white; font-family: "Barlow Condensed"; font-size: 10px; font-weight: 600; letter-spacing: 1.5px; }
@@ -181,26 +149,22 @@ td small { display: block; margin-top: 4px; color: #777; }
     padding: 4px;
   }
 
-  /* Ajuste de alineación para pantallas móviles */
-  header.header, .header {
-    height: 70px !important;
-    padding: 0 16px !important;
+  header.header {
     display: flex !important;
     justify-content: flex-start !important;
     align-items: center !important;
-    background-color: #000000 !important;
-    border-bottom: 1px solid #111111 !important;
+    padding: 10px 16px !important;
+    height: 56px !important;
     width: 100% !important;
+    background: #0a0a0a !important;
+    border-bottom: 1px solid #1a1a1a !important;
     box-sizing: border-box !important;
   }
 
   .brand-logo {
-    height: 42px !important;
-    max-height: 45px !important;
+    max-height: 30px !important;
     width: auto !important;
     object-fit: contain !important;
-    mix-blend-mode: screen !important;
-    margin-left: 0 !important;
   }
 
   .utilities {
