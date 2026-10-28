@@ -383,6 +383,7 @@ export default function Checkout() {
     }
     return (
       <section
+        className="checkout-confirmed-section"
         style={{
           minHeight: "100vh",
           backgroundColor: "#111",
@@ -401,8 +402,7 @@ export default function Checkout() {
           style={{
             position: "absolute",
             inset: 0,
-            backgroundImage:
-              "url(https://images.unsplash.com/photo-1636353990836-b20b196dd41e?auto=format&fit=crop&w=2400&q=85)",
+            backgroundImage: "url(/assets/underwater.jpg)",
             backgroundSize: "cover",
             backgroundPosition: "center",
             filter: "brightness(0.3) blur(4px)",
@@ -410,6 +410,7 @@ export default function Checkout() {
           }}
         ></div>
         <div
+          className="checkout-confirmed-card"
           style={{
             position: "relative",
             zIndex: 10,
@@ -1046,6 +1047,7 @@ export default function Checkout() {
 
   return (
     <section
+      className="checkout-page-section"
       style={{
         display: "flex",
         minHeight: "100vh",
@@ -1054,7 +1056,10 @@ export default function Checkout() {
         fontFamily: '"Inter", -apple-system, sans-serif',
       }}
     >
-      <div style={{ flex: "1 1 60%", padding: "4rem 8%", overflowY: "auto" }}>
+      <div
+        className="checkout-main-col"
+        style={{ flex: "1 1 60%", padding: "4rem 8%", overflowY: "auto" }}
+      >
         <Link
           to="/shop"
           style={{
@@ -1081,6 +1086,7 @@ export default function Checkout() {
           UN PASO MÁS CERCA DEL OCÉANO
         </p>
         <h1
+          className="checkout-title"
           style={{
             fontSize: "3.5rem",
             fontWeight: 600,
@@ -1091,6 +1097,7 @@ export default function Checkout() {
           Tu próxima ola.
         </h1>
         <div
+          className="checkout-steps"
           style={{
             display: "flex",
             gap: "2rem",
@@ -1311,7 +1318,10 @@ export default function Checkout() {
                 />
               </div>
             </div>
-            <div style={{ display: "flex", gap: "1rem", marginBottom: "1rem" }}>
+            <div
+              className="checkout-row-2col"
+              style={{ display: "flex", gap: "1rem", marginBottom: "1rem" }}
+            >
               <div style={{ flex: 1 }}>
                 <label
                   style={{
@@ -1888,6 +1898,7 @@ export default function Checkout() {
                   />
                 </div>
                 <div
+                  className="checkout-row-2col"
                   style={{ display: "flex", gap: "1rem", marginBottom: "1rem" }}
                 >
                   <div style={{ flex: 1 }}>
@@ -1969,6 +1980,7 @@ export default function Checkout() {
       </div>
 
       <aside
+        className="checkout-aside-col"
         style={{
           flex: "1 1 40%",
           backgroundColor: "#f9f9f9",
@@ -2253,6 +2265,7 @@ export default function Checkout() {
       {/* MODAL UX YAPE / PLIN */}
       {showYapeModal && pendingYapeOrder && (
         <div
+          className="yape-modal-overlay"
           style={{
             position: "fixed",
             inset: 0,
@@ -2267,6 +2280,7 @@ export default function Checkout() {
           }}
         >
           <div
+            className="yape-modal-content"
             style={{
               backgroundColor: "#0d0e12",
               color: "#ffffff",

@@ -44,10 +44,32 @@ const getSubtotal = (cart: CartItem[], products: Product[]) =>
 
 function Logo() {
   return (
-    <span className="logo" aria-label="Gone Surfing" style={{ color: "#fff" }}>
-      GONE
-      <br />
-      SURFING
+    <span
+      className="logo"
+      aria-label="Gone Surfing"
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: "9px",
+        textDecoration: "none",
+      }}
+    >
+      <img
+        src="/favicon.svg"
+        alt="Gone Surfing Logo"
+        style={{
+          width: "22px",
+          height: "22px",
+          borderRadius: "3px",
+          display: "inline-block",
+          flexShrink: 0,
+        }}
+      />
+      <span>
+        GONE
+        <br />
+        SURFING
+      </span>
     </span>
   )
 }

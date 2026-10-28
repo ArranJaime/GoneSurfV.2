@@ -3,7 +3,7 @@
 
 :root { color: #141519; background: #fff; font-family: "Inter", sans-serif; font-synthesis: none; }
 * { box-sizing: border-box; }
-body { margin: 0; min-width: 320px; }
+html, body { margin: 0; min-width: 320px; overflow-x: hidden; }
 button, input { font: inherit; }
 button { color: inherit; cursor: pointer; }
 button:disabled { cursor: not-allowed; opacity: .45; }
@@ -115,47 +115,27 @@ td small { display: block; margin-top: 4px; color: #777; }
 .stock-pill button { width: 22px; height: 100%; padding: 0; border: 0; background: #eee; }
 .stock-pill span { min-width: 22px; text-align: center; }
 
-@media (max-width: 760px) {
-  .header { grid-template-columns: 1fr auto; padding: 0 14px; }
-  .header nav { display: none; }
-  .category-grid { grid-template-columns: repeat(2, 1fr); gap: 13px; padding: 14px; }
-  .category-image { height: 42vw; }
-  .story-grid { grid-template-columns: repeat(2, 1fr); }
-  .story-grid article { height: 42vw; }
-  footer p { display: none; }
-  .product-grid { grid-template-columns: repeat(2, 1fr); }
-  .product-photo { height: 58vw; }
-  .cart-layout, .checkout-layout { grid-template-columns: 1fr; }
-  .cart-item { grid-template-columns: 82px 1fr auto; gap: 12px; }
-  .cart-item img { width: 82px; height: 100px; grid-row: span 2; }
-  .cart-item > strong { display: none; }
-  .quantity { justify-self: start; }
-  .form-panel { grid-template-columns: 1fr; }
-  .kpis { grid-template-columns: 1fr; }
-  .kpis article { min-height: 110px; }
-}
-
-@media (max-width: 420px) {
-  .product-grid { grid-template-columns: 1fr; }
-  .product-photo { height: 110vw; }
-  .page { padding-inline: 16px; }
-}
-
 /* =========================================
-   FIX DEFINITIVO CABECERA MÓVIL Y ESCRITORIO
+   ESTILOS BASE MÓVIL Y ESCRITORIO
    ========================================= */
 /* Por defecto en PC ocultamos el menú hamburguesa */
 .mobile-menu {
   display: none;
 }
 
+/* ========================================================
+   REFACTORIZACIÓN INTEGRAL RESPONSIVE (MÓVIL / TABLET <= 850px)
+   ======================================================== */
 @media (max-width: 850px) {
-  /* Ocultamos los textos en móvil */
+  /* Cabecera Móvil */
   .desktop-nav {
     display: none !important;
   }
   
-  /* Forzamos la aparición del menú hamburguesa */
+  .header nav {
+    display: none !important;
+  }
+
   .mobile-menu {
     display: flex !important;
     align-items: center;
@@ -168,15 +148,16 @@ td small { display: block; margin-top: 4px; color: #777; }
     padding: 4px;
   }
 
-  /* Reorganizamos la cabecera para que todo encaje */
   header.header {
     display: flex !important;
     justify-content: flex-start !important;
     align-items: center !important;
     padding: 12px 16px !important;
+    height: 54px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
   }
 
-  /* Empujamos los iconos de búsqueda y carrito hacia la derecha */
   .utilities {
     display: flex !important;
     align-items: center !important;
@@ -186,5 +167,257 @@ td small { display: block; margin-top: 4px; color: #777; }
   
   .language-switch {
     display: none !important;
+  }
+
+  /* Páginas y Contenedores */
+  .page {
+    padding: 30px 16px 60px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .cart-page {
+    padding: 24px 16px 60px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  footer p {
+    display: none !important;
+  }
+
+  footer {
+    padding: 16px 18px !important;
+    flex-wrap: wrap !important;
+    gap: 12px !important;
+  }
+
+  /* Hero y Secciones Home */
+  .hero {
+    height: clamp(260px, 58vw, 440px) !important;
+    width: 100% !important;
+  }
+
+  .category-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 12px !important;
+    padding: 16px 14px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .category-image {
+    height: 42vw !important;
+  }
+
+  .story-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 9px !important;
+    padding: 14px 10px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .story-grid article {
+    height: 42vw !important;
+  }
+
+  .product-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 14px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .product-photo {
+    height: 58vw !important;
+  }
+
+  /* Carrito (Cart.tsx) */
+  .cart-layout,
+  .checkout-layout {
+    display: flex !important;
+    flex-direction: column !important;
+    grid-template-columns: 1fr !important;
+    gap: 24px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .cart-item {
+    display: grid !important;
+    grid-template-columns: 82px 1fr auto !important;
+    gap: 12px !important;
+    align-items: center !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    padding: 0 0 16px !important;
+    margin-bottom: 16px !important;
+  }
+
+  .cart-item img {
+    width: 82px !important;
+    height: 100px !important;
+    grid-row: span 2 !important;
+    border-radius: 4px !important;
+  }
+
+  .cart-item > strong {
+    font-size: 14px !important;
+    text-align: right !important;
+  }
+
+  .quantity {
+    justify-self: start !important;
+  }
+
+  .summary {
+    width: 100% !important;
+    box-sizing: border-box !important;
+    padding: 20px 16px !important;
+    height: auto !important;
+  }
+
+  /* Checkout (Checkout.tsx) */
+  .checkout-page-section {
+    display: flex !important;
+    flex-direction: column !important;
+    width: 100% !important;
+    max-width: 100vw !important;
+    box-sizing: border-box !important;
+    overflow-x: hidden !important;
+  }
+
+  .checkout-main-col {
+    flex: 1 1 100% !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    padding: 2rem 1.25rem 3rem !important;
+    overflow-y: visible !important;
+  }
+
+  .checkout-aside-col {
+    flex: 1 1 100% !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    height: auto !important;
+    position: static !important;
+    border-left: none !important;
+    border-top: 1px solid #eee !important;
+    padding: 2rem 1.25rem 3rem !important;
+    overflow-y: visible !important;
+  }
+
+  .checkout-title {
+    font-size: clamp(2rem, 7vw, 3.5rem) !important;
+    margin-bottom: 1.5rem !important;
+  }
+
+  .checkout-steps {
+    gap: 1rem !important;
+    font-size: 0.7rem !important;
+    flex-wrap: wrap !important;
+    margin-bottom: 2rem !important;
+  }
+
+  .checkout-row-2col {
+    flex-direction: column !important;
+    gap: 0.75rem !important;
+  }
+
+  #checkout-form,
+  #checkout-form input,
+  #checkout-form select,
+  #checkout-form label {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Modal Yape / Plin */
+  .yape-modal-overlay {
+    padding: 12px !important;
+    box-sizing: border-box !important;
+  }
+
+  .yape-modal-content {
+    width: 100% !important;
+    max-width: 440px !important;
+    padding: 1.5rem 1.1rem !important;
+    box-sizing: border-box !important;
+    margin: auto !important;
+  }
+
+  /* Pantalla de Confirmación de Orden */
+  .checkout-confirmed-section {
+    padding: 2.5rem 1rem !important;
+    box-sizing: border-box !important;
+  }
+
+  .checkout-confirmed-card {
+    width: 100% !important;
+    padding: 0 8px !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Formularios y Admin */
+  .form-panel {
+    grid-template-columns: 1fr !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .kpis {
+    grid-template-columns: 1fr !important;
+    width: 100% !important;
+  }
+
+  .kpis article {
+    min-height: 110px !important;
+  }
+
+  .table-wrap {
+    width: 100% !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+}
+
+/* ========================================================
+   DISPOSITIVOS PEQUEÑOS (SMARTPHONES <= 480px)
+   ======================================================== */
+@media (max-width: 480px) {
+  .product-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .product-photo {
+    height: 95vw !important;
+  }
+
+  .page {
+    padding-inline: 14px !important;
+  }
+
+  .cart-item {
+    grid-template-columns: 70px 1fr !important;
+  }
+
+  .cart-item img {
+    width: 70px !important;
+    height: 85px !important;
+  }
+
+  .cart-item > strong {
+    grid-column: 2 / -1 !important;
+    text-align: left !important;
+    margin-top: 4px !important;
+  }
+
+  .quantity {
+    grid-column: 1 / -1 !important;
+    margin-top: 8px !important;
   }
 }
