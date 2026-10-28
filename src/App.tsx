@@ -566,37 +566,31 @@ function Home(_props: { openPanel: (panel: string) => void }) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const [isPlaying, setIsPlaying] = useState(false)
 
-  // Dynamically uses images from real products matching category or default fallback
+  // Dynamically uses images from real products matching category or default branding asset
   const categories = useMemo(() => {
-    const findCategoryImg = (
-      cat: string,
-      fallbackId: string,
-      fallbackAsset: string,
-    ) => {
+    const findCategoryImg = (cat: string, defaultAsset: string) => {
       const matchCat = products.find(
         (p) => p.category?.toUpperCase() === cat.toUpperCase() && p.image,
       )
-      if (matchCat?.image) return matchCat.image
-      const matchId = products.find((p) => p.id === fallbackId && p.image)
-      return matchId?.image || fallbackAsset
+      return matchCat?.image || defaultAsset
     }
 
     return [
       {
         title: "NEW ARRIVALS",
-        image: findCategoryImg("NEW ARRIVALS", "p2", "/assets/cap.jpg"),
+        image: findCategoryImg("NEW ARRIVALS", "/assets/cap.jpg"),
       },
       {
         title: "ACCESORIOS",
-        image: findCategoryImg("ACCESORIOS", "p3", "/assets/leash.jpg"),
+        image: findCategoryImg("ACCESORIOS", "/assets/leash.jpg"),
       },
       {
         title: "MERCH",
-        image: findCategoryImg("MERCH", "p1", "/assets/hero-surf.jpg"),
+        image: findCategoryImg("MERCH", "/assets/hero-surf.jpg"),
       },
       {
         title: "BEST SELLERS",
-        image: findCategoryImg("BEST SELLERS", "p4", "/assets/story.jpg"),
+        image: findCategoryImg("BEST SELLERS", "/assets/story.jpg"),
       },
     ]
   }, [products])
@@ -1000,17 +994,66 @@ function Shop() {
         </div>
       )}
       {visibleProducts.length === 0 ? (
-        <div style={{ padding: "4rem 0", textAlign: "center" }}>
-          <h2>No encontramos productos.</h2>
-          <p style={{ color: "#666", marginTop: "0.5rem" }}>
-            Prueba buscando con otras palabras o explora todo el catálogo.
+        <div
+          className="empty-state-container"
+          style={{
+            padding: "5rem 1rem",
+            textAlign: "center",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            minHeight: "45vh",
+          }}
+        >
+          <span
+            style={{
+              fontSize: "0.75rem",
+              textTransform: "uppercase",
+              letterSpacing: "2px",
+              color: "#888",
+              fontWeight: 600,
+              marginBottom: "1rem",
+            }}
+          >
+            GONE SURFING / TIENDA
+          </span>
+          <h2
+            style={{
+              fontFamily: '"Barlow Condensed", sans-serif',
+              fontSize: "clamp(2rem, 5vw, 3rem)",
+              fontWeight: 800,
+              textTransform: "uppercase",
+              letterSpacing: "-0.5px",
+              color: "#111",
+              margin: "0 0 1rem 0",
+              lineHeight: 1.1,
+            }}
+          >
+            Nuevos ingresos próximamente...
+          </h2>
+          <p
+            style={{
+              color: "#666",
+              maxWidth: "480px",
+              fontSize: "0.95rem",
+              lineHeight: 1.6,
+              margin: "0 0 2rem 0",
+            }}
+          >
+            Estamos preparando nuestra colección con lo mejor de la cultura de surf de Lima. Mantente atento a las próximas olas.
           </p>
           <button
-            onClick={() => navigate("/shop")}
+            onClick={() => navigate("/")}
             className="black-button"
-            style={{ marginTop: "2rem", width: "auto", padding: "1rem 3rem" }}
+            style={{
+              width: "auto",
+              padding: "0.9rem 2.5rem",
+              fontSize: "0.85rem",
+              letterSpacing: "1.5px",
+            }}
           >
-            VER TODO EL CATÁLOGO
+            VOLVER AL INICIO
           </button>
         </div>
       ) : (

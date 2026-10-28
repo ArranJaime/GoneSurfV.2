@@ -1315,7 +1315,22 @@ function UploadPrenda() {
               </tr>
             </thead>
             <tbody>
-              {products.map((p) => {
+              {products.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={5}
+                    style={{
+                      padding: "3rem 1rem",
+                      textAlign: "center",
+                      color: "#888",
+                      fontStyle: "italic",
+                    }}
+                  >
+                    No hay productos registrados en el inventario. Agrega uno nuevo con el formulario superior.
+                  </td>
+                </tr>
+              ) : (
+                products.map((p) => {
                 const isAcc = p.category === "Accesorios"
                 const activeSizes: Size[] = isAcc ? ["Única"] as Size[] : SIZES
 
@@ -1586,7 +1601,8 @@ function UploadPrenda() {
                     </td>
                   </tr>
                 )
-              })}
+              })
+            )}
             </tbody>
           </table>
         </div>

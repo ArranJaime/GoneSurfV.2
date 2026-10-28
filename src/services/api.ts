@@ -102,65 +102,11 @@ export interface MediaUploadResponse {
 }
 
 // -----------------------------------------------------------------------------
-// Initial Seed Data
+// Initial Seed Data (Producción: vacíos para reflejar inventario real)
 // -----------------------------------------------------------------------------
-export const INITIAL_COLLECTIONS: CollectionData[] = [
-  {
-    id: "c1",
-    category: "ESENCIALES DE LA COSTA",
-    subtitle: "No plans. Just tides.",
-    title: "The slow days",
-    image: "/assets/underwater.jpg",
-    active: true,
-  },
-  {
-    id: "c2",
-    category: "HIGH PERFORMANCE",
-    subtitle: "Born to conquer.",
-    title: "The Blue",
-    image: "/assets/hero-surf.jpg",
-    active: true,
-  },
-]
+export const INITIAL_COLLECTIONS: CollectionData[] = []
 
-export const INITIAL_PRODUCTS: Product[] = [
-  {
-    id: "p1",
-    name: "Stay Real Tee",
-    price: 109.0,
-    category: "Merch",
-    collectionName: "The slow days",
-    image: "/assets/hero-surf.jpg",
-    stocks: { S: 8, M: 12, L: 9, XL: 4 },
-  },
-  {
-    id: "p2",
-    name: "Stay Real Cap",
-    price: 89.0,
-    category: "Accesorios",
-    collectionName: "Catálogo General",
-    image: "/assets/cap.jpg",
-    stocks: { Única: 18 },
-  },
-  {
-    id: "p3",
-    name: "Gone Surf Leash",
-    price: 119.0,
-    category: "Accesorios",
-    collectionName: "The Blue",
-    image: "/assets/leash.jpg",
-    stocks: { Única: 12 },
-  },
-  {
-    id: "p4",
-    name: "Off Duty Tee",
-    price: 99.0,
-    category: "Merch",
-    collectionName: "The slow days",
-    image: "/assets/story.jpg",
-    stocks: { S: 10, M: 15, L: 15, XL: 5 },
-  },
-]
+export const INITIAL_PRODUCTS: Product[] = []
 
 // -----------------------------------------------------------------------------
 // Environment Configuration
@@ -429,22 +375,20 @@ export const api = {
       if (STORAGE_MODE === "aws" && API_GATEWAY_URL) {
         try {
           const res = await fetch(`${API_GATEWAY_URL}/products`)
-          if (res.ok) return await res.json()
+          if (res.ok) {
+            const data = await res.json()
+            return Array.isArray(data) ? data : []
+          }
         } catch (err) {
           console.warn(
-            "Fallo al obtener productos de AWS API Gateway, usando almacenamiento local:",
+            "Fallo al obtener productos de AWS API Gateway:",
             err,
           )
         }
       }
 
-      const items = readStorage<Product[]>("gone_products", INITIAL_PRODUCTS)
-      // Ensure all initial products are seeded if storage was empty
-      if (!Array.isArray(items) || items.length === 0) {
-        writeStorage("gone_products", INITIAL_PRODUCTS)
-        return INITIAL_PRODUCTS
-      }
-      return items
+      const items = readStorage<Product[]>("gone_products", [])
+      return Array.isArray(items) ? items : []
     },
 
     async getById(id: string): Promise<Product | null> {
@@ -636,21 +580,17 @@ export const api = {
       if (STORAGE_MODE === "aws" && API_GATEWAY_URL) {
         try {
           const res = await fetch(`${API_GATEWAY_URL}/collections`)
-          if (res.ok) return await res.json()
+          if (res.ok) {
+            const data = await res.json()
+            return Array.isArray(data) ? data : []
+          }
         } catch (err) {
           console.warn("Fallo al obtener colecciones de AWS API Gateway:", err)
         }
       }
 
-      const items = readStorage<CollectionData[]>(
-        "gone_collections",
-        INITIAL_COLLECTIONS,
-      )
-      if (!Array.isArray(items) || items.length === 0) {
-        writeStorage("gone_collections", INITIAL_COLLECTIONS)
-        return INITIAL_COLLECTIONS
-      }
-      return items
+      const items = readStorage<CollectionData[]>("gone_collections", [])
+      return Array.isArray(items) ? items : []
     },
 
     async create(

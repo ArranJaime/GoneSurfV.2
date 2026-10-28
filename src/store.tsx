@@ -110,47 +110,55 @@ export function getCurrentSessionUser(): CustomerUser | null {
 
 export function StoreProvider({ children }: { children: ReactNode }) {
   const [collections, setCollections] = useState<CollectionData[]>(() =>
-    safeReadStorage("gone_collections", INITIAL_COLLECTIONS, (parsed) => {
+    safeReadStorage("gone_collections", [], (parsed) => {
       if (!Array.isArray(parsed)) return null
-      const valid = parsed.filter((c): c is CollectionData =>
-        Boolean(c && typeof c.title === "string" && c.title.trim() !== ""),
+      return parsed.filter((c): c is CollectionData =>
+        Boolean(
+          c &&
+          typeof c.title === "string" &&
+          c.title.trim() !== "" &&
+          !["c1", "c2"].includes(c.id),
+        ),
       )
-      return valid.length > 0 ? valid : INITIAL_COLLECTIONS
     }),
   )
 
   const [products, setProducts] = useState<Product[]>(() =>
-    safeReadStorage("gone_products", INITIAL_PRODUCTS, (parsed) => {
+    safeReadStorage("gone_products", [], (parsed) => {
       if (!Array.isArray(parsed)) return null
-      const valid = parsed.filter((p): p is Product =>
-        Boolean(p && typeof p.name === "string" && p.name.trim() !== ""),
+      return parsed.filter((p): p is Product =>
+        Boolean(
+          p &&
+          typeof p.name === "string" &&
+          p.name.trim() !== "" &&
+          !["p1", "p2", "p3", "p4"].includes(p.id),
+        ),
       )
-      return valid.length > 0 ? valid : INITIAL_PRODUCTS
     }),
   )
 
   const [cart, setCart] = useState<CartItem[]>(() =>
     safeReadStorage("gone_cart", [], (parsed) =>
-      Array.isArray(parsed) ? parsed as CartItem[] : [],
+      Array.isArray(parsed) ? (parsed as CartItem[]) : [],
     ),
   )
 
   const [transactions, setTransactions] = useState<OrderTransaction[]>(() =>
     safeReadStorage("gone_transactions", [], (parsed) =>
-      Array.isArray(parsed) ? parsed as OrderTransaction[] : [],
+      Array.isArray(parsed) ? (parsed as OrderTransaction[]) : [],
     ),
   )
 
   const [users, setUsers] = useState<CustomerUser[]>(() =>
     safeReadStorage("gone_users", [], (parsed) =>
-      Array.isArray(parsed) ? parsed as CustomerUser[] : [],
+      Array.isArray(parsed) ? (parsed as CustomerUser[]) : [],
     ),
   )
 
   // Real-time synchronization across storage and internal event bus
   const reloadFromStorage = useCallback(() => {
-    setCollections(safeReadStorage("gone_collections", INITIAL_COLLECTIONS))
-    setProducts(safeReadStorage("gone_products", INITIAL_PRODUCTS))
+    setCollections(safeReadStorage("gone_collections", []))
+    setProducts(safeReadStorage("gone_products", []))
     setTransactions(safeReadStorage("gone_transactions", []))
     setCart(safeReadStorage("gone_cart", []))
     setUsers(safeReadStorage("gone_users", []))
@@ -175,12 +183,36 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
   }, [reloadFromStorage])
 
-  // Sincronizar órdenes vivas desde API en el arranque
+  // Sincronizar catálogo real y órdenes vivas desde API en el arranque
   useEffect(() => {
+    api.products
+      .getAll()
+      .then((liveProducts) => {
+        if (Array.isArray(liveProducts)) {
+          setProducts(liveProducts)
+          safeWriteStorage("gone_products", liveProducts)
+        }
+      })
+      .catch((err) => {
+        console.warn("[Store] Error al sincronizar productos de API:", err)
+      })
+
+    api.collections
+      .getAll()
+      .then((liveCollections) => {
+        if (Array.isArray(liveCollections)) {
+          setCollections(liveCollections)
+          safeWriteStorage("gone_collections", liveCollections)
+        }
+      })
+      .catch((err) => {
+        console.warn("[Store] Error al sincronizar colecciones de API:", err)
+      })
+
     api.orders
       .getAll()
       .then((liveOrders) => {
-        if (Array.isArray(liveOrders) && liveOrders.length > 0) {
+        if (Array.isArray(liveOrders)) {
           setTransactions(liveOrders)
           safeWriteStorage("gone_transactions", liveOrders)
         }
