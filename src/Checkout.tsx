@@ -16,6 +16,12 @@ import { calculateOrderAmounts, formatPEN } from "./utils/accounting"
 
 const money = (value: number) => formatPEN(value)
 
+/**
+ * Constante global del número de atención / WhatsApp de la tienda
+ * Fácil de cambiar por el número real
+ */
+export const STORE_PHONE = "9999888777"
+
 export interface DistrictInfo {
   name: string
   code: string
@@ -917,7 +923,7 @@ export default function Checkout() {
                     </strong>
                   </p>
                   <a
-                    href={`https://wa.me/9999888777?text=${encodeURIComponent(
+                    href={`https://wa.me/${STORE_PHONE}?text=${encodeURIComponent(
                       `Hola, adjunto comprobante de mi pago por Yape/Plin del pedido #${orderConfirmed.id} por el monto de S/. ${orderConfirmed.total.toFixed(2)}.`
                     )}`}
                     target="_blank"
@@ -2427,47 +2433,26 @@ export default function Checkout() {
               </strong>
             </div>
 
-            {/* Código QR con padding blanco SOLO alrededor del código para legibilidad de escaneo */}
+            {/* Código QR Yape / Plin */}
             <div style={{ marginBottom: "1.25rem", textAlign: "center" }}>
-              <div
+              <img
+                src="/qr-yape.png"
+                alt="QR Yape / Plin Oficial"
                 style={{
-                  display: "inline-block",
-                  backgroundColor: "#ffffff",
-                  padding: "14px",
-                  borderRadius: "3px",
+                  maxWidth: "200px",
+                  margin: "0 auto",
+                  borderRadius: "12px",
+                  display: "block",
                   boxShadow: "0 4px 20px rgba(0, 0, 0, 0.45)",
                 }}
-              >
-                <svg
-                  width="130"
-                  height="130"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="#0a0a0a"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  style={{ display: "block" }}
-                >
-                  <rect x="2" y="2" width="7" height="7" rx="1" />
-                  <rect x="4" y="4" width="3" height="3" fill="#0a0a0a" />
-                  <rect x="15" y="2" width="7" height="7" rx="1" />
-                  <rect x="17" y="4" width="3" height="3" fill="#0a0a0a" />
-                  <rect x="2" y="15" width="7" height="7" rx="1" />
-                  <rect x="4" y="17" width="3" height="3" fill="#0a0a0a" />
-                  <rect x="13" y="13" width="3" height="3" fill="#0a0a0a" />
-                  <rect x="18" y="13" width="4" height="2" fill="#0a0a0a" />
-                  <rect x="13" y="18" width="2" height="4" fill="#0a0a0a" />
-                  <rect x="17" y="17" width="5" height="5" fill="#0a0a0a" />
-                </svg>
-              </div>
+              />
               <div
                 style={{
                   fontSize: "0.65rem",
                   color: "#6b7280",
                   letterSpacing: "1.5px",
                   textTransform: "uppercase",
-                  marginTop: "6px",
+                  marginTop: "8px",
                   fontFamily: '"Barlow Condensed", sans-serif',
                 }}
               >
@@ -2514,9 +2499,9 @@ export default function Checkout() {
               </div>
             </div>
 
-            {/* Botón primario de estilo Gone Surfing (sólido, uppercase, alto contraste) para WhatsApp */}
+            {/* Botón primario de WhatsApp (Configurado con STORE_PHONE = "9999888777") */}
             <a
-              href={`https://wa.me/9999888777?text=${encodeURIComponent(
+              href={`https://wa.me/${STORE_PHONE}?text=${encodeURIComponent(
                 `Hola, adjunto comprobante de mi pago por Yape/Plin del pedido #${pendingYapeOrder.id} por el monto de S/. ${pendingYapeOrder.total.toFixed(2)}.`,
               )}`}
               target="_blank"

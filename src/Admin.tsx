@@ -1657,6 +1657,18 @@ function MetricsDashboard() {
     () => activeFilteredTransactions.reduce((s, i) => s + (i.total || 0), 0),
     [activeFilteredTransactions],
   )
+  const revenueByMethod = useMemo(() => {
+    const summary = { tarjeta: 0, yape_plin: 0, efectivo: 0 }
+    activeFilteredTransactions.forEach((t) => {
+      const m = t.paymentMethod || "tarjeta"
+      if (m in summary) {
+        summary[m as keyof typeof summary] += (t.total || 0)
+      } else {
+        summary.tarjeta += (t.total || 0)
+      }
+    })
+    return summary
+  }, [activeFilteredTransactions])
   const pendingOrders = useMemo(
     () =>
       filteredTransactions.filter((t) => !t.status || t.status === "Procesando")
@@ -1850,6 +1862,17 @@ function MetricsDashboard() {
           <small style={{ color: "#888", fontSize: "0.75rem" }}>
             {activeFilteredTransactions.length} VENTAS EN EL PERIODO
           </small>
+          <div style={{ display: "flex", gap: "6px", marginTop: "10px", flexWrap: "wrap" }}>
+            <span style={{ fontSize: "0.7rem", padding: "3px 8px", borderRadius: "4px", backgroundColor: "#e8f5e9", border: "1px solid #81c784", color: "#1b5e20", fontWeight: 700 }}>
+              💳 Tarjeta: {money(revenueByMethod.tarjeta)}
+            </span>
+            <span style={{ fontSize: "0.7rem", padding: "3px 8px", borderRadius: "4px", backgroundColor: "#f3e5f5", border: "1px solid #ce93d8", color: "#6a1b9a", fontWeight: 700 }}>
+              📱 Yape/Plin: {money(revenueByMethod.yape_plin)}
+            </span>
+            <span style={{ fontSize: "0.7rem", padding: "3px 8px", borderRadius: "4px", backgroundColor: "#fff3e0", border: "1px solid #ffb74d", color: "#e65100", fontWeight: 700 }}>
+              💵 Efectivo: {money(revenueByMethod.efectivo)}
+            </span>
+          </div>
         </article>
 
         <article
@@ -1961,7 +1984,7 @@ function renderPaymentBadge(method?: string) {
           display: "inline-flex",
           alignItems: "center",
           gap: "6px",
-          padding: "4px 8px",
+          padding: "4px 10px",
           borderRadius: "4px",
           backgroundColor: "#f3e5f5",
           border: "1px solid #ce93d8",
@@ -1982,17 +2005,17 @@ function renderPaymentBadge(method?: string) {
           display: "inline-flex",
           alignItems: "center",
           gap: "6px",
-          padding: "4px 8px",
+          padding: "4px 10px",
           borderRadius: "4px",
-          backgroundColor: "#e8f5e9",
-          border: "1px solid #a5d6a7",
-          color: "#2e7d32",
+          backgroundColor: "#fff3e0",
+          border: "1px solid #ffb74d",
+          color: "#e65100",
           fontSize: "0.75rem",
           fontWeight: 700,
           whiteSpace: "nowrap",
         }}
       >
-        <span style={{ fontSize: "0.9rem" }}>💵</span> Contra entrega
+        <span style={{ fontSize: "0.9rem" }}>💵</span> Pago Contra Entrega
       </span>
     )
   }
@@ -2002,11 +2025,11 @@ function renderPaymentBadge(method?: string) {
         display: "inline-flex",
         alignItems: "center",
         gap: "6px",
-        padding: "4px 8px",
+        padding: "4px 10px",
         borderRadius: "4px",
-        backgroundColor: "#e3f2fd",
-        border: "1px solid #90caf9",
-        color: "#1565c0",
+        backgroundColor: "#e8f5e9",
+        border: "1px solid #81c784",
+        color: "#1b5e20",
         fontSize: "0.75rem",
         fontWeight: 700,
         whiteSpace: "nowrap",
