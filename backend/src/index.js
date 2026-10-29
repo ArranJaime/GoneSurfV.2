@@ -34,26 +34,10 @@ const ADMIN_USER_DEFAULT = process.env.ADMIN_USER || "admin"
 const ADMIN_PASSWORD_DEFAULT = process.env.ADMIN_PASSWORD || "admin666"
 
 // CORS headers for all responses
-const DEFAULT_ALLOWED_ORIGIN = "https://d1137rlqok2t6n.cloudfront.net"
-
-let currentCorsHeaders = {
-  "Access-Control-Allow-Origin": DEFAULT_ALLOWED_ORIGIN,
-  "Access-Control-Allow-Headers": "Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token",
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token",
   "Access-Control-Allow-Methods": "OPTIONS,GET,POST,PUT,DELETE",
-}
-
-function getCorsHeaders(eventHeaders = {}) {
-  const origin = eventHeaders.origin || eventHeaders.Origin || ""
-  const isLocal =
-    origin.startsWith("http://localhost:") ||
-    origin.startsWith("http://127.0.0.1:")
-  const allowOrigin = isLocal ? origin : DEFAULT_ALLOWED_ORIGIN
-
-  return {
-    "Access-Control-Allow-Origin": allowOrigin,
-    "Access-Control-Allow-Headers": "Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token",
-    "Access-Control-Allow-Methods": "OPTIONS,GET,POST,PUT,DELETE",
-  }
 }
 
 function response(statusCode, body, extraHeaders = {}) {
@@ -61,7 +45,7 @@ function response(statusCode, body, extraHeaders = {}) {
     statusCode,
     headers: {
       "Content-Type": "application/json",
-      ...currentCorsHeaders,
+      ...CORS_HEADERS,
       ...extraHeaders,
     },
     body: JSON.stringify(body),
@@ -295,13 +279,12 @@ export async function handler(event) {
   }
 
   const headers = event.headers || {}
-  currentCorsHeaders = getCorsHeaders(headers)
 
   // Handle CORS Preflight
   if (httpMethod === "OPTIONS") {
     return {
       statusCode: 200,
-      headers: currentCorsHeaders,
+      headers: CORS_HEADERS,
       body: "",
     }
   }

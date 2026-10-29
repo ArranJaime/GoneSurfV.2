@@ -2316,11 +2316,19 @@ function ManageOrders({
   const [internalLiveOrders, setInternalLiveOrders] = useState<OrderTransaction[]>([])
   const [internalLoading, setInternalLoading] = useState(false)
   const [internalError, setInternalError] = useState<string | null>(null)
+  const [statusFilter, setStatusFilter] = useState<string>("Todos los Estados")
 
   const isControlled = propOrders !== undefined
   const displayOrders = isControlled ? propOrders : internalLiveOrders
   const isLoading = isControlled ? (propIsLoading ?? false) : internalLoading
   const fetchError = isControlled ? (propError ?? null) : internalError
+
+  const filteredOrders = useMemo(() => {
+    if (statusFilter === "Todos los Estados") {
+      return displayOrders
+    }
+    return displayOrders.filter((order) => order.status === statusFilter)
+  }, [displayOrders, statusFilter])
 
   const fetchOrdersFromApi = useCallback(async () => {
     if (propOnRefresh) {
@@ -2497,29 +2505,77 @@ function ManageOrders({
           </h2>
           <span style={{ fontSize: "0.75rem", color: "#666" }}>
             Total registrados: {displayOrders.length} pedido(s)
+            {statusFilter !== "Todos los Estados" && ` (Filtrados: ${filteredOrders.length})`}
           </span>
         </div>
-        <button
-          type="button"
-          onClick={fetchOrdersFromApi}
-          disabled={isLoading}
+        <div
           style={{
-            background: "#0a0a0a",
-            color: "#fff",
-            border: "none",
-            padding: "8px 16px",
-            borderRadius: "4px",
-            fontSize: "0.8rem",
-            fontWeight: 700,
-            cursor: isLoading ? "not-allowed" : "pointer",
             display: "flex",
             alignItems: "center",
-            gap: "6px",
-            opacity: isLoading ? 0.6 : 1,
+            gap: "0.75rem",
+            flexWrap: "wrap",
           }}
         >
-          {isLoading ? "Cargando..." : "🔄 Actualizar desde Servidor"}
-        </button>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            <label
+              htmlFor="order-status-filter"
+              style={{
+                fontSize: "0.75rem",
+                fontWeight: 700,
+                color: "#555",
+                textTransform: "uppercase",
+                letterSpacing: "0.5px",
+              }}
+            >
+              Filtrar por estado:
+            </label>
+            <select
+              id="order-status-filter"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              style={{
+                padding: "8px 12px",
+                borderRadius: "4px",
+                border: "1px solid #ccc",
+                fontSize: "0.8rem",
+                fontWeight: 600,
+                background: "#fff",
+                color: "#111",
+                cursor: "pointer",
+                outline: "none",
+              }}
+            >
+              <option value="Todos los Estados">Todos los Estados</option>
+              <option value="Pendiente de Pago">Pendiente de Pago</option>
+              <option value="Procesando">Procesando</option>
+              <option value="Enviado">Enviado</option>
+              <option value="Entregado">Entregado</option>
+              <option value="Cancelado">Cancelado</option>
+            </select>
+          </div>
+
+          <button
+            type="button"
+            onClick={fetchOrdersFromApi}
+            disabled={isLoading}
+            style={{
+              background: "#0a0a0a",
+              color: "#fff",
+              border: "none",
+              padding: "8px 16px",
+              borderRadius: "4px",
+              fontSize: "0.8rem",
+              fontWeight: 700,
+              cursor: isLoading ? "not-allowed" : "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+              opacity: isLoading ? 0.6 : 1,
+            }}
+          >
+            {isLoading ? "Cargando..." : "🔄 Actualizar desde Servidor"}
+          </button>
+        </div>
       </div>
       <div style={{ overflowX: "auto" }}>
         <table
@@ -2542,7 +2598,21 @@ function ManageOrders({
             </tr>
           </thead>
           <tbody>
-            {[...displayOrders].map((t: OrderTransaction) => {
+            {filteredOrders.length === 0 ? (
+              <tr>
+                <td
+                  colSpan={7}
+                  style={{
+                    padding: "3rem",
+                    textAlign: "center",
+                    color: "#888",
+                    fontStyle: "italic",
+                  }}
+                >
+                  No se encontraron pedidos con el estado "{statusFilter}".
+                </td>
+              </tr>
+            ) : filteredOrders.map((t: OrderTransaction) => {
               const status = t.status || "Procesando"
               const badgeBg =
                 status === "Entregado"
