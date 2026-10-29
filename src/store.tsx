@@ -51,9 +51,11 @@ export interface Store {
   cart: CartItem[]
   transactions: OrderTransaction[]
   users: CustomerUser[]
+  isLoadingProducts: boolean
   addToCart: (productId: string, size: Size) => void
   changeQuantity: (productId: string, size: Size, delta: number) => void
   changeStock: (productId: string, size: Size, delta: number) => void
+  removeFromCart: (productId: string, size?: Size) => void
   clearCart: () => void
   completeOrder: (
     details: OrderDetailsInput,
@@ -126,6 +128,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   )
 
   const [products, setProducts] = useState<Product[]>([])
+  const [isLoadingProducts, setIsLoadingProducts] = useState(true)
 
   const [cart, setCart] = useState<CartItem[]>(() =>
     safeReadStorage("gone_cart", [], (parsed) =>
@@ -244,6 +247,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       .catch((err) => {
         console.warn("[Store] Error al sincronizar productos de API:", err)
       })
+      .finally(() => {
+        setIsLoadingProducts(false)
+      })
 
     api.collections
       .getAll()
@@ -287,8 +293,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     safeWriteStorage("gone_users", users)
   }, [users])
 
-  // Ensure cart quantities never exceed live inventory
+  // Ensure cart quantities never exceed live inventory (only after initial load finishes)
   useEffect(() => {
+    if (isLoadingProducts) return
     setCart((prevCart) => {
       let changed = false
       const nextCart = prevCart
@@ -308,7 +315,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         .filter((item): item is CartItem => item !== null)
       return changed ? nextCart : prevCart
     })
-  }, [products])
+  }, [products, isLoadingProducts])
+
+  const removeFromCart = useCallback((productId: string, size?: Size) => {
+    setCart((prev) => {
+      const updated = size
+        ? prev.filter((i) => !(i.productId === productId && i.size === size))
+        : prev.filter((i) => i.productId !== productId)
+      safeWriteStorage("gone_cart", updated)
+      return updated
+    })
+    broadcastSyncEvent("cart")
+  }, [])
 
   const addToCart = useCallback(
     (productId: string, size: Size) => {
@@ -653,9 +671,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       cart,
       transactions,
       users,
+      isLoadingProducts,
       addToCart,
       changeQuantity,
       changeStock,
+      removeFromCart,
       clearCart,
       completeOrder,
       addProduct,
@@ -678,9 +698,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       cart,
       transactions,
       users,
+      isLoadingProducts,
       addToCart,
       changeQuantity,
       changeStock,
+      removeFromCart,
       clearCart,
       completeOrder,
       addProduct,

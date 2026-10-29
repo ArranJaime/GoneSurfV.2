@@ -1,9 +1,10 @@
-import { type FormEvent, useState, useEffect, useMemo } from "react"
+import { type FormEvent, useState, useEffect, useMemo, useCallback } from "react"
 import { useNavigate, Link } from "react-router-dom"
 import {
   useStore,
   getCurrentSessionUser,
   type OrderDetailsInput,
+  type Size,
 } from "./store"
 import { api, type OrderTransaction } from "./services/api"
 import {
@@ -73,6 +74,8 @@ export default function Checkout() {
   const users = store?.users ?? []
   const completeOrder = store?.completeOrder
   const changeQuantity = store?.changeQuantity
+  const removeFromCart = store?.removeFromCart
+  const isLoadingProducts = store?.isLoadingProducts ?? false
 
   const navigate = useNavigate()
 
@@ -82,6 +85,41 @@ export default function Checkout() {
   const isAuth =
     sessionStorage.getItem("gone_customer") === "true" &&
     Boolean(getCurrentSessionUser())
+
+  const handleRemoveItem = useCallback(
+    (productId: string, size?: Size) => {
+      if (removeFromCart) {
+        removeFromCart(productId, size)
+      } else if (changeQuantity) {
+        const item = cart.find(
+          (i) => i.productId === productId && (!size || i.size === size),
+        )
+        if (item) changeQuantity(productId, item.size, -item.quantity)
+      }
+      setValidationError("")
+    },
+    [removeFromCart, changeQuantity, cart],
+  )
+
+  // Auto-limpieza silenciosa de productos huérfanos que no existen en el catálogo
+  useEffect(() => {
+    if (isLoadingProducts) return
+    if (!cart.length) return
+
+    const orphans = cart.filter(
+      (item) => !products.some((p) => p.id === item.productId),
+    )
+
+    if (orphans.length > 0) {
+      console.warn(
+        "[Checkout] Limpiando automáticamente productos no disponibles del carrito:",
+        orphans.map((o) => o.productId),
+      )
+      orphans.forEach((orphan) => {
+        handleRemoveItem(orphan.productId, orphan.size)
+      })
+    }
+  }, [isLoadingProducts, products, cart, handleRemoveItem])
 
   const [shippingMethod, setShippingMethod] = useState<"standard" | "express">(
     "standard",
@@ -164,6 +202,48 @@ export default function Checkout() {
           Volver a la tienda
         </button>
       </div>
+    )
+  }
+
+  // Pantalla de sincronización mientras los productos cargan de DynamoDB (evita race conditions)
+  if (isLoadingProducts) {
+    return (
+      <section
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          minHeight: "60vh",
+          padding: "2rem",
+          fontFamily: '"Barlow Condensed", sans-serif',
+        }}
+      >
+        <span
+          style={{
+            fontSize: "0.75rem",
+            fontWeight: "bold",
+            color: "#888",
+            letterSpacing: "2px",
+            textTransform: "uppercase",
+            marginBottom: "1rem",
+          }}
+        >
+          GONE SURFING / CHECKOUT
+        </span>
+        <h2
+          style={{
+            fontSize: "2.2rem",
+            textTransform: "uppercase",
+            margin: "0 0 1rem 0",
+          }}
+        >
+          Sincronizando inventario con la tienda...
+        </h2>
+        <p style={{ color: "#666", fontSize: "0.95rem" }}>
+          Verificando disponibilidad de tu selección en tiempo real.
+        </p>
+      </section>
     )
   }
 
@@ -270,13 +350,39 @@ export default function Checkout() {
         return
       }
 
+      if (isLoadingProducts) {
+        setValidationError(
+          "Sincronizando inventario con la tienda. Por favor espera un momento e intenta nuevamente.",
+        )
+        return
+      }
+
+      // Auto-limpieza y verificación de productos huérfanos que ya no existen en la BD
+      const invalidItems = cart.filter(
+        (item) => !products.some((p) => p.id === item.productId),
+      )
+      if (invalidItems.length > 0) {
+        invalidItems.forEach((inv) => handleRemoveItem(inv.productId, inv.size))
+        setValidationError(
+          "Uno o más productos en tu bolsa ya no están disponibles en la tienda y fueron retirados automáticamente. Por favor revisa tu pedido.",
+        )
+        return
+      }
+
       // Verify stock availability
       for (const item of cart) {
         const prod = products.find((p) => p.id === item.productId)
-        const available = prod ? (prod.stocks[item.size] ?? 0) : 0
-        if (!prod || available < item.quantity) {
+        if (!prod) {
+          handleRemoveItem(item.productId, item.size)
           setValidationError(
-            `Stock insuficiente para "${prod?.name || "prenda"}" en talla ${item.size}. Disponible: ${available}.`,
+            "Un producto no disponible ha sido retirado de tu bolsa. Por favor revisa tu pedido.",
+          )
+          return
+        }
+        const available = prod.stocks[item.size] ?? 0
+        if (available < item.quantity) {
+          setValidationError(
+            `Stock insuficiente para "${prod.name}" en talla ${item.size}. Disponible: ${available}.`,
           )
           return
         }
@@ -371,10 +477,21 @@ export default function Checkout() {
       completeOrder(details, savedOrder)
     } catch (err: any) {
       console.error("[Checkout] Error crítico procesando orden:", err)
-      setValidationError(
-        err?.message ||
-          "Error al procesar el pedido. Verifica el stock disponible en la tienda o tu conexión a internet.",
-      )
+      const msg = err?.message || ""
+      const match = msg.match(/Producto con ID ([\w-]+) no encontrado/i)
+      const orphanId = match ? match[1] : null
+
+      if (orphanId) {
+        handleRemoveItem(orphanId)
+        setValidationError(
+          `El producto no disponible (ID: ${orphanId}) fue retirado de tu bolsa. Por favor verifica tu pedido y vuelve a presionar Pagar.`,
+        )
+      } else {
+        setValidationError(
+          msg ||
+            "Error al procesar el pedido. Verifica el stock disponible en la tienda o tu conexión a internet.",
+        )
+      }
     } finally {
       setIsSubmitting(false)
     }
@@ -1125,15 +1242,41 @@ export default function Checkout() {
             style={{
               background: "#ffebee",
               color: "#c62828",
-              padding: "1rem",
+              padding: "1rem 1.25rem",
               borderRadius: "4px",
               borderLeft: "4px solid #c62828",
               marginBottom: "2rem",
-              fontWeight: "bold",
-              fontSize: "0.85rem",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              flexWrap: "wrap",
+              gap: "1rem",
             }}
           >
-            {validationError}
+            <span style={{ fontSize: "0.85rem", fontWeight: "bold", flex: 1 }}>
+              {validationError}
+            </span>
+            {cart.some((item) => !products.some((p) => p.id === item.productId)) && (
+              <button
+                type="button"
+                onClick={() => {
+                  cart
+                    .filter((item) => !products.some((p) => p.id === item.productId))
+                    .forEach((orphan) => handleRemoveItem(orphan.productId, orphan.size))
+                }}
+                className="black-button"
+                style={{
+                  width: "auto",
+                  padding: "0.5rem 1rem",
+                  fontSize: "0.75rem",
+                  backgroundColor: "#c62828",
+                  borderColor: "#c62828",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                Eliminar producto no disponible
+              </button>
+            )}
           </div>
         )}
 
@@ -2025,7 +2168,52 @@ export default function Checkout() {
         >
           {cart.map((item) => {
             const prod = products.find((p) => p.id === item.productId)
-            if (!prod) return null
+            if (!prod) {
+              return (
+                <div
+                  key={`${item.productId}-${item.size}`}
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    padding: "0.75rem 1rem",
+                    backgroundColor: "#fff5f5",
+                    borderRadius: "4px",
+                    border: "1px dashed #e57373",
+                  }}
+                >
+                  <div>
+                    <strong
+                      style={{
+                        fontSize: "0.85rem",
+                        color: "#c62828",
+                        display: "block",
+                      }}
+                    >
+                      Producto no disponible
+                    </strong>
+                    <span style={{ fontSize: "0.75rem", color: "#888" }}>
+                      Talla: {item.size}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveItem(item.productId, item.size)}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      color: "#c62828",
+                      fontSize: "0.75rem",
+                      cursor: "pointer",
+                      textDecoration: "underline",
+                      fontWeight: "bold",
+                    }}
+                  >
+                    Eliminar producto no disponible
+                  </button>
+                </div>
+              )
+            }
             const maxStock = prod.stocks[item.size] ?? 0
             return (
               <div
