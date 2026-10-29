@@ -137,9 +137,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   )
 
   const [transactions, setTransactions] = useState<OrderTransaction[]>(() =>
-    safeReadStorage("gone_transactions", [], (parsed) =>
-      Array.isArray(parsed) ? (parsed as OrderTransaction[]) : [],
-    ),
+    safeReadStorage("gone_transactions", [], (parsed) => {
+      const RESIDUAL_TEST_ORDER_IDS = new Set([
+        "ORD-3314",
+        "ORD-6933",
+        "ORD-6347",
+      ])
+      return Array.isArray(parsed)
+        ? (parsed as OrderTransaction[]).filter(
+            (o) => !RESIDUAL_TEST_ORDER_IDS.has(o?.id),
+          )
+        : []
+    }),
   )
 
   const [users, setUsers] = useState<CustomerUser[]>(() =>
@@ -175,7 +184,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         )
       : []
     setProducts(cleanProds)
-    setTransactions(safeReadStorage("gone_transactions", []))
+    const rawTx = safeReadStorage<OrderTransaction[]>("gone_transactions", [])
+    const RESIDUAL_TEST_ORDER_IDS = new Set([
+      "ORD-3314",
+      "ORD-6933",
+      "ORD-6347",
+    ])
+    setTransactions(
+      Array.isArray(rawTx)
+        ? rawTx.filter((o) => !RESIDUAL_TEST_ORDER_IDS.has(o?.id))
+        : [],
+    )
     setCart(safeReadStorage("gone_cart", []))
     setUsers(safeReadStorage("gone_users", []))
   }, [])
@@ -226,6 +245,30 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       // ignore
     }
 
+    // Purga cualquier orden de prueba residual de localStorage
+    try {
+      const storedOrders = localStorage.getItem("gone_transactions")
+      if (storedOrders) {
+        const parsedOrders = JSON.parse(storedOrders)
+        if (Array.isArray(parsedOrders)) {
+          const RESIDUAL_TEST_ORDER_IDS = new Set([
+            "ORD-3314",
+            "ORD-6933",
+            "ORD-6347",
+          ])
+          const cleanOrders = parsedOrders.filter(
+            (o: any) => !RESIDUAL_TEST_ORDER_IDS.has(o?.id),
+          )
+          if (cleanOrders.length !== parsedOrders.length) {
+            localStorage.setItem("gone_transactions", JSON.stringify(cleanOrders))
+            setTransactions(cleanOrders)
+          }
+        }
+      }
+    } catch {
+      // ignore
+    }
+
     api.products
       .getAll()
       .then((liveProducts) => {
@@ -267,8 +310,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       .getAll()
       .then((liveOrders) => {
         if (Array.isArray(liveOrders)) {
-          setTransactions(liveOrders)
-          safeWriteStorage("gone_transactions", liveOrders)
+          const RESIDUAL_TEST_ORDER_IDS = new Set([
+            "ORD-3314",
+            "ORD-6933",
+            "ORD-6347",
+          ])
+          const cleanOrders = liveOrders.filter(
+            (o) => !RESIDUAL_TEST_ORDER_IDS.has(o?.id),
+          )
+          setTransactions(cleanOrders)
+          safeWriteStorage("gone_transactions", cleanOrders)
         }
       })
       .catch((err) => {

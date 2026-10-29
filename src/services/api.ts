@@ -691,15 +691,28 @@ export const api = {
   // ---------------------------------------------------------------------------
   orders: {
     async getAll(): Promise<OrderTransaction[]> {
+      const RESIDUAL_TEST_ORDER_IDS = new Set([
+        "ORD-3314",
+        "ORD-6933",
+        "ORD-6347",
+      ])
       if (STORAGE_MODE === "aws" && API_GATEWAY_URL) {
         try {
           const res = await fetchWithAuth("/orders")
-          if (res.ok) return await res.json()
+          if (res.ok) {
+            const data: OrderTransaction[] = await res.json()
+            return (Array.isArray(data) ? data : []).filter(
+              (o) => !RESIDUAL_TEST_ORDER_IDS.has(o?.id),
+            )
+          }
         } catch (err) {
           console.warn("Fallo al obtener pedidos de AWS:", err)
         }
       }
-      return readStorage<OrderTransaction[]>("gone_transactions", [])
+      const local = readStorage<OrderTransaction[]>("gone_transactions", [])
+      return (Array.isArray(local) ? local : []).filter(
+        (o) => !RESIDUAL_TEST_ORDER_IDS.has(o?.id),
+      )
     },
 
     /**

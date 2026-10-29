@@ -1699,8 +1699,21 @@ function UploadPrenda() {
   )
 }
 
-function MetricsDashboard() {
-  const { transactions, products, users } = useStore()
+interface MetricsDashboardProps {
+  orders?: OrderTransaction[]
+  isLoading?: boolean
+  error?: string | null
+  onRefresh?: () => void
+}
+
+function MetricsDashboard({
+  orders: propOrders,
+  isLoading = false,
+  error = null,
+  onRefresh,
+}: MetricsDashboardProps = {}) {
+  const { transactions: storeTransactions, products, users } = useStore()
+  const orders = propOrders ?? storeTransactions
 
   const [dateFilter, setDateFilter] =
     useState<"all" | "today" | "yesterday" | "last7" | "last30" | "custom">(
@@ -1718,7 +1731,7 @@ function MetricsDashboard() {
     ).getTime()
     const yesterdayStart = todayStart - 86400000
 
-    return transactions.filter((t) => {
+    return orders.filter((t) => {
       const tTime = new Date(t.date).getTime()
       if (dateFilter === "all") return true
       if (dateFilter === "today") return tTime >= todayStart
@@ -1735,7 +1748,7 @@ function MetricsDashboard() {
       }
       return true
     })
-  }, [transactions, dateFilter, customStart, customEnd])
+  }, [orders, dateFilter, customStart, customEnd])
 
   const activeFilteredTransactions = useMemo(
     () => filteredTransactions.filter((t) => t.status !== "Cancelado"),
@@ -1913,6 +1926,30 @@ function MetricsDashboard() {
               />
             </div>
           </div>
+        )}
+
+        {onRefresh && (
+          <button
+            type="button"
+            onClick={onRefresh}
+            disabled={isLoading}
+            style={{
+              background: "#0a0a0a",
+              color: "#fff",
+              border: "none",
+              padding: "0.5rem 1rem",
+              borderRadius: "4px",
+              fontWeight: "bold",
+              fontSize: "0.8rem",
+              cursor: isLoading ? "not-allowed" : "pointer",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px",
+              opacity: isLoading ? 0.6 : 1,
+            }}
+          >
+            {isLoading ? "Sincronizando..." : "🔄 Sincronizar DynamoDB"}
+          </button>
         )}
       </div>
 
@@ -2128,15 +2165,38 @@ function renderPaymentBadge(method?: string) {
   )
 }
 
-function ManageOrders() {
-  const { transactions: storeTransactions, updateOrderStatus } = useStore()
-  const [liveOrders, setLiveOrders] = useState<OrderTransaction[]>([])
-  const [isLoading, setIsLoading] = useState(false)
-  const [fetchError, setFetchError] = useState<string | null>(null)
+interface ManageOrdersProps {
+  orders?: OrderTransaction[]
+  isLoading?: boolean
+  error?: string | null
+  onRefresh?: () => void
+  onStatusChange?: (id: string, nextStatus: OrderStatus) => Promise<void>
+}
+
+function ManageOrders({
+  orders: propOrders,
+  isLoading: propIsLoading,
+  error: propError,
+  onRefresh: propOnRefresh,
+  onStatusChange: propOnStatusChange,
+}: ManageOrdersProps = {}) {
+  const { updateOrderStatus } = useStore()
+  const [internalLiveOrders, setInternalLiveOrders] = useState<OrderTransaction[]>([])
+  const [internalLoading, setInternalLoading] = useState(false)
+  const [internalError, setInternalError] = useState<string | null>(null)
+
+  const isControlled = propOrders !== undefined
+  const displayOrders = isControlled ? propOrders : internalLiveOrders
+  const isLoading = isControlled ? (propIsLoading ?? false) : internalLoading
+  const fetchError = isControlled ? (propError ?? null) : internalError
 
   const fetchOrdersFromApi = useCallback(async () => {
-    setIsLoading(true)
-    setFetchError(null)
+    if (propOnRefresh) {
+      propOnRefresh()
+      return
+    }
+    setInternalLoading(true)
+    setInternalError(null)
 
     const apiUrl = (
       import.meta.env.VITE_API_URL ||
@@ -2145,6 +2205,7 @@ function ManageOrders() {
     ).replace(/\/$/, "")
 
     try {
+      let data: OrderTransaction[] = []
       if (apiUrl) {
         const token =
           api.auth.getAdminToken?.() ||
@@ -2168,39 +2229,50 @@ function ManageOrders() {
             `Error HTTP ${res.status} al consultar pedidos del servidor.`,
           )
         }
-        const data: OrderTransaction[] = await res.json()
-        setLiveOrders(data)
-        try {
-          localStorage.setItem("gone_transactions", JSON.stringify(data))
-        } catch {}
+        data = await res.json()
       } else {
-        const data = await api.orders.getAll()
-        setLiveOrders(data)
+        data = await api.orders.getAll()
       }
+      const RESIDUAL_TEST_ORDER_IDS = new Set([
+        "ORD-3314",
+        "ORD-6933",
+        "ORD-6347",
+      ])
+      const clean = (Array.isArray(data) ? data : []).filter(
+        (o) => !RESIDUAL_TEST_ORDER_IDS.has(o?.id),
+      )
+      setInternalLiveOrders(clean)
+      try {
+        localStorage.setItem("gone_transactions", JSON.stringify(clean))
+      } catch {}
     } catch (err: any) {
       console.error("[Admin] Error al obtener órdenes con VITE_API_URL:", err)
-      setFetchError(err?.message || "No se pudo sincronizar pedidos en vivo.")
+      setInternalError(err?.message || "No se pudo sincronizar pedidos en vivo.")
     } finally {
-      setIsLoading(false)
+      setInternalLoading(false)
     }
-  }, [])
+  }, [propOnRefresh])
 
   useEffect(() => {
-    fetchOrdersFromApi()
-  }, [fetchOrdersFromApi])
+    if (!isControlled) {
+      fetchOrdersFromApi()
+    }
+  }, [isControlled, fetchOrdersFromApi])
 
   const handleStatusChange = async (id: string, nextStatus: OrderStatus) => {
     try {
-      updateOrderStatus(id, nextStatus)
-      setLiveOrders((prev) =>
-        prev.map((o) => (o.id === id ? { ...o, status: nextStatus } : o)),
-      )
+      if (propOnStatusChange) {
+        await propOnStatusChange(id, nextStatus)
+      } else {
+        updateOrderStatus(id, nextStatus)
+        setInternalLiveOrders((prev) =>
+          prev.map((o) => (o.id === id ? { ...o, status: nextStatus } : o)),
+        )
+      }
     } catch (err) {
       console.error("[Admin] Error actualizando estado de pedido:", err)
     }
   }
-
-  const displayOrders = liveOrders.length > 0 ? liveOrders : storeTransactions
 
   if (isLoading && displayOrders.length === 0) {
     return (
@@ -2230,6 +2302,9 @@ function ManageOrders() {
         }}
       >
         <h3>Aún no hay pedidos registrados.</h3>
+        <p style={{ color: "#666", fontSize: "0.85rem", marginTop: "0.5rem" }}>
+          Los pedidos realizados por los clientes en la tienda oficial aparecerán aquí automáticamente en tiempo real.
+        </p>
         {fetchError && (
           <p
             style={{
@@ -2499,8 +2574,9 @@ interface DirectoryCustomerRow {
   totalSpent: number
 }
 
-function ManageCustomers() {
-  const { users, transactions, deleteUser } = useStore()
+function ManageCustomers({ orders }: { orders?: OrderTransaction[] } = {}) {
+  const { users, transactions: storeTransactions, deleteUser } = useStore()
+  const transactions = orders ?? storeTransactions
 
   const directory = useMemo<DirectoryCustomerRow[]>(() => {
     const map = new Map<string, DirectoryCustomerRow>()
@@ -2691,37 +2767,95 @@ function ManageCustomers() {
 
 function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   const navigate = useNavigate()
-  const { resetDemoData } = useStore()
+  const { updateOrderStatus } = useStore()
   const [currentView, setCurrentView] =
     useState<"dashboard" | "orders" | "upload" | "collections" | "customers">(
       "dashboard",
     )
+  const [liveOrders, setLiveOrders] = useState<OrderTransaction[]>([])
+  const [isLoadingOrders, setIsLoadingOrders] = useState(true)
+  const [ordersError, setOrdersError] = useState<string | null>(null)
 
-  useEffect(() => {
-    api.orders
-      .getAll()
-      .then((liveOrders) => {
-        if (Array.isArray(liveOrders) && liveOrders.length > 0) {
-          try {
-            localStorage.setItem(
-              "gone_transactions",
-              JSON.stringify(liveOrders),
-            )
-          } catch {}
+  const fetchLiveOrders = useCallback(async () => {
+    setIsLoadingOrders(true)
+    setOrdersError(null)
+
+    const apiUrl = (
+      import.meta.env.VITE_API_URL ||
+      import.meta.env.VITE_AWS_API_GATEWAY_URL ||
+      ""
+    ).replace(/\/$/, "")
+
+    try {
+      let data: OrderTransaction[] = []
+      if (apiUrl) {
+        const token =
+          api.auth.getAdminToken?.() ||
+          api.auth.getAdminSession()?.token ||
+          (typeof localStorage !== "undefined"
+            ? localStorage.getItem("token") ||
+              localStorage.getItem("admin_token")
+            : null) ||
+          "dev-admin-token"
+
+        const headers: Record<string, string> = {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         }
-      })
-      .catch((err) => {
-        console.warn("[AdminDashboard] Error al precargar órdenes de API:", err)
-      })
+
+        const res = await fetch(`${apiUrl}/orders`, { headers })
+        if (!res.ok) {
+          const errText = await res.text().catch(() => "")
+          console.error(`[AdminDashboard] Error en GET /orders (${res.status}):`, errText)
+          throw new Error(
+            `Error HTTP ${res.status} al consultar pedidos del servidor.`,
+          )
+        }
+        data = await res.json()
+      } else {
+        data = await api.orders.getAll()
+      }
+
+      const RESIDUAL_TEST_ORDER_IDS = new Set([
+        "ORD-3314",
+        "ORD-6933",
+        "ORD-6347",
+      ])
+      const cleanOrders = (Array.isArray(data) ? data : []).filter(
+        (o) => !RESIDUAL_TEST_ORDER_IDS.has(o?.id),
+      )
+      setLiveOrders(cleanOrders)
+      try {
+        localStorage.setItem("gone_transactions", JSON.stringify(cleanOrders))
+      } catch {}
+    } catch (err: any) {
+      console.error("[AdminDashboard] Error al sincronizar órdenes de API:", err)
+      setOrdersError(err?.message || "No se pudo sincronizar pedidos en vivo.")
+    } finally {
+      setIsLoadingOrders(false)
+    }
   }, [])
 
-  const handleResetDemo = () => {
-    if (
-      window.confirm(
-        "🚨 ¿Seguro que deseas BORRAR TODOS los pedidos, clientes y carritos de prueba para iniciar un demo limpio? (Tus productos no se borrarán)",
+  useEffect(() => {
+    fetchLiveOrders()
+
+    const handleSync = (e: any) => {
+      if (!e?.detail?.channel || e.detail.channel === "orders") {
+        fetchLiveOrders()
+      }
+    }
+    window.addEventListener("gonesurf:sync", handleSync)
+    return () => window.removeEventListener("gonesurf:sync", handleSync)
+  }, [fetchLiveOrders])
+
+  const handleStatusChange = async (id: string, nextStatus: OrderStatus) => {
+    try {
+      updateOrderStatus(id, nextStatus)
+      setLiveOrders((prev) =>
+        prev.map((o) => (o.id === id ? { ...o, status: nextStatus } : o)),
       )
-    ) {
-      resetDemoData()
+    } catch (err) {
+      console.error("[AdminDashboard] Error actualizando estado de pedido:", err)
     }
   }
 
@@ -2756,20 +2890,6 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
           </p>
         </div>
         <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
-          <button
-            onClick={handleResetDemo}
-            style={{
-              background: "#ff4d4d",
-              color: "#fff",
-              border: "none",
-              padding: "0.6rem 1.2rem",
-              fontWeight: "bold",
-              borderRadius: "4px",
-              cursor: "pointer",
-            }}
-          >
-            VACIAR DATOS DE PRUEBA
-          </button>
           <button
             onClick={() => navigate("/shop")}
             style={{
@@ -2913,9 +3033,24 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
         </nav>
       </div>
 
-      {currentView === "dashboard" && <MetricsDashboard />}
-      {currentView === "orders" && <ManageOrders />}
-      {currentView === "customers" && <ManageCustomers />}
+      {currentView === "dashboard" && (
+        <MetricsDashboard
+          orders={liveOrders}
+          isLoading={isLoadingOrders}
+          error={ordersError}
+          onRefresh={fetchLiveOrders}
+        />
+      )}
+      {currentView === "orders" && (
+        <ManageOrders
+          orders={liveOrders}
+          isLoading={isLoadingOrders}
+          error={ordersError}
+          onRefresh={fetchLiveOrders}
+          onStatusChange={handleStatusChange}
+        />
+      )}
+      {currentView === "customers" && <ManageCustomers orders={liveOrders} />}
       {currentView === "upload" && <UploadPrenda />}
       {currentView === "collections" && <ManageCollections />}
     </main>
