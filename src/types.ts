@@ -25,6 +25,7 @@ export interface Product {
   collectionName?: string
   image: string
   stocks: Record<string, number>
+  salesCount?: number
 }
 
 export interface CollectionData {

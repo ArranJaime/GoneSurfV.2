@@ -561,39 +561,58 @@ function Header() {
 }
 
 function Home(_props: { openPanel: (panel: string) => void }) {
-  const { products } = useStore()
+  const { products, transactions } = useStore()
   const navigate = useNavigate()
   const videoRef = useRef<HTMLVideoElement>(null)
   const [isPlaying, setIsPlaying] = useState(false)
 
-  // Dynamically uses images from real products matching category or default branding asset
-  const categories = useMemo(() => {
-    const findCategoryImg = (cat: string, defaultAsset: string) => {
-      const matchCat = products.find(
-        (p) => p.category?.toUpperCase() === cat.toUpperCase() && p.image,
-      )
-      return matchCat?.image || defaultAsset
+  const categories = [
+    {
+      title: "NEW ARRIVALS",
+      image: "/assets/cat-new-arrivals.png",
+    },
+    {
+      title: "ACCESORIOS",
+      image: "/assets/cat-accesorios.png",
+    },
+    {
+      title: "MERCH",
+      image: "/assets/cat-merch.png",
+    },
+  ]
+
+  const bestSellers = useMemo(() => {
+    if (!products || products.length === 0) return []
+
+    const salesMap: Record<string, number> = {}
+    if (Array.isArray(transactions)) {
+      for (const t of transactions) {
+        if (Array.isArray(t.items)) {
+          for (const item of t.items) {
+            salesMap[item.productId] =
+              (salesMap[item.productId] || 0) + (item.quantity || 1)
+          }
+        }
+      }
     }
 
-    return [
-      {
-        title: "NEW ARRIVALS",
-        image: findCategoryImg("NEW ARRIVALS", "/assets/cap.jpg"),
-      },
-      {
-        title: "ACCESORIOS",
-        image: findCategoryImg("ACCESORIOS", "/assets/leash.jpg"),
-      },
-      {
-        title: "MERCH",
-        image: findCategoryImg("MERCH", "/assets/hero-surf.jpg"),
-      },
-      {
-        title: "BEST SELLERS",
-        image: findCategoryImg("BEST SELLERS", "/assets/story.jpg"),
-      },
-    ]
-  }, [products])
+    const hasSales = products.some(
+      (p) => (p.salesCount ?? salesMap[p.id] ?? 0) > 0,
+    )
+
+    if (hasSales) {
+      return [...products]
+        .sort((a, b) => {
+          const countA = a.salesCount ?? salesMap[a.id] ?? 0
+          const countB = b.salesCount ?? salesMap[b.id] ?? 0
+          return countB - countA
+        })
+        .slice(0, 4)
+    }
+
+    // Fallback: 4 primeros / más recientes
+    return products.slice(0, 4)
+  }, [products, transactions])
 
   const stories = [
     { title: "STAY REAL", image: "/assets/story.jpg", url: "about" },
@@ -661,11 +680,111 @@ function Home(_props: { openPanel: (panel: string) => void }) {
             }}
           >
             <span className="category-image">
-              <img src={category.image} alt={category.title} />
+              <img
+                src={category.image}
+                alt={category.title}
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover",
+                  aspectRatio: "1 / 1",
+                  display: "block",
+                }}
+              />
             </span>
             <strong>{category.title}</strong>
           </Link>
         ))}
+      </section>
+
+      {/* SECCIÓN DINÁMICA DE BEST SELLERS */}
+      <section
+        className="home-best-sellers"
+        style={{
+          padding: "2.5rem 24px 3rem",
+          maxWidth: "1400px",
+          margin: "0 auto",
+          width: "100%",
+          boxSizing: "border-box",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "flex-end",
+            marginBottom: "1.75rem",
+            borderBottom: "1px solid #1a1a1a",
+            paddingBottom: "0.75rem",
+          }}
+        >
+          <div>
+            <p
+              style={{
+                margin: "0 0 4px",
+                fontFamily: '"Barlow Condensed", sans-serif',
+                fontSize: "11px",
+                fontWeight: 600,
+                letterSpacing: "2px",
+                color: "#888",
+                textTransform: "uppercase",
+              }}
+            >
+              GONE SURFING / DESTACADOS
+            </p>
+            <h2
+              style={{
+                margin: 0,
+                fontFamily: '"Barlow Condensed", sans-serif',
+                fontSize: "clamp(28px, 4.5vw, 42px)",
+                fontWeight: 800,
+                letterSpacing: "-0.5px",
+                textTransform: "uppercase",
+                lineHeight: 1,
+              }}
+            >
+              BEST SELLERS
+            </h2>
+          </div>
+          <Link
+            to="/shop?category=BEST%20SELLERS"
+            style={{
+              fontFamily: '"Barlow Condensed", sans-serif',
+              fontSize: "12px",
+              fontWeight: 700,
+              letterSpacing: "1.5px",
+              textTransform: "uppercase",
+              color: "inherit",
+              textDecoration: "none",
+              borderBottom: "1px solid currentColor",
+              paddingBottom: "2px",
+            }}
+          >
+            VER TODO &rarr;
+          </Link>
+        </div>
+
+        {bestSellers.length === 0 ? (
+          <div
+            style={{
+              padding: "3rem 1rem",
+              textAlign: "center",
+              color: "#888",
+              fontFamily: '"Barlow Condensed", sans-serif',
+              fontSize: "1.1rem",
+              letterSpacing: "1px",
+              textTransform: "uppercase",
+            }}
+          >
+            Nuevos ingresos próximamente...
+          </div>
+        ) : (
+          <div className="product-grid">
+            {bestSellers.map((product) => (
+              <ProductCard key={product.id} product={product} />
+            ))}
+          </div>
+        )}
       </section>
       <section
         className="video-block"
@@ -862,12 +981,43 @@ function ProductCard({ product }: { product: Product }) {
 }
 
 function Shop() {
-  const { products } = useStore()
+  const { products, transactions } = useStore()
   const [params, setParams] = useSearchParams()
   const category = sanitizeUrlParam(params.get("category")).toUpperCase()
   const collectionParam = sanitizeUrlParam(params.get("collection"))
   const searchParam = sanitizeUrlParam(params.get("search")).toLowerCase()
   const navigate = useNavigate()
+
+  const bestSellerIds = useMemo(() => {
+    if (!products || products.length === 0) return new Set<string>()
+
+    const salesMap: Record<string, number> = {}
+    if (Array.isArray(transactions)) {
+      for (const t of transactions) {
+        if (Array.isArray(t.items)) {
+          for (const item of t.items) {
+            salesMap[item.productId] =
+              (salesMap[item.productId] || 0) + (item.quantity || 1)
+          }
+        }
+      }
+    }
+
+    const hasSales = products.some(
+      (p) => (p.salesCount ?? salesMap[p.id] ?? 0) > 0,
+    )
+
+    if (hasSales) {
+      const sorted = [...products].sort((a, b) => {
+        const countA = a.salesCount ?? salesMap[a.id] ?? 0
+        const countB = b.salesCount ?? salesMap[b.id] ?? 0
+        return countB - countA
+      })
+      return new Set(sorted.slice(0, 4).map((p) => p.id))
+    }
+
+    return new Set(products.slice(0, 4).map((p) => p.id))
+  }, [products, transactions])
 
   const visibleProducts = useMemo(() => {
     return products.filter((p) => {
@@ -879,21 +1029,15 @@ function Shop() {
       if (collectionParam) return p.collectionName === collectionParam
       if (!category || category === "ALL PRODUCTS") return true
       const prodCat = p.category.toUpperCase().trim()
-      if (category === "NEW ARRIVALS")
-        return (
-          prodCat === "NEW ARRIVALS" ||
-          prodCat === "ACCESORIOS" ||
-          /tee/i.test(p.name)
-        )
-      if (category === "BEST SELLERS")
-        return (
-          prodCat === "BEST SELLERS" ||
-          prodCat === "MERCH" ||
-          /leash/i.test(p.name)
-        )
+      if (category === "NEW ARRIVALS") return prodCat === "NEW ARRIVALS"
+      if (category === "ACCESORIOS") return prodCat === "ACCESORIOS"
+      if (category === "MERCH") return prodCat === "MERCH"
+      if (category === "BEST SELLERS") {
+        return prodCat === "BEST SELLERS" || bestSellerIds.has(p.id)
+      }
       return prodCat === category
     })
-  }, [products, searchParam, collectionParam, category])
+  }, [products, searchParam, collectionParam, category, bestSellerIds])
 
   const pageTitle = searchParam
     ? `RESULTADOS PARA: "${searchParam.toUpperCase()}"`
