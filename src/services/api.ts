@@ -378,19 +378,29 @@ export const api = {
         stocks: cleanedStocks,
       }
 
-      if (STORAGE_MODE === "aws" && API_GATEWAY_URL) {
+      if (STORAGE_MODE === "aws" || API_GATEWAY_URL) {
+        if (!API_GATEWAY_URL) {
+          throw new Error(
+            "Error de conexión con la base de datos. Verifica tu backend.",
+          )
+        }
         try {
           const res = await fetchWithAuth("/products", {
             method: "POST",
             body: JSON.stringify(payload),
           })
-          if (res.ok) {
+          if (res.status === 200 || res.status === 201) {
             const saved = await res.json()
             broadcastSyncEvent("products")
             return saved
           }
+          const errData = await res.json().catch(() => ({}))
+          throw new Error(
+            errData.message || `Error al crear producto: HTTP ${res.status}`,
+          )
         } catch (err) {
           console.error("Fallo al crear producto en AWS:", err)
+          throw err
         }
       }
 
@@ -416,8 +426,11 @@ export const api = {
             broadcastSyncEvent("products")
             return updated
           }
+          const errData = await res.json().catch(() => ({}))
+          throw new Error(errData.message || `Error HTTP ${res.status}`)
         } catch (err) {
           console.error("Fallo al actualizar producto en AWS:", err)
+          throw err
         }
       }
 
@@ -510,8 +523,11 @@ export const api = {
             broadcastSyncEvent("products")
             return true
           }
+          const errData = await res.json().catch(() => ({}))
+          throw new Error(errData.message || `Error HTTP ${res.status}`)
         } catch (err) {
           console.error("Fallo al eliminar producto en AWS:", err)
+          throw err
         }
       }
 

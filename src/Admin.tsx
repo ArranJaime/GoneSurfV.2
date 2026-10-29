@@ -398,6 +398,7 @@ function UploadPrenda() {
   })
   const [success, setSuccess] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [uploadError, setUploadError] = useState("")
 
   // Quick inline price editing state
@@ -473,8 +474,10 @@ function UploadPrenda() {
     }
   }
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
+    if (isSubmitting) return
+
     const cleanName = sanitizeString(name)
     const validPrice = validatePrice(price)
 
@@ -494,23 +497,70 @@ function UploadPrenda() {
           XL: validateStock(stocks.XL ?? 0),
         }
 
-    addProduct({
+    const productPayload = {
       name: cleanName,
       price: validPrice.value,
       category: sanitizeString(category),
       collectionName: sanitizeString(collection),
       image,
       stocks: activeStocks,
-    })
+    }
 
-    setSuccess(true)
-    setName("")
-    setPrice("")
-    setImage(null)
-    setUploadError("")
-    if (fileInputRef.current) fileInputRef.current.value = ""
-    if (timerRef.current !== null) window.clearTimeout(timerRef.current)
-    timerRef.current = window.setTimeout(() => setSuccess(false), 3000)
+    try {
+      setIsSubmitting(true)
+
+      const apiUrl = (
+        import.meta.env.VITE_API_URL ||
+        import.meta.env.VITE_AWS_API_GATEWAY_URL ||
+        ""
+      ).replace(/\/$/, "")
+
+      if (apiUrl) {
+        const session = api.auth.getAdminSession()
+        const headers: Record<string, string> = {
+          "Content-Type": "application/json",
+        }
+        if (session && session.token) {
+          headers["Authorization"] = `Bearer ${session.token}`
+        }
+
+        const res = await fetch(`${apiUrl}/products`, {
+          method: "POST",
+          headers,
+          body: JSON.stringify(productPayload),
+        })
+
+        // Solo se acepta si la API devuelve status 200 o 201
+        if (res.status !== 200 && res.status !== 201) {
+          const errData = await res.json().catch(() => ({}))
+          console.error(
+            `[Admin] Error HTTP ${res.status} al crear producto:`,
+            errData,
+          )
+          throw new Error(errData.message || `Error HTTP ${res.status}`)
+        }
+
+        const createdProduct: Product = await res.json()
+        // Actualizar el estado local (añadir el producto a la tabla de la UI) solo tras respuesta 200/201
+        await addProduct(createdProduct)
+      } else {
+        await addProduct(productPayload)
+      }
+
+      setSuccess(true)
+      setName("")
+      setPrice("")
+      setImage(null)
+      setUploadError("")
+      if (fileInputRef.current) fileInputRef.current.value = ""
+      if (timerRef.current !== null) window.clearTimeout(timerRef.current)
+      timerRef.current = window.setTimeout(() => setSuccess(false), 3000)
+    } catch (err) {
+      console.error("[Admin] Fallo en la creación del producto:", err)
+      alert("Error de conexión con la base de datos. Verifica tu backend.")
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const saveInlinePrice = (productId: string) => {
@@ -894,7 +944,7 @@ function UploadPrenda() {
             </div>
             <button
               type="submit"
-              disabled={uploading}
+              disabled={uploading || isSubmitting}
               style={{
                 alignSelf: "flex-end",
                 background: success ? "#4CAF50" : "transparent",
@@ -902,12 +952,17 @@ function UploadPrenda() {
                 border: "1px solid #fff",
                 borderRadius: "4px",
                 fontWeight: "bold",
-                cursor: "pointer",
+                cursor: uploading || isSubmitting ? "not-allowed" : "pointer",
                 padding: "0.8rem 1.5rem",
                 marginTop: "1rem",
+                opacity: uploading || isSubmitting ? 0.6 : 1,
               }}
             >
-              {success ? "¡PRENDA PUBLICADA!" : "PUBLICAR EN LA TIENDA"}
+              {isSubmitting
+                ? "PUBLICANDO..."
+                : success
+                  ? "¡PRENDA PUBLICADA!"
+                  : "PUBLICAR EN LA TIENDA"}
             </button>
           </div>
         </form>

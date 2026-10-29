@@ -61,7 +61,7 @@ export interface Store {
     details: OrderDetailsInput,
     createdTransaction?: OrderTransaction,
   ) => { id: string }
-  addProduct: (product: Omit<Product, "id">) => void
+  addProduct: (product: Omit<Product, "id"> | Product) => Promise<Product>
   updateProduct: (id: string, updates: Partial<Omit<Product, "id">>) => void
   updateProductPrice: (productId: string, newPrice: number) => void
   updateProductCollection: (productId: string, collectionName: string) => void
@@ -500,11 +500,31 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [cart, products],
   )
 
-  const addProduct = useCallback((product: Omit<Product, "id">) => {
-    api.products.create(product).then((saved) => {
-      setProducts((prev) => [saved, ...prev.filter((p) => p.id !== saved.id)])
-    })
-  }, [])
+  const addProduct = useCallback(
+    async (product: Omit<Product, "id"> | Product): Promise<Product> => {
+      if ("id" in product && product.id) {
+        const fullProd = product as Product
+        setProducts((prev) => [
+          fullProd,
+          ...prev.filter((p) => p.id !== fullProd.id),
+        ])
+        safeWriteStorage("gone_products", [
+          fullProd,
+          ...products.filter((p) => p.id !== fullProd.id),
+        ])
+        broadcastSyncEvent("products")
+        return fullProd
+      }
+
+      const saved = await api.products.create(product)
+      setProducts((prev) => [
+        saved,
+        ...prev.filter((p) => p.id !== saved.id),
+      ])
+      return saved
+    },
+    [products],
+  )
 
   const updateProduct = useCallback(
     (id: string, updates: Partial<Omit<Product, "id">>) => {
