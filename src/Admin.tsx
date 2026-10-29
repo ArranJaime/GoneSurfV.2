@@ -46,10 +46,21 @@ function ManageCollections() {
   const [subtitle, setSubtitle] = useState("")
   const [category, setCategory] = useState("LIFESTYLE")
   const [image, setImage] = useState<string | null>(null)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const previewUrlRef = useRef<string | null>(null)
   const [uploading, setUploading] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [uploadError, setUploadError] = useState("")
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    return () => {
+      if (previewUrlRef.current && previewUrlRef.current.startsWith("blob:")) {
+        URL.revokeObjectURL(previewUrlRef.current)
+        previewUrlRef.current = null
+      }
+    }
+  }, [])
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -60,6 +71,15 @@ function ManageCollections() {
       setUploadError(validation.error || "Archivo de imagen no válido.")
       return
     }
+
+    if (previewUrlRef.current && previewUrlRef.current.startsWith("blob:")) {
+      URL.revokeObjectURL(previewUrlRef.current)
+      previewUrlRef.current = null
+    }
+
+    const objectUrl = URL.createObjectURL(file)
+    previewUrlRef.current = objectUrl
+    setPreviewUrl(objectUrl)
 
     try {
       setUploading(true)
@@ -97,6 +117,11 @@ function ManageCollections() {
         image: image || "/assets/hero-surf.jpg",
       })
 
+      if (previewUrlRef.current && previewUrlRef.current.startsWith("blob:")) {
+        URL.revokeObjectURL(previewUrlRef.current)
+        previewUrlRef.current = null
+      }
+      setPreviewUrl(null)
       setTitle("")
       setSubtitle("")
       setCategory("LIFESTYLE")
@@ -157,9 +182,9 @@ function ManageCollections() {
               position: "relative",
             }}
           >
-            {image ? (
+            {previewUrl || image ? (
               <img
-                src={image}
+                src={previewUrl || image!}
                 alt="Preview"
                 style={{ width: "100%", height: "100%", objectFit: "cover" }}
               />
@@ -389,6 +414,8 @@ function UploadPrenda() {
   const [category, setCategory] = useState("New Arrivals")
   const [collection, setCollection] = useState("Catálogo General")
   const [image, setImage] = useState<string | null>(null)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const previewUrlRef = useRef<string | null>(null)
   const [stocks, setStocks] = useState<Record<string, number>>({
     Única: 25,
     S: 10,
@@ -412,6 +439,8 @@ function UploadPrenda() {
   const [editCategory, setEditCategory] = useState("New Arrivals")
   const [editCollection, setEditCollection] = useState("Catálogo General")
   const [editImage, setEditImage] = useState<string>("")
+  const [editPreviewUrl, setEditPreviewUrl] = useState<string | null>(null)
+  const editPreviewUrlRef = useRef<string | null>(null)
   const [editStocks, setEditStocks] = useState<Record<string, number>>({})
   const [editUploading, setEditUploading] = useState(false)
 
@@ -422,11 +451,19 @@ function UploadPrenda() {
 
   useEffect(() => {
     return () => {
+      if (previewUrlRef.current && previewUrlRef.current.startsWith("blob:")) {
+        URL.revokeObjectURL(previewUrlRef.current)
+        previewUrlRef.current = null
+      }
+      if (editPreviewUrlRef.current && editPreviewUrlRef.current.startsWith("blob:")) {
+        URL.revokeObjectURL(editPreviewUrlRef.current)
+        editPreviewUrlRef.current = null
+      }
       if (timerRef.current !== null) window.clearTimeout(timerRef.current)
     }
   }, [])
 
-  // Client-side Canvas Image compression
+  // Client-side Canvas Image compression y previsualización local reactiva
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -437,11 +474,33 @@ function UploadPrenda() {
       return
     }
 
+    // Revocar URL previa de memoria si existía
+    if (previewUrlRef.current && previewUrlRef.current.startsWith("blob:")) {
+      URL.revokeObjectURL(previewUrlRef.current)
+      previewUrlRef.current = null
+    }
+
+    // Generar URL temporal local inmediata para la previsualización
+    const localBlobUrl = URL.createObjectURL(file)
+    previewUrlRef.current = localBlobUrl
+    setPreviewUrl(localBlobUrl)
+    setUploadError("")
+
     try {
       setUploading(true)
-      setUploadError("")
       const res = await api.media.uploadImage(file)
-      setImage(res.url)
+
+      // Construcción y verificación de URL pública absoluta
+      const cfBase = (
+        import.meta.env.VITE_AWS_CLOUDFRONT_URL ||
+        "https://d1137rlqok2t6n.cloudfront.net"
+      ).replace(/\/$/, "")
+
+      let finalUrl = res.url
+      if (res.key && !finalUrl.startsWith("http")) {
+        finalUrl = `${cfBase}/${res.key.replace(/^\//, "")}`
+      }
+      setImage(finalUrl)
     } catch (err) {
       console.error("Error optimizando imagen:", err)
       setUploadError("Error al procesar la imagen.")
@@ -462,10 +521,29 @@ function UploadPrenda() {
       return
     }
 
+    if (editPreviewUrlRef.current && editPreviewUrlRef.current.startsWith("blob:")) {
+      URL.revokeObjectURL(editPreviewUrlRef.current)
+      editPreviewUrlRef.current = null
+    }
+
+    const localBlobUrl = URL.createObjectURL(file)
+    editPreviewUrlRef.current = localBlobUrl
+    setEditPreviewUrl(localBlobUrl)
+
     try {
       setEditUploading(true)
       const res = await api.media.uploadImage(file)
-      setEditImage(res.url)
+
+      const cfBase = (
+        import.meta.env.VITE_AWS_CLOUDFRONT_URL ||
+        "https://d1137rlqok2t6n.cloudfront.net"
+      ).replace(/\/$/, "")
+
+      let finalUrl = res.url
+      if (res.key && !finalUrl.startsWith("http")) {
+        finalUrl = `${cfBase}/${res.key.replace(/^\//, "")}`
+      }
+      setEditImage(finalUrl)
     } catch (err) {
       console.error("Error optimizando imagen para edición:", err)
       alert("Error al procesar la imagen.")
@@ -481,11 +559,27 @@ function UploadPrenda() {
     const cleanName = sanitizeString(name)
     const validPrice = validatePrice(price)
 
-    if (!cleanName || !image || !validPrice.valid) {
+    const cfBase = (
+      import.meta.env.VITE_AWS_CLOUDFRONT_URL ||
+      "https://d1137rlqok2t6n.cloudfront.net"
+    ).replace(/\/$/, "")
+
+    // Garantizar que la imagen no sea un File, ni fakepath, ni vacío
+    let finalPublicUrl = (image || "").trim()
+    if (!cleanName || !finalPublicUrl || !validPrice.valid) {
       alert(
-        "Por favor completa el nombre, un precio mayor a 0 y sube una imagen.",
+        "Por favor completa el nombre, un precio mayor a 0 y sube una imagen válida.",
       )
       return
+    }
+
+    if (finalPublicUrl.includes("fakepath") || finalPublicUrl.startsWith("blob:")) {
+      alert("La imagen aún se está subiendo al servidor. Por favor espera unos segundos.")
+      return
+    }
+
+    if (!finalPublicUrl.startsWith("http://") && !finalPublicUrl.startsWith("https://") && !finalPublicUrl.startsWith("data:")) {
+      finalPublicUrl = `${cfBase}/${finalPublicUrl.replace(/^\//, "")}`
     }
 
     const activeStocks: Record<string, number> = isUnique
@@ -502,7 +596,8 @@ function UploadPrenda() {
       price: validPrice.value,
       category: sanitizeString(category),
       collectionName: sanitizeString(collection),
-      image,
+      image: finalPublicUrl,
+      imageUrl: finalPublicUrl,
       stocks: activeStocks,
     }
 
@@ -569,6 +664,11 @@ function UploadPrenda() {
         )
       }
 
+      if (previewUrlRef.current && previewUrlRef.current.startsWith("blob:")) {
+        URL.revokeObjectURL(previewUrlRef.current)
+        previewUrlRef.current = null
+      }
+      setPreviewUrl(null)
       setSuccess(true)
       setName("")
       setPrice("")
@@ -596,12 +696,17 @@ function UploadPrenda() {
 
   // Open full product edit
   const openEditModal = (p: Product) => {
+    if (editPreviewUrlRef.current && editPreviewUrlRef.current.startsWith("blob:")) {
+      URL.revokeObjectURL(editPreviewUrlRef.current)
+      editPreviewUrlRef.current = null
+    }
+    setEditPreviewUrl(null)
     setEditingProduct(p)
     setEditName(p.name)
     setEditPrice(String(p.price))
     setEditCategory(p.category)
     setEditCollection(p.collectionName || "Catálogo General")
-    setEditImage(p.image)
+    setEditImage(p.imageUrl || p.image)
     setEditStocks({ ...p.stocks })
   }
 
@@ -627,15 +732,30 @@ function UploadPrenda() {
           XL: validateStock(editStocks.XL ?? 0),
         }
 
+    let finalEditImageUrl = (editImage || "").trim()
+    if (finalEditImageUrl && !finalEditImageUrl.startsWith("http://") && !finalEditImageUrl.startsWith("https://") && !finalEditImageUrl.startsWith("data:")) {
+      const cfBase = (
+        import.meta.env.VITE_AWS_CLOUDFRONT_URL ||
+        "https://d1137rlqok2t6n.cloudfront.net"
+      ).replace(/\/$/, "")
+      finalEditImageUrl = `${cfBase}/${finalEditImageUrl.replace(/^\//, "")}`
+    }
+
     updateProduct(editingProduct.id, {
       name: cleanName,
       price: validPrice.value,
       category: editCategory,
       collectionName: editCollection,
-      image: editImage,
+      image: finalEditImageUrl,
+      imageUrl: finalEditImageUrl,
       stocks: cleanedStocks,
     })
 
+    if (editPreviewUrlRef.current && editPreviewUrlRef.current.startsWith("blob:")) {
+      URL.revokeObjectURL(editPreviewUrlRef.current)
+      editPreviewUrlRef.current = null
+    }
+    setEditPreviewUrl(null)
     setEditingProduct(null)
   }
 
@@ -682,9 +802,9 @@ function UploadPrenda() {
               position: "relative",
             }}
           >
-            {image ? (
+            {previewUrl || image ? (
               <img
-                src={image}
+                src={previewUrl || image!}
                 alt="Preview"
                 style={{ width: "100%", height: "100%", objectFit: "cover" }}
               />
@@ -1022,7 +1142,14 @@ function UploadPrenda() {
               Editar Prenda: {editingProduct.name}
             </h2>
             <button
-              onClick={() => setEditingProduct(null)}
+              onClick={() => {
+                if (editPreviewUrlRef.current && editPreviewUrlRef.current.startsWith("blob:")) {
+                  URL.revokeObjectURL(editPreviewUrlRef.current)
+                  editPreviewUrlRef.current = null
+                }
+                setEditPreviewUrl(null)
+                setEditingProduct(null)
+              }}
               style={{
                 background: "none",
                 border: "none",
@@ -1057,7 +1184,7 @@ function UploadPrenda() {
               }}
             >
               <img
-                src={editImage}
+                src={editPreviewUrl || editImage || "/assets/hero-surf.jpg"}
                 alt="Edit Preview"
                 style={{ width: "100%", height: "100%", objectFit: "cover" }}
               />
@@ -1433,7 +1560,7 @@ function UploadPrenda() {
                       }}
                     >
                       <img
-                        src={p.image}
+                        src={p.imageUrl || p.image}
                         alt=""
                         style={{
                           width: "40px",

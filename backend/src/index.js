@@ -454,13 +454,15 @@ export async function handler(event) {
             XL: Math.max(0, parseInt(data.stocks?.XL ?? 0, 10)),
           }
 
+      const finalImage = (data.imageUrl || data.image || "").trim()
       const newProduct = {
         id: data.id || `prod-${Date.now()}`,
         name: data.name.trim(),
         price: Number(price.toFixed(2)),
         category: data.category || "New Arrivals",
         collectionName: data.collectionName || "Catálogo General",
-        image: data.image || "/assets/hero-surf.jpg",
+        image: finalImage || "/assets/hero-surf.jpg",
+        imageUrl: finalImage || "/assets/hero-surf.jpg",
         stocks,
         createdAt: new Date().toISOString(),
       }
@@ -496,13 +498,14 @@ export async function handler(event) {
       const existing = await docClient.send(new GetCommand({ TableName: PRODUCTS_TABLE, Key: { id } }))
       if (!existing.Item) return response(404, { message: "Producto no encontrado." })
 
+      const finalUpdateImage = (data.imageUrl || data.image || "").trim()
       const updated = {
         ...existing.Item,
         ...(data.name ? { name: data.name.trim() } : {}),
         ...(data.price !== undefined ? { price: Number(parseFloat(data.price).toFixed(2)) } : {}),
         ...(data.category ? { category: data.category } : {}),
         ...(data.collectionName ? { collectionName: data.collectionName } : {}),
-        ...(data.image ? { image: data.image } : {}),
+        ...(finalUpdateImage ? { image: finalUpdateImage, imageUrl: finalUpdateImage } : {}),
         ...(data.stocks ? { stocks: data.stocks } : {}),
         updatedAt: new Date().toISOString(),
       }

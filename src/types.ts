@@ -24,6 +24,7 @@ export interface Product {
   category: string
   collectionName?: string
   image: string
+  imageUrl?: string
   stocks: Record<string, number>
   salesCount?: number
 }

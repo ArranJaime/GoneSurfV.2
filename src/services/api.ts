@@ -940,8 +940,17 @@ export const api = {
             })
 
             if (s3Upload.ok) {
+              const cfBase = (
+                import.meta.env.VITE_AWS_CLOUDFRONT_URL ||
+                "https://d1137rlqok2t6n.cloudfront.net"
+              ).replace(/\/$/, "")
+
+              const absoluteUrl = fileKey
+                ? `${cfBase}/${fileKey.replace(/^\//, "")}`
+                : publicUrl
+
               return {
-                url: publicUrl,
+                url: absoluteUrl,
                 key: fileKey,
                 format: optimized.format,
                 sizeKb: optimized.sizeKb,

@@ -2567,23 +2567,12 @@ export default function Checkout() {
                 textTransform: "uppercase",
                 letterSpacing: "1.5px",
                 color: "#ffffff",
-                margin: "0 0 0.5rem 0",
+                margin: "0 0 1rem 0",
                 lineHeight: 1.15,
               }}
             >
               Tu pedido está separado
             </h3>
-
-            <p
-              style={{
-                fontSize: "0.85rem",
-                color: "#9ca3af",
-                lineHeight: "1.45",
-                margin: "0 0 1.25rem 0",
-              }}
-            >
-              Escanea el QR y envíanos la captura para empezar a prepararlo.
-            </p>
 
             {/* Monto total a pagar destacado */}
             <div
@@ -2634,18 +2623,6 @@ export default function Checkout() {
                   boxShadow: "0 4px 20px rgba(0, 0, 0, 0.45)",
                 }}
               />
-              <div
-                style={{
-                  fontSize: "0.65rem",
-                  color: "#6b7280",
-                  letterSpacing: "1.5px",
-                  textTransform: "uppercase",
-                  marginTop: "8px",
-                  fontFamily: '"Barlow Condensed", sans-serif',
-                }}
-              >
-                Yape / Plin QR Oficial
-              </div>
             </div>
 
             {/* Datos de transferencia */}

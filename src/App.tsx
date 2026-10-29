@@ -348,7 +348,7 @@ function Header() {
                           }}
                         >
                           <img
-                            src={p.image}
+                            src={p.imageUrl || p.image}
                             alt={p.name}
                             style={{
                               width: "100%",
@@ -883,7 +883,7 @@ function ProductCard({ product }: { product: Product }) {
   return (
     <article className="product-card">
       <div className="product-photo">
-        <img src={product.image} alt={product.name} />
+        <img src={product.imageUrl || product.image} alt={product.name} />
         <span>{product.category}</span>
       </div>
       <div className="product-info">
@@ -1188,7 +1188,7 @@ function Cart() {
                   className="cart-item"
                   key={`${item.productId}-${item.size}`}
                 >
-                  <img src={product.image} alt={product.name} />
+                  <img src={product.imageUrl || product.image} alt={product.name} />
                   <div className="cart-copy">
                     <h2>{product.name}</h2>
                     <p>SIZE: {item.size}</p>
