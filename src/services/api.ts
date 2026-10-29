@@ -538,7 +538,13 @@ export const api = {
       }
 
       const items = readStorage<CollectionData[]>("gone_collections", [])
-      return Array.isArray(items) ? items : []
+      if (!Array.isArray(items)) return []
+      const seen = new Set<string>()
+      return items.filter((c) => {
+        if (!c?.id || seen.has(c.id)) return false
+        seen.add(c.id)
+        return true
+      })
     },
 
     async create(
@@ -573,7 +579,8 @@ export const api = {
         "gone_collections",
         INITIAL_COLLECTIONS,
       )
-      const updated = [...current, payload]
+      const filtered = current.filter((c) => c.id !== payload.id)
+      const updated = [...filtered, payload]
       writeStorage("gone_collections", updated)
       broadcastSyncEvent("collections")
       return payload

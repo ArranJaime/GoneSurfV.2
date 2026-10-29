@@ -63,7 +63,7 @@ export interface Store {
   updateProduct: (id: string, updates: Partial<Omit<Product, "id">>) => void
   updateProductPrice: (productId: string, newPrice: number) => void
   updateProductCollection: (productId: string, collectionName: string) => void
-  addCollection: (col: Omit<CollectionData, "id" | "active">) => void
+  addCollection: (col: Omit<CollectionData, "id" | "active">) => Promise<void> | void
   toggleCollection: (id: string) => void
   deleteCollection: (id: string) => void
   deleteProduct: (id: string) => void
@@ -159,7 +159,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   // Real-time synchronization across storage and internal event bus
   const reloadFromStorage = useCallback(() => {
-    setCollections(safeReadStorage("gone_collections", []))
+    const rawCols = safeReadStorage<CollectionData[]>("gone_collections", [])
+    const seen = new Set<string>()
+    const uniqueCols = Array.isArray(rawCols)
+      ? rawCols.filter((c) => {
+          if (!c?.id || seen.has(c.id)) return false
+          seen.add(c.id)
+          return true
+        })
+      : []
+    setCollections(uniqueCols)
     setProducts(safeReadStorage("gone_products", []))
     setTransactions(safeReadStorage("gone_transactions", []))
     setCart(safeReadStorage("gone_cart", []))
@@ -467,10 +476,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   )
 
   const addCollection = useCallback(
-    (col: Omit<CollectionData, "id" | "active">) => {
-      api.collections.create(col).then((saved) => {
-        setCollections((prev) => [...prev, saved])
+    async (col: Omit<CollectionData, "id" | "active">) => {
+      await api.collections.create(col)
+      const fresh = await api.collections.getAll()
+      const seen = new Set<string>()
+      const unique = fresh.filter((c) => {
+        if (!c?.id || seen.has(c.id)) return false
+        seen.add(c.id)
+        return true
       })
+      setCollections(unique)
+      safeWriteStorage("gone_collections", unique)
     },
     [],
   )

@@ -47,6 +47,7 @@ function ManageCollections() {
   const [category, setCategory] = useState("LIFESTYLE")
   const [image, setImage] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [uploadError, setUploadError] = useState("")
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -73,29 +74,41 @@ function ManageCollections() {
     }
   }
 
-  const handleCreate = (e: FormEvent) => {
+  const handleCreate = async (e: FormEvent) => {
     e.preventDefault()
+    if (isSubmitting) return
+
     const cleanTitle = sanitizeString(title)
     const cleanSubtitle = sanitizeString(subtitle)
     const cleanCategory = sanitizeString(category)
 
-    if (!cleanTitle || !image) {
-      alert("Título e imagen son obligatorios.")
+    // Solo el título es obligatorio según requerimiento del cliente
+    if (!cleanTitle) {
+      alert("El título de la colección es obligatorio.")
       return
     }
 
-    addCollection({
-      title: cleanTitle,
-      subtitle: cleanSubtitle,
-      category: cleanCategory || "LIFESTYLE",
-      image,
-    })
+    try {
+      setIsSubmitting(true)
+      await addCollection({
+        title: cleanTitle,
+        subtitle: cleanSubtitle || "",
+        category: cleanCategory || "",
+        image: image || "/assets/hero-surf.jpg",
+      })
 
-    setTitle("")
-    setSubtitle("")
-    setImage(null)
-    setUploadError("")
-    if (fileInputRef.current) fileInputRef.current.value = ""
+      setTitle("")
+      setSubtitle("")
+      setCategory("LIFESTYLE")
+      setImage(null)
+      setUploadError("")
+      if (fileInputRef.current) fileInputRef.current.value = ""
+    } catch (err) {
+      console.error("Error al crear colección:", err)
+      alert("Ocurrió un error al guardar la colección. Inténtalo nuevamente.")
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -222,7 +235,7 @@ function ManageCollections() {
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
                   type="text"
-                  placeholder="Ej. LIFESTYLE"
+                  placeholder="Ej. LIFESTYLE (Opcional)"
                   style={{
                     width: "100%",
                     padding: "0.8rem",
@@ -231,7 +244,6 @@ function ManageCollections() {
                     color: "#fff",
                     borderRadius: "4px",
                   }}
-                  required
                 />
               </div>
             </div>
@@ -250,7 +262,7 @@ function ManageCollections() {
                 value={subtitle}
                 onChange={(e) => setSubtitle(e.target.value)}
                 type="text"
-                placeholder="Ej. Ride the sun."
+                placeholder="Ej. Ride the sun. (Opcional)"
                 style={{
                   width: "100%",
                   padding: "0.8rem",
@@ -259,12 +271,11 @@ function ManageCollections() {
                   color: "#fff",
                   borderRadius: "4px",
                 }}
-                required
               />
             </div>
             <button
               type="submit"
-              disabled={uploading}
+              disabled={uploading || isSubmitting}
               style={{
                 alignSelf: "flex-start",
                 background: "#fff",
@@ -272,12 +283,12 @@ function ManageCollections() {
                 border: "none",
                 borderRadius: "4px",
                 fontWeight: "bold",
-                cursor: "pointer",
+                cursor: uploading || isSubmitting ? "not-allowed" : "pointer",
                 padding: "0.8rem 1.5rem",
-                opacity: uploading ? 0.6 : 1,
+                opacity: uploading || isSubmitting ? 0.6 : 1,
               }}
             >
-              AÑADIR COLECCIÓN AL CARRUSEL
+              {isSubmitting ? "GUARDANDO..." : "AÑADIR COLECCIÓN AL CARRUSEL"}
             </button>
           </form>
         </div>
