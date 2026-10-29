@@ -595,14 +595,17 @@ function Home(_props: { openPanel: (panel: string) => void }) {
       {
         title: "NEW ARRIVALS",
         image: "/assets/cat-new-arrivals.png",
+        url: "/shop?category=NEW%20ARRIVALS",
       },
       {
         title: "ACCESORIOS",
         image: "/assets/cat-accesorios.png",
+        url: "/shop?category=ACCESORIOS",
       },
       {
         title: "MERCH",
         image: "/assets/cat-merch.png",
+        url: "/shop?category=MERCH",
       },
       {
         title: "BEST SELLERS",
@@ -613,6 +616,7 @@ function Home(_props: { openPanel: (panel: string) => void }) {
           )?.image ||
           products[0]?.image ||
           "/assets/cat-new-arrivals.png",
+        url: "/shop?filter=bestsellers",
       },
     ],
     [bestSellers, products],
@@ -681,7 +685,7 @@ function Home(_props: { openPanel: (panel: string) => void }) {
         {categories.map((category) => (
           <Link
             key={category.title}
-            to={`/shop?category=${encodeURIComponent(category.title)}`}
+            to={category.url}
             style={{
               padding: 0,
               border: 0,
@@ -723,96 +727,6 @@ function Home(_props: { openPanel: (panel: string) => void }) {
             <strong>{category.title}</strong>
           </Link>
         ))}
-      </section>
-
-      {/* SECCIÓN DINÁMICA DE BEST SELLERS */}
-      <section
-        className="home-best-sellers"
-        style={{
-          padding: "2.5rem 24px 3rem",
-          maxWidth: "1400px",
-          margin: "0 auto",
-          width: "100%",
-          boxSizing: "border-box",
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "flex-end",
-            marginBottom: "1.75rem",
-            borderBottom: "1px solid #1a1a1a",
-            paddingBottom: "0.75rem",
-          }}
-        >
-          <div>
-            <p
-              style={{
-                margin: "0 0 4px",
-                fontFamily: '"Barlow Condensed", sans-serif',
-                fontSize: "11px",
-                fontWeight: 600,
-                letterSpacing: "2px",
-                color: "#888",
-                textTransform: "uppercase",
-              }}
-            >
-              GONE SURFING / DESTACADOS
-            </p>
-            <h2
-              style={{
-                margin: 0,
-                fontFamily: '"Barlow Condensed", sans-serif',
-                fontSize: "clamp(28px, 4.5vw, 42px)",
-                fontWeight: 800,
-                letterSpacing: "-0.5px",
-                textTransform: "uppercase",
-                lineHeight: 1,
-              }}
-            >
-              BEST SELLERS
-            </h2>
-          </div>
-          <Link
-            to="/shop?category=BEST%20SELLERS"
-            style={{
-              fontFamily: '"Barlow Condensed", sans-serif',
-              fontSize: "12px",
-              fontWeight: 700,
-              letterSpacing: "1.5px",
-              textTransform: "uppercase",
-              color: "inherit",
-              textDecoration: "none",
-              borderBottom: "1px solid currentColor",
-              paddingBottom: "2px",
-            }}
-          >
-            VER TODO &rarr;
-          </Link>
-        </div>
-
-        {bestSellers.length === 0 ? (
-          <div
-            style={{
-              padding: "3rem 1rem",
-              textAlign: "center",
-              color: "#888",
-              fontFamily: '"Barlow Condensed", sans-serif',
-              fontSize: "1.1rem",
-              letterSpacing: "1px",
-              textTransform: "uppercase",
-            }}
-          >
-            Nuevos ingresos próximamente...
-          </div>
-        ) : (
-          <div className="product-grid">
-            {bestSellers.map((product) => (
-              <ProductCard key={product.id} product={product} />
-            ))}
-          </div>
-        )}
       </section>
 
       <section
@@ -1012,59 +926,62 @@ function ProductCard({ product }: { product: Product }) {
 function Shop() {
   const { products, transactions } = useStore()
   const [params, setParams] = useSearchParams()
-  const category = sanitizeUrlParam(params.get("category")).toUpperCase()
+  const filterParam = sanitizeUrlParam(params.get("filter")).toLowerCase()
+  const rawCategory = sanitizeUrlParam(params.get("category")).toUpperCase()
+  const isBestSellers =
+    filterParam === "bestsellers" || rawCategory === "BEST SELLERS"
+  const category = isBestSellers ? "BEST SELLERS" : rawCategory
   const collectionParam = sanitizeUrlParam(params.get("collection"))
   const searchParam = sanitizeUrlParam(params.get("search")).toLowerCase()
   const navigate = useNavigate()
 
-  const bestSellerIds = useMemo(() => {
-    if (!products || products.length === 0) return new Set<string>()
-
-    const salesMap: Record<string, number> = {}
-    if (Array.isArray(transactions)) {
-      for (const t of transactions) {
-        if (Array.isArray(t.items)) {
-          for (const item of t.items) {
-            salesMap[item.productId] =
-              (salesMap[item.productId] || 0) + (item.quantity || 1)
-          }
-        }
-      }
-    }
-
-    const sorted = [...products].sort((a, b) => {
-      const countA = (a.salesCount ?? salesMap[a.id]) || 0
-      const countB = (b.salesCount ?? salesMap[b.id]) || 0
-      return countB - countA
-    })
-    return new Set(sorted.slice(0, 4).map((p) => p.id))
-  }, [products, transactions])
-
   const visibleProducts = useMemo(() => {
-    return products.filter((p) => {
+    const filtered = products.filter((p) => {
       if (searchParam)
         return (
           p.name.toLowerCase().includes(searchParam) ||
           p.category.toLowerCase().includes(searchParam)
         )
       if (collectionParam) return p.collectionName === collectionParam
+      if (isBestSellers) return true
       if (!category || category === "ALL PRODUCTS") return true
       const prodCat = p.category.toUpperCase().trim()
       if (category === "NEW ARRIVALS") return prodCat === "NEW ARRIVALS"
       if (category === "ACCESORIOS") return prodCat === "ACCESORIOS"
       if (category === "MERCH") return prodCat === "MERCH"
-      if (category === "BEST SELLERS") {
-        return prodCat === "BEST SELLERS" || bestSellerIds.has(p.id)
-      }
       return prodCat === category
     })
-  }, [products, searchParam, collectionParam, category, bestSellerIds])
+
+    if (isBestSellers) {
+      const salesMap: Record<string, number> = {}
+      if (Array.isArray(transactions)) {
+        for (const t of transactions) {
+          if (Array.isArray(t.items)) {
+            for (const item of t.items) {
+              salesMap[item.productId] =
+                (salesMap[item.productId] || 0) + (item.quantity || 1)
+            }
+          }
+        }
+      }
+
+      return [...filtered].sort((a, b) => {
+        const countA = (a.salesCount ?? salesMap[a.id]) || 0
+        const countB = (b.salesCount ?? salesMap[b.id]) || 0
+        return countB - countA
+      })
+    }
+
+    return filtered
+  }, [products, searchParam, collectionParam, category, isBestSellers, transactions])
 
   const pageTitle = searchParam
     ? `RESULTADOS PARA: "${searchParam.toUpperCase()}"`
     : collectionParam
       ? `COLECCIÓN: ${collectionParam}`
-      : category || "ALL PRODUCTS"
+      : isBestSellers
+        ? "BEST SELLERS"
+        : category || "ALL PRODUCTS"
   const shopCategories = [
     "ALL PRODUCTS",
     "NEW ARRIVALS",
@@ -1123,13 +1040,17 @@ function Shop() {
             {shopCategories.map((cat) => {
               const isActive =
                 !collectionParam &&
-                (category === cat || (!category && cat === "ALL PRODUCTS"))
+                ((cat === "BEST SELLERS" && isBestSellers) ||
+                  (category === cat && !isBestSellers) ||
+                  (!category && !isBestSellers && cat === "ALL PRODUCTS"))
               return (
                 <button
                   key={cat}
                   onClick={() => {
                     if (cat === "ALL PRODUCTS") {
                       navigate("/shop")
+                    } else if (cat === "BEST SELLERS") {
+                      setParams({ filter: "bestsellers" })
                     } else {
                       setParams({ category: cat })
                     }
