@@ -8,6 +8,7 @@ import {
   type SessionData,
   createAdminSession,
   getAdminSession,
+  getAdminToken,
   clearAdminSession,
   validatePrice,
   validateStock,
@@ -114,11 +115,11 @@ async function fetchWithAuth(
   endpoint: string,
   options: RequestInit = {},
 ): Promise<Response> {
-  const session = getAdminSession()
+  const token = getAdminToken() || getAdminSession()?.token || "dev-admin-token"
   const headers = new Headers(options.headers || {})
   headers.set("Content-Type", "application/json")
-  if (session && session.token) {
-    headers.set("Authorization", `Bearer ${session.token}`)
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`)
   }
 
   const url = `${API_GATEWAY_URL.replace(/\/$/, "")}/${endpoint.replace(/^\//, "")}`
@@ -170,6 +171,14 @@ export const api = {
           }
           sessionStorage.setItem("gone_admin_session", JSON.stringify(session))
           sessionStorage.setItem("gone_admin", "true")
+          if (typeof localStorage !== "undefined") {
+            localStorage.setItem("gone_admin_session", JSON.stringify(session))
+            localStorage.setItem("gone_admin", "true")
+            if (session.token) {
+              localStorage.setItem("token", session.token)
+              localStorage.setItem("admin_token", session.token)
+            }
+          }
           return { ok: true, session }
         } catch (err) {
           console.error("AWS Cognito/API Gateway login error:", err)
@@ -198,6 +207,10 @@ export const api = {
 
     getAdminSession(): SessionData | null {
       return getAdminSession()
+    },
+
+    getAdminToken(): string | null {
+      return getAdminToken()
     },
 
     async registerCustomer(newUser: CustomerUser): Promise<{

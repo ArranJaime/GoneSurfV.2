@@ -148,12 +148,21 @@ export function createAdminSession(user: string, hours = 4): SessionData {
 
   sessionStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify(session))
   sessionStorage.setItem("gone_admin", "true")
+  if (typeof localStorage !== "undefined") {
+    localStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify(session))
+    localStorage.setItem("gone_admin", "true")
+    localStorage.setItem("token", token)
+    localStorage.setItem("admin_token", token)
+  }
   return session
 }
 
 export function getAdminSession(): SessionData | null {
   try {
-    const raw = sessionStorage.getItem(ADMIN_SESSION_KEY)
+    let raw = sessionStorage.getItem(ADMIN_SESSION_KEY)
+    if (!raw && typeof localStorage !== "undefined") {
+      raw = localStorage.getItem(ADMIN_SESSION_KEY)
+    }
     if (!raw) return null
     const parsed: SessionData = JSON.parse(raw)
     if (!parsed || !parsed.expiresAt || !parsed.token) {
@@ -171,9 +180,44 @@ export function getAdminSession(): SessionData | null {
   }
 }
 
+export function getAdminToken(): string | null {
+  const session = getAdminSession()
+  if (session?.token) return session.token
+
+  if (typeof localStorage !== "undefined") {
+    try {
+      const raw = localStorage.getItem(ADMIN_SESSION_KEY)
+      if (raw) {
+        const parsed = JSON.parse(raw)
+        if (parsed?.token) return parsed.token
+      }
+    } catch {}
+    const localToken =
+      localStorage.getItem("token") ||
+      localStorage.getItem("admin_token") ||
+      localStorage.getItem("auth_token")
+    if (localToken) return localToken
+  }
+
+  if (typeof sessionStorage !== "undefined") {
+    const sessionToken =
+      sessionStorage.getItem("token") ||
+      sessionStorage.getItem("admin_token")
+    if (sessionToken) return sessionToken
+  }
+
+  return null
+}
+
 export function clearAdminSession(): void {
   sessionStorage.removeItem(ADMIN_SESSION_KEY)
   sessionStorage.removeItem("gone_admin")
+  if (typeof localStorage !== "undefined") {
+    localStorage.removeItem(ADMIN_SESSION_KEY)
+    localStorage.removeItem("gone_admin")
+    localStorage.removeItem("token")
+    localStorage.removeItem("admin_token")
+  }
 }
 
 export function isSessionExpired(session: SessionData | null): boolean {
