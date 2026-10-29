@@ -566,21 +566,6 @@ function Home(_props: { openPanel: (panel: string) => void }) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const [isPlaying, setIsPlaying] = useState(false)
 
-  const categories = [
-    {
-      title: "NEW ARRIVALS",
-      image: "/assets/cat-new-arrivals.png",
-    },
-    {
-      title: "ACCESORIOS",
-      image: "/assets/cat-accesorios.png",
-    },
-    {
-      title: "MERCH",
-      image: "/assets/cat-merch.png",
-    },
-  ]
-
   const bestSellers = useMemo(() => {
     if (!products || products.length === 0) return []
 
@@ -613,6 +598,34 @@ function Home(_props: { openPanel: (panel: string) => void }) {
     // Fallback: 4 primeros / más recientes
     return products.slice(0, 4)
   }, [products, transactions])
+
+  const categories = useMemo(
+    () => [
+      {
+        title: "NEW ARRIVALS",
+        image: "/assets/cat-new-arrivals.png",
+      },
+      {
+        title: "ACCESORIOS",
+        image: "/assets/cat-accesorios.png",
+      },
+      {
+        title: "MERCH",
+        image: "/assets/cat-merch.png",
+      },
+      {
+        title: "BEST SELLERS",
+        image:
+          bestSellers[0]?.image ||
+          products.find(
+            (p) => p.category?.toUpperCase() === "BEST SELLERS" && p.image,
+          )?.image ||
+          products[0]?.image ||
+          "/assets/cat-new-arrivals.png",
+      },
+    ],
+    [bestSellers, products],
+  )
 
   const stories = [
     { title: "STAY REAL", image: "/assets/story.jpg", url: "about" },
@@ -665,7 +678,15 @@ function Home(_props: { openPanel: (panel: string) => void }) {
       >
         <img src="/assets/hero-surf.jpg" alt="Surfista" />
       </button>
-      <section className="category-grid" aria-label="Colecciones">
+      <section
+        className="category-grid"
+        aria-label="Colecciones"
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(4, 1fr)",
+          gap: "20px",
+        }}
+      >
         {categories.map((category) => (
           <Link
             key={category.title}
@@ -673,22 +694,38 @@ function Home(_props: { openPanel: (panel: string) => void }) {
             style={{
               padding: 0,
               border: 0,
-              background: "white",
+              background: "transparent",
               textAlign: "left",
               color: "inherit",
               textDecoration: "none",
+              display: "block",
             }}
           >
-            <span className="category-image">
+            <span
+              className="category-image"
+              style={{
+                backgroundColor: "#f5f4f2",
+                width: "100%",
+                aspectRatio: "1 / 1",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                overflow: "hidden",
+                borderRadius: "2px",
+              }}
+            >
               <img
                 src={category.image}
                 alt={category.title}
                 style={{
                   width: "100%",
                   height: "100%",
-                  objectFit: "cover",
-                  aspectRatio: "1 / 1",
+                  objectFit: "contain",
+                  padding: "16px",
+                  mixBlendMode: "multiply",
                   display: "block",
+                  boxSizing: "border-box",
+                  transition: "transform 0.4s ease",
                 }}
               />
             </span>
