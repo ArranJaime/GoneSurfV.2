@@ -504,14 +504,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     async (product: Omit<Product, "id"> | Product): Promise<Product> => {
       if ("id" in product && product.id) {
         const fullProd = product as Product
-        setProducts((prev) => [
-          fullProd,
-          ...prev.filter((p) => p.id !== fullProd.id),
-        ])
-        safeWriteStorage("gone_products", [
-          fullProd,
-          ...products.filter((p) => p.id !== fullProd.id),
-        ])
+        setProducts((prev) => {
+          const updated = [
+            fullProd,
+            ...prev.filter((p) => p.id !== fullProd.id),
+          ]
+          safeWriteStorage("gone_products", updated)
+          return updated
+        })
         broadcastSyncEvent("products")
         return fullProd
       }

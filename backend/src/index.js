@@ -23,10 +23,10 @@ const docClient = DynamoDBDocumentClient.from(ddbClient, {
 })
 const s3Client = new S3Client({ region: REGION })
 
-const PRODUCTS_TABLE = process.env.PRODUCTS_TABLE || "GoneSurfing-Products"
-const COLLECTIONS_TABLE = process.env.COLLECTIONS_TABLE || "GoneSurfing-Collections"
-const ORDERS_TABLE = process.env.ORDERS_TABLE || "GoneSurfing-Orders"
-const USERS_TABLE = process.env.USERS_TABLE || "GoneSurfing-Users"
+const PRODUCTS_TABLE = process.env.PRODUCTS_TABLE || "GoneSurfing-Products-prod"
+const COLLECTIONS_TABLE = process.env.COLLECTIONS_TABLE || "GoneSurfing-Collections-prod"
+const ORDERS_TABLE = process.env.ORDERS_TABLE || "GoneSurfing-Orders-prod"
+const USERS_TABLE = process.env.USERS_TABLE || "GoneSurfing-Users-prod"
 const MEDIA_BUCKET = process.env.MEDIA_BUCKET || ""
 const CLOUDFRONT_DOMAIN = process.env.CLOUDFRONT_DOMAIN || ""
 const JWT_SECRET = process.env.JWT_SECRET || "gone_surfing_super_secret_jwt_key_2026_sunat"
@@ -420,26 +420,42 @@ export async function handler(event) {
 
     if (httpMethod === "POST" && path === "/products") {
       const user = authenticate(headers, event)
-      if (!user || user.role !== "admin") return response(403, { message: "Acceso denegado: Requiere rol admin." })
+      if (!user || user.role !== "admin") {
+        return response(403, { message: "Acceso denegado: Requiere rol admin." })
+      }
 
       const data = parseBody(event)
       const price = parseFloat(data.price)
       if (!data.name || Number.isNaN(price) || price <= 0) {
-        return response(400, { message: "Nombre válido y precio mayor a 0 son obligatorios." })
+        return response(400, {
+          message: "Nombre válido y precio mayor a 0 son obligatorios.",
+        })
       }
 
       const isAcc = data.category === "Accesorios"
       const stocks = isAcc
-        ? { Única: Math.max(0, parseInt(data.stocks?.["Única"] || 0, 10)) }
+        ? {
+            Única: Math.max(
+              0,
+              parseInt(
+                data.stocks?.["Única"] ??
+                  data.stocks?.["Unica"] ??
+                  data.stocks?.["unica"] ??
+                  data.stocks?.["UNICA"] ??
+                  15,
+                10
+              )
+            ),
+          }
         : {
-            S: Math.max(0, parseInt(data.stocks?.S || 0, 10)),
-            M: Math.max(0, parseInt(data.stocks?.M || 0, 10)),
-            L: Math.max(0, parseInt(data.stocks?.L || 0, 10)),
-            XL: Math.max(0, parseInt(data.stocks?.XL || 0, 10)),
+            S: Math.max(0, parseInt(data.stocks?.S ?? 0, 10)),
+            M: Math.max(0, parseInt(data.stocks?.M ?? 0, 10)),
+            L: Math.max(0, parseInt(data.stocks?.L ?? 0, 10)),
+            XL: Math.max(0, parseInt(data.stocks?.XL ?? 0, 10)),
           }
 
       const newProduct = {
-        id: `prod-${Date.now()}`,
+        id: data.id || `prod-${Date.now()}`,
         name: data.name.trim(),
         price: Number(price.toFixed(2)),
         category: data.category || "New Arrivals",
@@ -449,7 +465,24 @@ export async function handler(event) {
         createdAt: new Date().toISOString(),
       }
 
-      await docClient.send(new PutCommand({ TableName: PRODUCTS_TABLE, Item: newProduct }))
+      // Ejecución explícita y esperada (await) de DynamoDB PutCommand
+      try {
+        console.log(`[DynamoDB] Guardando en tabla ${PRODUCTS_TABLE}:`, newProduct.id)
+        await docClient.send(
+          new PutCommand({
+            TableName: PRODUCTS_TABLE,
+            Item: newProduct,
+          })
+        )
+        console.log(`[DynamoDB] Guardado confirmado en ${PRODUCTS_TABLE}:`, newProduct.id)
+      } catch (dbErr) {
+        console.error(`[DynamoDB] Error crítico al ejecutar PutCommand en ${PRODUCTS_TABLE}:`, dbErr)
+        return response(500, {
+          message: "Error al persistir el producto en la base de datos DynamoDB.",
+          error: dbErr.message,
+        })
+      }
+
       return response(201, newProduct)
     }
 

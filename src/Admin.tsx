@@ -554,11 +554,19 @@ function UploadPrenda() {
           throw new Error(errData.message || `Error HTTP ${res.status}`)
         }
 
-        const createdProduct: Product = await res.json()
-        // Actualizar el estado local (añadir el producto a la tabla de la UI) solo tras respuesta 200/201
-        await addProduct(createdProduct)
+        const savedProduct: Product = await res.json()
+        if (!savedProduct || !savedProduct.id) {
+          throw new Error(
+            "La base de datos no confirmó la persistencia del producto.",
+          )
+        }
+
+        // Actualizar el estado local (añadir el producto a la tabla de la UI) solo con los datos reales retornados por la API
+        await addProduct(savedProduct)
       } else {
-        await addProduct(productPayload)
+        throw new Error(
+          "Error de configuración: VITE_API_URL no está configurada.",
+        )
       }
 
       setSuccess(true)
