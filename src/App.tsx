@@ -581,22 +581,13 @@ function Home(_props: { openPanel: (panel: string) => void }) {
       }
     }
 
-    const hasSales = products.some(
-      (p) => (p.salesCount ?? salesMap[p.id] ?? 0) > 0,
-    )
-
-    if (hasSales) {
-      return [...products]
-        .sort((a, b) => {
-          const countA = a.salesCount ?? salesMap[a.id] ?? 0
-          const countB = b.salesCount ?? salesMap[b.id] ?? 0
-          return countB - countA
-        })
-        .slice(0, 4)
-    }
-
-    // Fallback: 4 primeros / más recientes
-    return products.slice(0, 4)
+    return [...products]
+      .sort(
+        (a, b) =>
+          ((b.salesCount ?? salesMap[b.id]) || 0) -
+          ((a.salesCount ?? salesMap[a.id]) || 0),
+      )
+      .slice(0, 4)
   }, [products, transactions])
 
   const categories = useMemo(
@@ -732,6 +723,96 @@ function Home(_props: { openPanel: (panel: string) => void }) {
             <strong>{category.title}</strong>
           </Link>
         ))}
+      </section>
+
+      {/* SECCIÓN DINÁMICA DE BEST SELLERS */}
+      <section
+        className="home-best-sellers"
+        style={{
+          padding: "2.5rem 24px 3rem",
+          maxWidth: "1400px",
+          margin: "0 auto",
+          width: "100%",
+          boxSizing: "border-box",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "flex-end",
+            marginBottom: "1.75rem",
+            borderBottom: "1px solid #1a1a1a",
+            paddingBottom: "0.75rem",
+          }}
+        >
+          <div>
+            <p
+              style={{
+                margin: "0 0 4px",
+                fontFamily: '"Barlow Condensed", sans-serif',
+                fontSize: "11px",
+                fontWeight: 600,
+                letterSpacing: "2px",
+                color: "#888",
+                textTransform: "uppercase",
+              }}
+            >
+              GONE SURFING / DESTACADOS
+            </p>
+            <h2
+              style={{
+                margin: 0,
+                fontFamily: '"Barlow Condensed", sans-serif',
+                fontSize: "clamp(28px, 4.5vw, 42px)",
+                fontWeight: 800,
+                letterSpacing: "-0.5px",
+                textTransform: "uppercase",
+                lineHeight: 1,
+              }}
+            >
+              BEST SELLERS
+            </h2>
+          </div>
+          <Link
+            to="/shop?category=BEST%20SELLERS"
+            style={{
+              fontFamily: '"Barlow Condensed", sans-serif',
+              fontSize: "12px",
+              fontWeight: 700,
+              letterSpacing: "1.5px",
+              textTransform: "uppercase",
+              color: "inherit",
+              textDecoration: "none",
+              borderBottom: "1px solid currentColor",
+              paddingBottom: "2px",
+            }}
+          >
+            VER TODO &rarr;
+          </Link>
+        </div>
+
+        {bestSellers.length === 0 ? (
+          <div
+            style={{
+              padding: "3rem 1rem",
+              textAlign: "center",
+              color: "#888",
+              fontFamily: '"Barlow Condensed", sans-serif',
+              fontSize: "1.1rem",
+              letterSpacing: "1px",
+              textTransform: "uppercase",
+            }}
+          >
+            Nuevos ingresos próximamente...
+          </div>
+        ) : (
+          <div className="product-grid">
+            {bestSellers.map((product) => (
+              <ProductCard key={product.id} product={product} />
+            ))}
+          </div>
+        )}
       </section>
 
       <section
@@ -951,20 +1032,12 @@ function Shop() {
       }
     }
 
-    const hasSales = products.some(
-      (p) => (p.salesCount ?? salesMap[p.id] ?? 0) > 0,
-    )
-
-    if (hasSales) {
-      const sorted = [...products].sort((a, b) => {
-        const countA = a.salesCount ?? salesMap[a.id] ?? 0
-        const countB = b.salesCount ?? salesMap[b.id] ?? 0
-        return countB - countA
-      })
-      return new Set(sorted.slice(0, 4).map((p) => p.id))
-    }
-
-    return new Set(products.slice(0, 4).map((p) => p.id))
+    const sorted = [...products].sort((a, b) => {
+      const countA = (a.salesCount ?? salesMap[a.id]) || 0
+      const countB = (b.salesCount ?? salesMap[b.id]) || 0
+      return countB - countA
+    })
+    return new Set(sorted.slice(0, 4).map((p) => p.id))
   }, [products, transactions])
 
   const visibleProducts = useMemo(() => {
@@ -1122,7 +1195,9 @@ function Shop() {
               lineHeight: 1.1,
             }}
           >
-            Nuevos ingresos próximamente...
+            {category === "BEST SELLERS"
+              ? "Nuevos ingresos próximamente..."
+              : "El catálogo se está actualizando. Vuelve pronto."}
           </h2>
           <p
             style={{

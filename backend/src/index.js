@@ -77,44 +77,7 @@ function parseBody(event) {
 // -----------------------------------------------------------------------------
 // Initial Seed Data
 // -----------------------------------------------------------------------------
-const INITIAL_PRODUCTS = [
-  {
-    id: "p1",
-    name: "Stay Real Tee",
-    price: 109.0,
-    category: "Merch",
-    collectionName: "The slow days",
-    image: "/assets/hero-surf.jpg",
-    stocks: { S: 8, M: 12, L: 9, XL: 4 },
-  },
-  {
-    id: "p2",
-    name: "Stay Real Cap",
-    price: 89.0,
-    category: "Accesorios",
-    collectionName: "Catálogo General",
-    image: "/assets/cap.jpg",
-    stocks: { Única: 18 },
-  },
-  {
-    id: "p3",
-    name: "Gone Surf Leash",
-    price: 119.0,
-    category: "Accesorios",
-    collectionName: "The Blue",
-    image: "/assets/leash.jpg",
-    stocks: { Única: 12 },
-  },
-  {
-    id: "p4",
-    name: "Off Duty Tee",
-    price: 99.0,
-    category: "Merch",
-    collectionName: "The slow days",
-    image: "/assets/story.jpg",
-    stocks: { S: 10, M: 15, L: 15, XL: 5 },
-  },
-]
+const INITIAL_PRODUCTS = []
 
 const INITIAL_COLLECTIONS = [
   {
@@ -322,11 +285,24 @@ export async function handler(event) {
     // -------------------------------------------------------------------------
     if (httpMethod === "GET" && path === "/products") {
       const scanResult = await docClient.send(new ScanCommand({ TableName: PRODUCTS_TABLE }))
-      return response(200, scanResult.Items || [])
+      const MOCK_IDS = new Set(["p1", "p2", "p3", "p4"])
+      const MOCK_NAMES = new Set([
+        "Stay Real Tee",
+        "Stay Real Cap",
+        "Gone Surf Leash",
+        "Off Duty Tee",
+      ])
+      const items = (scanResult.Items || []).filter(
+        (item) => !MOCK_IDS.has(item.id) && !MOCK_NAMES.has(item.name)
+      )
+      return response(200, items)
     }
 
     if (httpMethod === "GET" && path.startsWith("/products/")) {
       const id = path.replace("/products/", "")
+      if (["p1", "p2", "p3", "p4"].includes(id)) {
+        return response(404, { message: "Producto no encontrado." })
+      }
       const res = await docClient.send(new GetCommand({ TableName: PRODUCTS_TABLE, Key: { id } }))
       if (!res.Item) return response(404, { message: "Producto no encontrado." })
       return response(200, res.Item)

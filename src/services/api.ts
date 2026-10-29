@@ -320,12 +320,22 @@ export const api = {
   // ---------------------------------------------------------------------------
   products: {
     async getAll(): Promise<Product[]> {
+      const MOCK_IDS = new Set(["p1", "p2", "p3", "p4"])
+      const MOCK_NAMES = new Set([
+        "Stay Real Tee",
+        "Stay Real Cap",
+        "Gone Surf Leash",
+        "Off Duty Tee",
+      ])
+      const isClean = (p: Product) =>
+        p && !MOCK_IDS.has(p.id) && !MOCK_NAMES.has(p.name)
+
       if (STORAGE_MODE === "aws" && API_GATEWAY_URL) {
         try {
           const res = await fetch(`${API_GATEWAY_URL}/products`)
           if (res.ok) {
             const data = await res.json()
-            return Array.isArray(data) ? data : []
+            return Array.isArray(data) ? data.filter(isClean) : []
           }
         } catch (err) {
           console.warn(
@@ -336,7 +346,7 @@ export const api = {
       }
 
       const items = readStorage<Product[]>("gone_products", [])
-      return Array.isArray(items) ? items : []
+      return Array.isArray(items) ? items.filter(isClean) : []
     },
 
     async getById(id: string): Promise<Product | null> {

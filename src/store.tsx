@@ -125,19 +125,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }),
   )
 
-  const [products, setProducts] = useState<Product[]>(() =>
-    safeReadStorage("gone_products", [], (parsed) => {
-      if (!Array.isArray(parsed)) return null
-      return parsed.filter((p): p is Product =>
-        Boolean(
-          p &&
-          typeof p.name === "string" &&
-          p.name.trim() !== "" &&
-          !["p1", "p2", "p3", "p4"].includes(p.id),
-        ),
-      )
-    }),
-  )
+  const [products, setProducts] = useState<Product[]>([])
 
   const [cart, setCart] = useState<CartItem[]>(() =>
     safeReadStorage("gone_cart", [], (parsed) =>
@@ -169,7 +157,21 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         })
       : []
     setCollections(uniqueCols)
-    setProducts(safeReadStorage("gone_products", []))
+
+    const rawProds = safeReadStorage<Product[]>("gone_products", [])
+    const MOCK_IDS = new Set(["p1", "p2", "p3", "p4"])
+    const MOCK_NAMES = new Set([
+      "Stay Real Tee",
+      "Stay Real Cap",
+      "Gone Surf Leash",
+      "Off Duty Tee",
+    ])
+    const cleanProds = Array.isArray(rawProds)
+      ? rawProds.filter(
+          (p) => !MOCK_IDS.has(p?.id) && !MOCK_NAMES.has(p?.name),
+        )
+      : []
+    setProducts(cleanProds)
     setTransactions(safeReadStorage("gone_transactions", []))
     setCart(safeReadStorage("gone_cart", []))
     setUsers(safeReadStorage("gone_users", []))
@@ -196,12 +198,47 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   // Sincronizar catálogo real y órdenes vivas desde API en el arranque
   useEffect(() => {
+    // Purga cualquier producto mockup residual de localStorage
+    try {
+      const stored = localStorage.getItem("gone_products")
+      if (stored) {
+        const parsed = JSON.parse(stored)
+        if (Array.isArray(parsed)) {
+          const MOCK_IDS = new Set(["p1", "p2", "p3", "p4"])
+          const MOCK_NAMES = new Set([
+            "Stay Real Tee",
+            "Stay Real Cap",
+            "Gone Surf Leash",
+            "Off Duty Tee",
+          ])
+          const clean = parsed.filter(
+            (p: any) => !MOCK_IDS.has(p?.id) && !MOCK_NAMES.has(p?.name),
+          )
+          if (clean.length !== parsed.length) {
+            localStorage.setItem("gone_products", JSON.stringify(clean))
+          }
+        }
+      }
+    } catch {
+      // ignore
+    }
+
     api.products
       .getAll()
       .then((liveProducts) => {
         if (Array.isArray(liveProducts)) {
-          setProducts(liveProducts)
-          safeWriteStorage("gone_products", liveProducts)
+          const MOCK_IDS = new Set(["p1", "p2", "p3", "p4"])
+          const MOCK_NAMES = new Set([
+            "Stay Real Tee",
+            "Stay Real Cap",
+            "Gone Surf Leash",
+            "Off Duty Tee",
+          ])
+          const clean = liveProducts.filter(
+            (p) => !MOCK_IDS.has(p.id) && !MOCK_NAMES.has(p.name),
+          )
+          setProducts(clean)
+          safeWriteStorage("gone_products", clean)
         }
       })
       .catch((err) => {
