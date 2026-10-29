@@ -427,7 +427,7 @@ export async function handler(event) {
     }
 
     if (httpMethod === "GET" && path.startsWith("/products/")) {
-      const id = path.replace("/products/", "")
+      const id = path.replace(/^\/products\//, "").replace(/\/.*$/, "")
       if (["p1", "p2", "p3", "p4"].includes(id)) {
         return response(404, { message: "Producto no encontrado." })
       }
@@ -510,7 +510,7 @@ export async function handler(event) {
       const user = authenticate(headers, event)
       if (!user || user.role !== "admin") return response(403, { message: "Acceso denegado." })
 
-      const id = path.replace("/products/", "")
+      const id = path.replace(/^\/products\//, "").replace(/\/.*$/, "")
       const data = parseBody(event)
 
       const existing = await docClient.send(new GetCommand({ TableName: PRODUCTS_TABLE, Key: { id } }))
@@ -536,7 +536,7 @@ export async function handler(event) {
       const user = authenticate(headers, event)
       if (!user || user.role !== "admin") return response(403, { message: "Acceso denegado." })
 
-      const id = path.replace("/products/", "")
+      const id = path.replace(/^\/products\//, "").replace(/\/.*$/, "")
       await docClient.send(new DeleteCommand({ TableName: PRODUCTS_TABLE, Key: { id } }))
       return response(200, { success: true })
     }
@@ -576,7 +576,8 @@ export async function handler(event) {
       const user = authenticate(headers, event)
       if (!user || user.role !== "admin") return response(403, { message: "Acceso denegado." })
 
-      const id = path.split("/")[2]
+      const match = path.match(/\/collections\/([^/]+)\/toggle/)
+      const id = match ? match[1] : path.split("/")[2]
       const current = await docClient.send(new GetCommand({ TableName: COLLECTIONS_TABLE, Key: { id } }))
       if (!current.Item) return response(404, { message: "Colección no encontrada." })
 
@@ -589,7 +590,7 @@ export async function handler(event) {
       const user = authenticate(headers, event)
       if (!user || user.role !== "admin") return response(403, { message: "Acceso denegado." })
 
-      const id = path.replace("/collections/", "")
+      const id = path.replace(/^\/collections\//, "").replace(/\/.*$/, "")
       const colRecord = await docClient.send(new GetCommand({ TableName: COLLECTIONS_TABLE, Key: { id } }))
 
       // Reassign affected products to General Catalog
@@ -738,7 +739,8 @@ export async function handler(event) {
       const user = authenticate(headers, event)
       if (!user || user.role !== "admin") return response(403, { message: "Acceso denegado." })
 
-      const id = path.split("/")[2]
+      const match = path.match(/\/orders\/([^/]+)\/status/)
+      const id = match ? match[1] : path.split("/")[2]
       const { status } = parseBody(event)
       const orderRes = await docClient.send(new GetCommand({ TableName: ORDERS_TABLE, Key: { id } }))
       if (!orderRes.Item) return response(404, { message: "Orden no encontrada." })

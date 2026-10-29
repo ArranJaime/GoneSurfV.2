@@ -240,7 +240,11 @@ export const api = {
             }
           }
           const saved = await res.json()
-          return { ok: true, user: saved }
+          const customer = saved.user || saved
+          sessionStorage.setItem("gone_customer", "true")
+          sessionStorage.setItem("gone_current_user", JSON.stringify(customer))
+          broadcastSyncEvent("users")
+          return { ok: true, user: customer }
         } catch {
           return { ok: false, error: "Error de conexión con el backend AWS." }
         }
@@ -288,10 +292,15 @@ export const api = {
             body: JSON.stringify({ email: cleanEmail, password: pass }),
           })
           if (!res.ok) return null
-          const user = await res.json()
+          const data = await res.json()
+          const customer: CustomerUser = data.user || data
           sessionStorage.setItem("gone_customer", "true")
-          sessionStorage.setItem("gone_current_user", JSON.stringify(user))
-          return user
+          sessionStorage.setItem("gone_current_user", JSON.stringify(customer))
+          if (data.token) {
+            sessionStorage.setItem("customer_token", data.token)
+          }
+          broadcastSyncEvent("users")
+          return customer
         } catch {
           return null
         }
@@ -436,6 +445,9 @@ export const api = {
           })
           if (res.ok) {
             const updated = await res.json()
+            const current = readStorage<Product[]>("gone_products", INITIAL_PRODUCTS)
+            const nextList = current.map((p) => (p.id === id ? { ...p, ...updated } : p))
+            writeStorage("gone_products", nextList)
             broadcastSyncEvent("products")
             return updated
           }
@@ -505,18 +517,35 @@ export const api = {
 
     async updateStock(id: string, size: Size, delta: number): Promise<Product> {
       const current = readStorage<Product[]>("gone_products", INITIAL_PRODUCTS)
-      let modified: Product | null = null
+      const target = current.find((p) => p.id === id)
+      const currentUnits = target?.stocks?.[size] || 0
+      const nextUnits = Math.max(0, currentUnits + delta)
+      const nextStocks = { ...(target?.stocks || {}), [size]: nextUnits }
 
+      if (STORAGE_MODE === "aws" && API_GATEWAY_URL) {
+        try {
+          const res = await fetchWithAuth(`/products/${id}`, {
+            method: "PUT",
+            body: JSON.stringify({ stocks: nextStocks }),
+          })
+          if (res.ok) {
+            const updated = await res.json()
+            const nextList = current.map((p) => (p.id === id ? updated : p))
+            writeStorage("gone_products", nextList)
+            broadcastSyncEvent("products")
+            return updated
+          }
+        } catch (err) {
+          console.error("Fallo al actualizar stock en AWS:", err)
+        }
+      }
+
+      let modified: Product | null = null
       const updated = current.map((p) => {
         if (p.id !== id) return p
-        const currentUnits = p.stocks[size] || 0
-        const nextUnits = Math.max(0, currentUnits + delta)
         modified = {
           ...p,
-          stocks: {
-            ...p.stocks,
-            [size]: nextUnits,
-          },
+          stocks: nextStocks,
         }
         return modified
       })
@@ -533,7 +562,16 @@ export const api = {
             method: "DELETE",
           })
           if (res.ok) {
+            const current = readStorage<Product[]>("gone_products", INITIAL_PRODUCTS)
+            const filtered = current.filter((p) => p.id !== id)
+            writeStorage("gone_products", filtered)
+
+            const cart = readStorage<CartItem[]>("gone_cart", [])
+            const cleanCart = cart.filter((i) => i.productId !== id)
+            writeStorage("gone_cart", cleanCart)
+
             broadcastSyncEvent("products")
+            broadcastSyncEvent("cart")
             return true
           }
           const errData = await res.json().catch(() => ({}))
@@ -606,6 +644,13 @@ export const api = {
           })
           if (res.ok) {
             const saved = await res.json()
+            const current = readStorage<CollectionData[]>(
+              "gone_collections",
+              INITIAL_COLLECTIONS,
+            )
+            const filtered = current.filter((c) => c.id !== saved.id)
+            const updated = [...filtered, saved]
+            writeStorage("gone_collections", updated)
             broadcastSyncEvent("collections")
             return saved
           }
@@ -626,6 +671,27 @@ export const api = {
     },
 
     async toggle(id: string): Promise<CollectionData> {
+      if (STORAGE_MODE === "aws" && API_GATEWAY_URL) {
+        try {
+          const res = await fetchWithAuth(`/collections/${id}/toggle`, {
+            method: "PATCH",
+          })
+          if (res.ok) {
+            const toggled = await res.json()
+            const current = readStorage<CollectionData[]>(
+              "gone_collections",
+              INITIAL_COLLECTIONS,
+            )
+            const updated = current.map((c) => (c.id === id ? toggled : c))
+            writeStorage("gone_collections", updated)
+            broadcastSyncEvent("collections")
+            return toggled
+          }
+        } catch (err) {
+          console.error("Fallo al alternar colección en AWS:", err)
+        }
+      }
+
       const current = readStorage<CollectionData[]>(
         "gone_collections",
         INITIAL_COLLECTIONS,
@@ -650,8 +716,15 @@ export const api = {
             method: "DELETE",
           })
           if (res.ok) {
+            const current = readStorage<CollectionData[]>(
+              "gone_collections",
+              INITIAL_COLLECTIONS,
+            )
+            const filtered = current.filter((c) => c.id !== id)
+            writeStorage("gone_collections", filtered)
             broadcastSyncEvent("collections")
             broadcastSyncEvent("products")
+            return true
           }
         } catch (err) {
           console.error("Fallo al eliminar colección en AWS:", err)
@@ -780,8 +853,15 @@ export const api = {
           })
           if (res.ok) {
             const saved = await res.json()
+            const currentOrders = readStorage<OrderTransaction[]>(
+              "gone_transactions",
+              [],
+            )
+            writeStorage("gone_transactions", [saved, ...currentOrders])
+            writeStorage("gone_cart", [])
             broadcastSyncEvent("orders")
             broadcastSyncEvent("products")
+            broadcastSyncEvent("cart")
             return saved
           } else {
             const errBody = await res.json().catch(() => ({}))
@@ -851,6 +931,9 @@ export const api = {
           })
           if (res.ok) {
             const updated = await res.json()
+            const orders = readStorage<OrderTransaction[]>("gone_transactions", [])
+            const updatedOrders = orders.map((o) => (o.id === id ? { ...o, status: nextStatus } : o))
+            writeStorage("gone_transactions", updatedOrders)
             broadcastSyncEvent("orders")
             broadcastSyncEvent("products")
             return updated

@@ -564,6 +564,11 @@ function UploadPrenda() {
       "https://d1137rlqok2t6n.cloudfront.net"
     ).replace(/\/$/, "")
 
+    if (uploading) {
+      alert("La imagen aún se está subiendo al servidor. Por favor espera unos segundos.")
+      return
+    }
+
     // Garantizar que la imagen no sea un File, ni fakepath, ni vacío
     let finalPublicUrl = (image || "").trim()
     if (!cleanName || !finalPublicUrl || !validPrice.valid) {

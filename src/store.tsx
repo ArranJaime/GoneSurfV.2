@@ -568,20 +568,34 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       }
 
       const saved = await api.products.create(product)
-      setProducts((prev) => [
-        saved,
-        ...prev.filter((p) => p.id !== saved.id),
-      ])
+      setProducts((prev) => {
+        const updated = [
+          saved,
+          ...prev.filter((p) => p.id !== saved.id),
+        ]
+        safeWriteStorage("gone_products", updated)
+        return updated
+      })
+      broadcastSyncEvent("products")
       return saved
     },
-    [products],
+    [],
   )
 
   const updateProduct = useCallback(
     (id: string, updates: Partial<Omit<Product, "id">>) => {
-      api.products.update(id, updates).then((updated) => {
-        setProducts((prev) => prev.map((p) => (p.id === id ? updated : p)))
-      })
+      api.products
+        .update(id, updates)
+        .then((updated) => {
+          setProducts((prev) => {
+            const next = prev.map((p) => (p.id === id ? updated : p))
+            safeWriteStorage("gone_products", next)
+            return next
+          })
+        })
+        .catch((err) => {
+          console.error("[Store] Error al actualizar producto:", err)
+        })
     },
     [],
   )
@@ -618,33 +632,69 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   )
 
   const toggleCollection = useCallback((id: string) => {
-    api.collections.toggle(id).then((toggled) => {
-      setCollections((prev) => prev.map((c) => (c.id === id ? toggled : c)))
-    })
+    api.collections
+      .toggle(id)
+      .then((toggled) => {
+        setCollections((prev) => {
+          const next = prev.map((c) => (c.id === id ? toggled : c))
+          safeWriteStorage("gone_collections", next)
+          return next
+        })
+      })
+      .catch((err) => {
+        console.error("[Store] Error al alternar colección:", err)
+      })
   }, [])
 
   const deleteCollection = useCallback(
     (id: string) => {
-      api.collections.delete(id).then(() => {
-        setCollections((prev) => prev.filter((c) => c.id !== id))
-        reloadFromStorage()
-      })
+      api.collections
+        .delete(id)
+        .then(() => {
+          setCollections((prev) => {
+            const next = prev.filter((c) => c.id !== id)
+            safeWriteStorage("gone_collections", next)
+            return next
+          })
+          reloadFromStorage()
+        })
+        .catch((err) => {
+          console.error("[Store] Error al eliminar colección:", err)
+        })
     },
     [reloadFromStorage],
   )
 
   const deleteProduct = useCallback((id: string) => {
-    api.products.delete(id).then(() => {
-      setProducts((prev) => prev.filter((p) => p.id !== id))
-      setCart((prev) => prev.filter((item) => item.productId !== id))
-    })
+    api.products
+      .delete(id)
+      .then(() => {
+        setProducts((prev) => {
+          const updated = prev.filter((p) => p.id !== id)
+          safeWriteStorage("gone_products", updated)
+          return updated
+        })
+        setCart((prev) => {
+          const updated = prev.filter((item) => item.productId !== id)
+          safeWriteStorage("gone_cart", updated)
+          return updated
+        })
+      })
+      .catch((err) => {
+        console.error("[Store] Error al eliminar producto:", err)
+      })
   }, [])
 
   const updateOrderStatus = useCallback(
     (id: string, nextStatus: OrderStatus) => {
-      api.orders.updateStatus(id, nextStatus).then(() => {
-        reloadFromStorage()
-      })
+      api.orders
+        .updateStatus(id, nextStatus)
+        .then(() => {
+          reloadFromStorage()
+        })
+        .catch((err) => {
+          console.error("[Store] Error al actualizar estado de orden:", err)
+        })
     },
     [reloadFromStorage],
   )
