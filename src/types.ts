@@ -47,6 +47,8 @@ export interface CustomerUser {
   createdAt?: string
   updatedAt?: string
   isGuest?: boolean
+  status?: string
+  cognitoId?: string
 }
 
 export type User = CustomerUser
@@ -84,6 +86,8 @@ export interface OrderTransaction extends OrderDetailsInput {
   paymentMethod: OrderPaymentMethod
   reference?: string
   isGuest?: boolean
+  userStatus?: string
+  cognitoId?: string
 }
 
 export type Order = OrderTransaction

@@ -1,5 +1,6 @@
 import { useMemo } from "react"
 import { useStore } from "../../store"
+import { useClients } from "../../hooks/useClients"
 import type { OrderTransaction } from "../../types"
 import { formatPEN } from "../../utils/accounting"
 
@@ -15,6 +16,7 @@ export interface DirectoryCustomerRow {
   reference?: string
   district: string
   isRegistered: boolean
+  cognitoId?: string
   ordersCount: number
   totalSpent: number
 }
@@ -24,8 +26,21 @@ export interface ManageCustomersProps {
 }
 
 export default function ManageCustomers({ orders }: ManageCustomersProps = {}) {
-  const { users, transactions: storeTransactions, deleteUser } = useStore()
+  const { users: storeUsers, transactions: storeTransactions, deleteUser } = useStore()
+  const { clients: liveClients, isLoading: isLoadingClients } = useClients()
   const transactions = orders ?? storeTransactions
+
+  // Unir clientes registrados de la base de datos (con prioridad en datos vivos de AWS)
+  const users = useMemo(() => {
+    const map = new Map<string, any>()
+    storeUsers.forEach((u) => {
+      if (u.email) map.set(u.email.toLowerCase(), u)
+    })
+    liveClients.forEach((u) => {
+      if (u.email) map.set(u.email.toLowerCase(), u)
+    })
+    return Array.from(map.values())
+  }, [storeUsers, liveClients])
 
   const directory = useMemo<DirectoryCustomerRow[]>(() => {
     const map = new Map<string, DirectoryCustomerRow>()
@@ -42,7 +57,8 @@ export default function ManageCustomers({ orders }: ManageCustomersProps = {}) {
         address: u.address || "N/A",
         reference: u.reference || "",
         district: u.district || "N/A",
-        isRegistered: true,
+        isRegistered: u.isGuest !== true,
+        cognitoId: u.cognitoId,
         ordersCount: 0,
         totalSpent: 0,
       })
@@ -53,6 +69,12 @@ export default function ManageCustomers({ orders }: ManageCustomersProps = {}) {
       if (!key) return
       const existing = map.get(key)
       const isCancelled = t.status === "Cancelado"
+
+      // Una orden que tiene isGuest = false, cognitoId o userStatus = "Registrado" confirma el estatus
+      const orderIndicatesRegistered =
+        t.isGuest === false ||
+        Boolean(t.cognitoId) ||
+        t.userStatus === "Registrado"
 
       if (existing) {
         existing.ordersCount += 1
@@ -66,6 +88,12 @@ export default function ManageCustomers({ orders }: ManageCustomersProps = {}) {
         if ((existing.phone === "N/A" || !existing.phone) && t.phone) {
           existing.phone = t.phone
         }
+        if (orderIndicatesRegistered) {
+          existing.isRegistered = true
+        }
+        if (t.cognitoId && !existing.cognitoId) {
+          existing.cognitoId = t.cognitoId
+        }
       } else {
         const parts = (t.customer || "Cliente Invitado").trim().split(" ")
         map.set(key, {
@@ -77,7 +105,8 @@ export default function ManageCustomers({ orders }: ManageCustomersProps = {}) {
           address: t.address || "N/A",
           reference: t.reference || "",
           district: t.districtName || "N/A",
-          isRegistered: false,
+          isRegistered: orderIndicatesRegistered,
+          cognitoId: t.cognitoId,
           ordersCount: 1,
           totalSpent: isCancelled ? 0 : t.total || 0,
         })
@@ -167,6 +196,18 @@ export default function ManageCustomers({ orders }: ManageCustomersProps = {}) {
                   >
                     {u.isRegistered ? "CUENTA REGISTRADA" : "INVITADO CHECKOUT"}
                   </span>
+                  {u.cognitoId && (
+                    <span
+                      style={{
+                        display: "block",
+                        fontSize: "0.62rem",
+                        color: "#999",
+                        marginTop: "1px",
+                      }}
+                    >
+                      ID: {u.cognitoId}
+                    </span>
+                  )}
                 </td>
                 <td style={{ padding: "1rem" }}>DNI: {u.document || "N/A"}</td>
                 <td style={{ padding: "1rem" }}>

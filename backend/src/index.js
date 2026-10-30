@@ -423,6 +423,9 @@ export async function handler(event) {
         reference: (data.reference || "").trim(),
         district: (data.district || "").trim(),
         role: "customer",
+        isGuest: false,
+        status: "Registrado",
+        cognitoId: data.cognitoId || data.sub || `usr-${Date.now()}`,
         passwordHash,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -432,7 +435,7 @@ export async function handler(event) {
         new PutCommand({ TableName: USERS_TABLE, Item: customerItem }),
       )
 
-      // Sincronización Automática de Invitado a Registrado en DynamoDB
+      // Sincronización Automática de Invitado a Registrado en DynamoDB (ORDERS_TABLE)
       try {
         const pastOrdersRes = await docClient.send(
           new ScanCommand({
@@ -452,15 +455,21 @@ export async function handler(event) {
                 TableName: ORDERS_TABLE,
                 Key: { id: order.id },
                 UpdateExpression:
-                  "SET isGuest = :falseVal, customer = :nameVal, phone = :phoneVal, document = :docVal, documentType = :docTypeVal, reference = if_not_exists(reference, :refVal)",
+                  "SET isGuest = :falseVal, #st_reg = :regVal, customer = :nameVal, phone = :phoneVal, document = :docVal, documentType = :docTypeVal, #ref = if_not_exists(#ref, :refVal), cognitoId = :cogVal",
+                ExpressionAttributeNames: {
+                  "#ref": "reference",
+                  "#st_reg": "userStatus",
+                },
                 ExpressionAttributeValues: {
                   ":falseVal": false,
+                  ":regVal": "Registrado",
                   ":nameVal": fullName || order.customer,
                   ":phoneVal": customerItem.phone || order.phone,
                   ":docVal": customerItem.document || order.document,
                   ":docTypeVal":
                     customerItem.documentType || order.documentType || "DNI",
                   ":refVal": customerItem.reference || "",
+                  ":cogVal": customerItem.cognitoId,
                 },
               }),
             )
