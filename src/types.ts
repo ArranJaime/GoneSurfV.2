@@ -106,10 +106,16 @@ export interface ComplaintInput {
   consumerRequest: string
 }
 
+export type ComplaintStatus = "Pendiente" | "En Revisión" | "En Proceso" | "Atendido" | "Cerrado" | "Resuelto"
+
 export interface ComplaintRecord extends ComplaintInput {
   id: string
   year: number
-  status: "Pendiente" | "En Proceso" | "Atendido" | "Cerrado"
+  status: ComplaintStatus
   maxResponseDays: number
   createdAt: string
+  resolution?: string
+  adminNotes?: string
+  resolvedAt?: string
+  updatedAt?: string
 }

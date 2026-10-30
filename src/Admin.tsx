@@ -7,6 +7,7 @@ import UploadPrenda from "./components/admin/UploadPrenda"
 import MetricsDashboard from "./components/admin/MetricsDashboard"
 import ManageOrders from "./components/admin/ManageOrders"
 import ManageCustomers from "./components/admin/ManageCustomers"
+import AdminComplaints from "./components/admin/AdminComplaints"
 
 function Logo({ dark = false }: { dark?: boolean }) {
   return (
@@ -31,7 +32,7 @@ function Logo({ dark = false }: { dark?: boolean }) {
 function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   const navigate = useNavigate()
   const [currentView, setCurrentView] =
-    useState<"dashboard" | "orders" | "upload" | "collections" | "customers">(
+    useState<"dashboard" | "orders" | "customers" | "complaints" | "upload" | "collections">(
       "dashboard",
     )
   const {
@@ -174,6 +175,26 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
             Gestión de Clientes
           </button>
           <button
+            onClick={() => setCurrentView("complaints")}
+            style={{
+              background: "transparent",
+              border: "none",
+              borderBottom:
+                currentView === "complaints"
+                  ? "2px solid #000"
+                  : "2px solid transparent",
+              padding: "0 0 0.5rem 0",
+              fontWeight: "bold",
+              fontSize: "0.9rem",
+              color: currentView === "complaints" ? "#000" : "#888",
+              cursor: "pointer",
+              textTransform: "uppercase",
+              marginBottom: "-2px",
+            }}
+          >
+            Gestión de Reclamos
+          </button>
+          <button
             onClick={() => setCurrentView("upload")}
             style={{
               background: "transparent",
@@ -234,6 +255,7 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
         />
       )}
       {currentView === "customers" && <ManageCustomers orders={liveOrders} />}
+      {currentView === "complaints" && <AdminComplaints />}
       {currentView === "upload" && <UploadPrenda />}
       {currentView === "collections" && <ManageCollections />}
     </main>

@@ -74,7 +74,7 @@ export interface Store {
   updateOrderStatus: (id: string, status: OrderStatus) => void
   updateUserProfile: (
     profileData: Partial<CustomerUser>,
-  ) => Promise<{ ok: boolean; user?: CustomerUser; error?: string }>
+  ) => Promise<{ ok: boolean user?: CustomerUser error?: string }>
   registerUser: (newUser: CustomerUser) => RegisterResult
   authenticateUser: (email: string, password: string) => CustomerUser | null
   deleteUser: (email: string) => void

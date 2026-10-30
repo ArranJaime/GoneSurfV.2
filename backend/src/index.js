@@ -1188,6 +1188,105 @@ export async function handler(event) {
       return response(200, complaints)
     }
 
+    if (
+      (httpMethod === "PUT" || httpMethod === "PATCH") &&
+      (path.startsWith("/complaints/") || path === "/complaints")
+    ) {
+      const user = authenticate(headers, event)
+      if (!user || user.role !== "admin") {
+        return response(403, {
+          message: "Acceso denegado. Se requieren permisos de administrador.",
+        })
+      }
+
+      const match = path.match(/^\/complaints\/([^/]+)$/)
+      const body = parseBody(event)
+      const complaintId = (match ? match[1] : body.id || "").trim()
+
+      if (!complaintId) {
+        return response(400, {
+          message: "ID de la reclamación es requerido.",
+        })
+      }
+
+      const { status, resolution, adminNotes } = body
+
+      if (!status && resolution === undefined && adminNotes === undefined) {
+        return response(400, {
+          message:
+            "Debe proporcionar al menos un campo para actualizar (status, resolution o adminNotes).",
+        })
+      }
+
+      // Validar existencia en DynamoDB
+      const checkRes = await docClient.send(
+        new GetCommand({
+          TableName: COMPLAINTS_TABLE,
+          Key: { id: complaintId },
+        }),
+      )
+
+      if (!checkRes.Item) {
+        return response(404, {
+          message: `Reclamación con ID '${complaintId}' no encontrada.`,
+        })
+      }
+
+      const updateExpressions = []
+      const expressionAttributeNames = {}
+      const expressionAttributeValues = {}
+
+      if (status) {
+        updateExpressions.push("#st = :s")
+        expressionAttributeNames["#st"] = "status"
+        expressionAttributeValues[":s"] = String(status).trim()
+      }
+
+      if (resolution !== undefined) {
+        updateExpressions.push("#res = :r")
+        expressionAttributeNames["#res"] = "resolution"
+        expressionAttributeValues[":r"] = String(resolution).trim()
+      }
+
+      if (adminNotes !== undefined) {
+        updateExpressions.push("#an = :an")
+        expressionAttributeNames["#an"] = "adminNotes"
+        expressionAttributeValues[":an"] = String(adminNotes).trim()
+      }
+
+      const now = new Date().toISOString()
+      updateExpressions.push("#ua = :ua")
+      expressionAttributeNames["#ua"] = "updatedAt"
+      expressionAttributeValues[":ua"] = now
+
+      if (
+        status === "Atendido" ||
+        status === "Cerrado" ||
+        status === "Resuelto"
+      ) {
+        updateExpressions.push("#ra = :ra")
+        expressionAttributeNames["#ra"] = "resolvedAt"
+        expressionAttributeValues[":ra"] = now
+      }
+
+      const updateRes = await docClient.send(
+        new UpdateCommand({
+          TableName: COMPLAINTS_TABLE,
+          Key: { id: complaintId },
+          UpdateExpression: `SET ${updateExpressions.join(", ")}`,
+          ExpressionAttributeNames: expressionAttributeNames,
+          ExpressionAttributeValues: expressionAttributeValues,
+          ReturnValues: "ALL_NEW",
+        }),
+      )
+
+      return response(200, {
+        ok: true,
+        message: "Reclamación actualizada correctamente.",
+        complaint: updateRes.Attributes,
+      })
+    }
+
     return response(404, {
       message: `Ruta no encontrada: ${httpMethod} ${path}`,
     })

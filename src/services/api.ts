@@ -30,6 +30,7 @@ import type {
   Order,
   ComplaintInput,
   ComplaintRecord,
+  ComplaintStatus,
 } from "../types"
 
 export type {
@@ -45,6 +46,7 @@ export type {
   Order,
   ComplaintInput,
   ComplaintRecord,
+  ComplaintStatus,
 }
 
 export interface MediaUploadResponse {
@@ -1344,14 +1346,127 @@ export const api = {
             headers: {
               "Content-Type": "application/json",
               Authorization: `Bearer ${token}`,
+              "x-dev-mode": "admin",
             },
           })
           if (res.ok) {
-            return await res.json()
+            const data = await res.json()
+            if (Array.isArray(data)) {
+              try {
+                writeStorage("gone_complaints", data)
+              } catch {}
+              return data
+            }
           }
-        } catch {}
+        } catch (err) {
+          console.warn("[api.complaints.getAll] Error conectando a API:", err)
+        }
       }
       return readStorage<ComplaintRecord[]>("gone_complaints", [])
+    },
+
+    async updateStatus(
+      id: string,
+      status: ComplaintStatus,
+      options?: { resolution?: string adminNotes?: string },
+    ): Promise<{ ok: boolean complaint?: ComplaintRecord error?: string }> {
+      if (API_GATEWAY_URL) {
+        try {
+          const token = getAdminToken() || "dev-admin-token"
+          const res = await fetch(
+            `${API_GATEWAY_URL}/complaints/${encodeURIComponent(id)}`,
+            {
+              method: "PUT",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+                "x-dev-mode": "admin",
+              },
+              body: JSON.stringify({
+                status,
+                resolution: options?.resolution,
+                adminNotes: options?.adminNotes,
+              }),
+            },
+          )
+          const body = await res.json().catch(() => ({}))
+          if (res.ok && body.complaint) {
+            try {
+              const current = readStorage<ComplaintRecord[]>(
+                "gone_complaints",
+                [],
+              )
+              const updated = current.map((c) =>
+                c.id === id ? { ...c, ...body.complaint } : c,
+              )
+              writeStorage("gone_complaints", updated)
+            } catch {}
+            try {
+              window.dispatchEvent(
+                new CustomEvent("gonesurf:sync", {
+                  detail: { channel: "complaints" },
+                }),
+              )
+            } catch {}
+            return { ok: true, complaint: body.complaint }
+          }
+          return {
+            ok: false,
+            error:
+              body.message ||
+              "Error al actualizar la reclamación en el servidor.",
+          }
+        } catch (err: any) {
+          console.warn(
+            "[api.complaints.updateStatus] Error de red, usando fallback:",
+            err,
+          )
+        }
+      }
+
+      // Fallback local
+      try {
+        const current = readStorage<ComplaintRecord[]>("gone_complaints", [])
+        let found: ComplaintRecord | undefined
+        const updated = current.map((c) => {
+          if (c.id === id) {
+            found = {
+              ...c,
+              status,
+              resolution:
+                options?.resolution !== undefined
+                  ? options.resolution
+                  : c.resolution,
+              adminNotes:
+                options?.adminNotes !== undefined
+                  ? options.adminNotes
+                  : c.adminNotes,
+              updatedAt: new Date().toISOString(),
+              ...(status === "Atendido" ||
+              status === "Cerrado" ||
+              status === "Resuelto"
+                ? { resolvedAt: new Date().toISOString() }
+                : {}),
+            }
+            return found
+          }
+          return c
+        })
+        writeStorage("gone_complaints", updated)
+        try {
+          window.dispatchEvent(
+            new CustomEvent("gonesurf:sync", {
+              detail: { channel: "complaints" },
+            }),
+          )
+        } catch {}
+        return { ok: true, complaint: found }
+      } catch (err: any) {
+        return {
+          ok: false,
+          error: err?.message || "Error al actualizar localmente.",
+        }
+      }
     },
   },
 }
