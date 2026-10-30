@@ -86,8 +86,9 @@ export default function ManageOrders({
   onStatusChange: propOnStatusChange,
 }: ManageOrdersProps = {}) {
   const { updateOrderStatus } = useStore()
-  const [internalLiveOrders, setInternalLiveOrders] =
-    useState<OrderTransaction[]>([])
+  const [orders, setOrders] = useState<OrderTransaction[]>(
+    () => propOrders || [],
+  )
   const [internalLoading, setInternalLoading] = useState(false)
   const [internalError, setInternalError] = useState<string | null>(null)
   const [statusFilter, setStatusFilter] = useState<string>("Todos los Estados")
@@ -98,6 +99,12 @@ export default function ManageOrders({
   } | null>(null)
 
   useEffect(() => {
+    if (propOrders) {
+      setOrders(propOrders)
+    }
+  }, [propOrders])
+
+  useEffect(() => {
     if (notification) {
       const timer = setTimeout(() => setNotification(null), 3500)
       return () => clearTimeout(timer)
@@ -105,16 +112,17 @@ export default function ManageOrders({
   }, [notification])
 
   const isControlled = propOrders !== undefined
-  const displayOrders = isControlled ? propOrders : internalLiveOrders
   const isLoading = isControlled ? (propIsLoading ?? false) : internalLoading
   const fetchError = isControlled ? (propError ?? null) : internalError
 
   const filteredOrders = useMemo(() => {
     if (statusFilter === "Todos los Estados") {
-      return displayOrders
+      return orders
     }
-    return displayOrders.filter((order) => order.status === statusFilter)
-  }, [displayOrders, statusFilter])
+    return orders.filter(
+      (order) => (order.status || "Procesando") === statusFilter,
+    )
+  }, [orders, statusFilter])
 
   const fetchOrdersFromApi = useCallback(async () => {
     if (propOnRefresh) {
@@ -170,7 +178,7 @@ export default function ManageOrders({
       const clean = (Array.isArray(data) ? data : []).filter(
         (o) => !RESIDUAL_TEST_ORDER_IDS.has(o?.id),
       )
-      setInternalLiveOrders(clean)
+      setOrders(clean)
       try {
         localStorage.setItem("gone_transactions", JSON.stringify(clean))
       } catch {}
@@ -190,34 +198,39 @@ export default function ManageOrders({
     }
   }, [isControlled, fetchOrdersFromApi])
 
-  const handleStatusChange = async (id: string, nextStatus: OrderStatus) => {
-    setUpdatingOrderId(id)
+  const handleStatusChange = async (orderId: string, newStatus: OrderStatus) => {
+    setUpdatingOrderId(orderId)
     try {
       if (propOnStatusChange) {
-        await propOnStatusChange(id, nextStatus)
+        await propOnStatusChange(orderId, newStatus)
       } else {
-        await api.orders.updateStatus(id, nextStatus)
-        updateOrderStatus(id, nextStatus)
-        setInternalLiveOrders((prev) =>
-          prev.map((o) => (o.id === id ? { ...o, status: nextStatus } : o)),
-        )
+        await api.orders.updateStatus(orderId, newStatus)
+        updateOrderStatus(orderId, newStatus)
       }
+
+      // Actualización reactiva del estado local de pedidos en la UI
+      setOrders((prevOrders) =>
+        prevOrders.map((order) =>
+          order.id === orderId ? { ...order, status: newStatus } : order,
+        ),
+      )
+
       setNotification({
         type: "success",
-        message: `✓ Pedido ${id} actualizado a "${nextStatus}" en DynamoDB`,
+        message: `✓ Pedido ${orderId} actualizado a "${newStatus}" en DynamoDB`,
       })
     } catch (err: any) {
       console.error("[Admin] Error actualizando estado de pedido:", err)
       setNotification({
         type: "error",
-        message: `⚠️ Error al actualizar el pedido ${id}. ${err?.message || "Revisa la conexión con AWS."}`,
+        message: `⚠️ Error al actualizar el pedido ${orderId}. ${err?.message || "Revisa la conexión con AWS."}`,
       })
     } finally {
       setUpdatingOrderId(null)
     }
   }
 
-  if (isLoading && displayOrders.length === 0) {
+  if (isLoading && orders.length === 0) {
     return (
       <div
         style={{
@@ -233,7 +246,7 @@ export default function ManageOrders({
     )
   }
 
-  if (displayOrders.length === 0) {
+  if (orders.length === 0) {
     return (
       <div
         style={{
@@ -344,7 +357,7 @@ export default function ManageOrders({
             Gestión y Despacho de Pedidos
           </h2>
           <span style={{ fontSize: "0.75rem", color: "#666" }}>
-            Total registrados: {displayOrders.length} pedido(s)
+            Total registrados: {orders.length} pedido(s)
             {statusFilter !== "Todos los Estados" &&
               ` (Filtrados: ${filteredOrders.length})`}
           </span>
