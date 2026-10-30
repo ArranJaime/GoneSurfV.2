@@ -9,6 +9,11 @@ import {
   TransactWriteCommand,
 } from "@aws-sdk/lib-dynamodb"
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3"
+import {
+  CognitoIdentityProviderClient,
+  AdminDeleteUserCommand,
+  ListUsersCommand,
+} from "@aws-sdk/client-cognito-identity-provider"
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner"
 import bcrypt from "bcryptjs"
 import jwt from "jsonwebtoken"
@@ -22,6 +27,9 @@ const docClient = DynamoDBDocumentClient.from(ddbClient, {
   marshallOptions: { removeUndefinedValues: true },
 })
 const s3Client = new S3Client({ region: REGION })
+const COGNITO_USER_POOL_ID =
+  process.env.COGNITO_USER_POOL_ID || process.env.USER_POOL_ID || "us-east-1_7h815wB0O"
+const cognitoClient = new CognitoIdentityProviderClient({ region: REGION })
 
 const PRODUCTS_TABLE = process.env.PRODUCTS_TABLE || "GoneSurfing-Products-prod"
 const COLLECTIONS_TABLE =
@@ -627,6 +635,154 @@ export async function handler(event) {
         ({ passwordHash, ...u }) => u,
       )
       return response(200, safeUsers)
+    }
+
+    if (
+      httpMethod === "DELETE" &&
+      (path.startsWith("/users/") ||
+        path === "/users" ||
+        path.startsWith("/clients/") ||
+        path === "/clients")
+    ) {
+      const authUser = authenticate(headers, event)
+      if (!authUser || authUser.role !== "admin") {
+        return response(403, {
+          message: "Acceso denegado: Se requieren permisos de administrador.",
+        })
+      }
+
+      const body = parseBody(event)
+      let rawEmail = ""
+      if (path.startsWith("/users/")) {
+        rawEmail = path.replace(/^\/users\//, "")
+      } else if (path.startsWith("/clients/")) {
+        rawEmail = path.replace(/^\/clients\//, "")
+      } else {
+        rawEmail = event.queryStringParameters?.email || body.email || ""
+      }
+
+      const cleanEmail = decodeURIComponent(rawEmail).trim().toLowerCase()
+      if (!cleanEmail) {
+        return response(400, {
+          message: "El correo electrónico del cliente es obligatorio.",
+        })
+      }
+
+      if (
+        cleanEmail === "admin" ||
+        cleanEmail === "admin@gonesurfing.pe" ||
+        cleanEmail === ADMIN_USER_DEFAULT.toLowerCase()
+      ) {
+        return response(400, {
+          message:
+            "No está permitido eliminar la cuenta principal de administrador.",
+        })
+      }
+
+      console.log(
+        `[Admin] Iniciando borrado en cascada para cliente: ${cleanEmail}`,
+      )
+
+      // A) Borrado en AWS Cognito
+      let cognitoDeleted = false
+      let cognitoMessage = "No encontrado en Cognito o no registrado"
+      if (COGNITO_USER_POOL_ID) {
+        try {
+          await cognitoClient.send(
+            new AdminDeleteUserCommand({
+              UserPoolId: COGNITO_USER_POOL_ID,
+              Username: cleanEmail,
+            }),
+          )
+          cognitoDeleted = true
+          cognitoMessage = "Usuario eliminado de AWS Cognito"
+        } catch (cognitoErr) {
+          if (cognitoErr.name === "UserNotFoundException") {
+            try {
+              const listRes = await cognitoClient.send(
+                new ListUsersCommand({
+                  UserPoolId: COGNITO_USER_POOL_ID,
+                  Filter: `email = "${cleanEmail}"`,
+                  Limit: 1,
+                }),
+              )
+              if (listRes.Users && listRes.Users.length > 0) {
+                const foundUsername = listRes.Users[0].Username
+                await cognitoClient.send(
+                  new AdminDeleteUserCommand({
+                    UserPoolId: COGNITO_USER_POOL_ID,
+                    Username: foundUsername,
+                  }),
+                )
+                cognitoDeleted = true
+                cognitoMessage = "Usuario eliminado de AWS Cognito (por alias)"
+              }
+            } catch (listErr) {
+              console.warn(
+                "Aviso al buscar usuario en Cognito:",
+                listErr?.message,
+              )
+            }
+          } else {
+            console.warn("Aviso al eliminar en Cognito:", cognitoErr?.message)
+            cognitoMessage = cognitoErr?.message || "Error en Cognito"
+          }
+        }
+      }
+
+      // B) Borrado en UsersTable (DynamoDB)
+      let userDeleted = false
+      try {
+        await docClient.send(
+          new DeleteCommand({
+            TableName: USERS_TABLE,
+            Key: { email: cleanEmail },
+          }),
+        )
+        userDeleted = true
+      } catch (userDbErr) {
+        console.error("Error al eliminar de UsersTable:", userDbErr)
+      }
+
+      // C) Borrado en cascada de pedidos en OrdersTable (DynamoDB)
+      const deletedOrderIds = []
+      try {
+        const ordersScan = await docClient.send(
+          new ScanCommand({
+            TableName: ORDERS_TABLE,
+            FilterExpression: "email = :e",
+            ExpressionAttributeValues: { ":e": cleanEmail },
+          }),
+        )
+
+        if (ordersScan.Items && ordersScan.Items.length > 0) {
+          for (const order of ordersScan.Items) {
+            await docClient.send(
+              new DeleteCommand({
+                TableName: ORDERS_TABLE,
+                Key: { id: order.id },
+              }),
+            )
+            deletedOrderIds.push(order.id)
+          }
+        }
+      } catch (ordersErr) {
+        console.warn(
+          "Aviso al eliminar pedidos asociados en cascada:",
+          ordersErr,
+        )
+      }
+
+      return response(200, {
+        ok: true,
+        message: `Cliente ${cleanEmail} y su historial eliminados exitosamente.`,
+        email: cleanEmail,
+        cognitoDeleted,
+        cognitoMessage,
+        userDeleted,
+        deletedOrdersCount: deletedOrderIds.length,
+        deletedOrderIds,
+      })
     }
 
     // -------------------------------------------------------------------------

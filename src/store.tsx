@@ -827,6 +827,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setUsers(updatedUsers)
       safeWriteStorage("gone_users", updatedUsers)
 
+      // Borrado en cascada de pedidos asociados al cliente en el store
+      setTransactions((prev) => {
+        const next = prev.filter(
+          (t) => (t.email || "").toLowerCase() !== cleanEmail,
+        )
+        safeWriteStorage("gone_transactions", next)
+        return next
+      })
+
       const currentSession = getCurrentSessionUser()
       if (
         currentSession &&
@@ -836,6 +845,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         sessionStorage.removeItem("gone_current_user")
       }
       broadcastSyncEvent("users")
+      broadcastSyncEvent("orders")
     },
     [users],
   )

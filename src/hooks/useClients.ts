@@ -40,12 +40,33 @@ export function useClients() {
     return () => window.removeEventListener("gonesurf:sync", handleSync)
   }, [fetchClients])
 
+  const deleteClient = useCallback(
+    async (email: string) => {
+      const cleanEmail = (email || "").trim().toLowerCase()
+      // Optimistic update local hook state
+      setClients((prev) =>
+        prev.filter((u) => (u.email || "").toLowerCase() !== cleanEmail),
+      )
+
+      const res = await api.users.delete(cleanEmail)
+      if (!res.ok) {
+        // Revertir y recargar en caso de fallo
+        await fetchClients()
+        throw new Error(res.error || "No se pudo eliminar al cliente.")
+      }
+      return res
+    },
+    [fetchClients],
+  )
+
   return {
     clients,
     isLoading,
     error,
     refreshClients: fetchClients,
+    deleteClient,
   }
 }
 
 export default useClients
+

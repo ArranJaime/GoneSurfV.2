@@ -478,6 +478,84 @@ export const api = {
       return readStorage<CustomerUser[]>("gone_users", [])
     },
 
+    async delete(email: string): Promise<{
+      ok: boolean
+      error?: string
+      details?: any
+    }> {
+      const cleanEmail = sanitizeString(email).trim().toLowerCase()
+      if (!cleanEmail) {
+        return { ok: false, error: "El correo es obligatorio." }
+      }
+
+      if (STORAGE_MODE === "aws" && API_GATEWAY_URL) {
+        try {
+          const res = await fetchWithAuth(
+            `/users/${encodeURIComponent(cleanEmail)}`,
+            {
+              method: "DELETE",
+            },
+          )
+          if (!res.ok) {
+            const errData = await res.json().catch(() => ({}))
+            return {
+              ok: false,
+              error:
+                errData.message ||
+                `Error al eliminar cliente de AWS (HTTP ${res.status})`,
+            }
+          }
+          const data = await res.json().catch(() => ({}))
+
+          // Limpieza de almacenamiento local
+          const localUsers = readStorage<CustomerUser[]>("gone_users", [])
+          const nextUsers = localUsers.filter(
+            (u) => (u.email || "").toLowerCase() !== cleanEmail,
+          )
+          writeStorage("gone_users", nextUsers)
+
+          const localOrders = readStorage<OrderTransaction[]>(
+            "gone_transactions",
+            [],
+          )
+          const nextOrders = localOrders.filter(
+            (o) => (o.email || "").toLowerCase() !== cleanEmail,
+          )
+          writeStorage("gone_transactions", nextOrders)
+
+          broadcastSyncEvent("users")
+          broadcastSyncEvent("orders")
+          return { ok: true, details: data }
+        } catch (err: any) {
+          console.error("Fallo de red al eliminar cliente en AWS:", err)
+          return {
+            ok: false,
+            error: err?.message || "Error de conexión con el backend AWS.",
+          }
+        }
+      }
+
+      // Modo local
+      const localUsers = readStorage<CustomerUser[]>("gone_users", [])
+      const nextUsers = localUsers.filter(
+        (u) => (u.email || "").toLowerCase() !== cleanEmail,
+      )
+      writeStorage("gone_users", nextUsers)
+
+      const localOrders = readStorage<OrderTransaction[]>(
+        "gone_transactions",
+        [],
+      )
+      const nextOrders = localOrders.filter(
+        (o) => (o.email || "").toLowerCase() !== cleanEmail,
+      )
+      writeStorage("gone_transactions", nextOrders)
+
+      broadcastSyncEvent("users")
+      broadcastSyncEvent("orders")
+      return { ok: true }
+    },
+
     async updateProfile(profileData: Partial<CustomerUser>): Promise<{
       ok: boolean
       user?: CustomerUser
