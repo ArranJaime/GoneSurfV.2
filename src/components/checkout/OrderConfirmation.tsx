@@ -1,6 +1,8 @@
 import React from "react"
+import { Link } from "react-router-dom"
 import type { CartItem, Product, Size } from "../../types"
 import { formatPEN } from "../../utils/accounting"
+import { useAuth } from "../../hooks/useAuth"
 
 const money = (value: number) => formatPEN(value)
 
@@ -34,6 +36,9 @@ export default function OrderConfirmation({
   products,
   storePhone,
 }: OrderConfirmationProps) {
+  const { currentUser, isAuth } = useAuth()
+  const isGuest = !isAuth || !currentUser || Boolean(currentUser.isGuest)
+
   const dest = {
     name: order.districtName,
     code: order.districtCode,
@@ -541,6 +546,84 @@ export default function OrderConfirmation({
             )}
           </div>
 
+          {/* CTA: Incentivo de registro / login para seguimiento de pedido */}
+          {isGuest ? (
+            <div
+              className="text-sm text-gray-400 text-center mt-4 mb-4"
+              style={{
+                marginTop: "1.25rem",
+                marginBottom: "1.25rem",
+                textAlign: "center",
+                fontSize: "0.85rem",
+                lineHeight: "1.5",
+                color: "#9ca3af",
+                padding: "0.85rem 1rem",
+                background: "rgba(255, 255, 255, 0.03)",
+                border: "1px solid rgba(255, 255, 255, 0.1)",
+                borderRadius: "6px",
+              }}
+            >
+              Para ver en qué estado se encuentra tu pedido,{" "}
+              <Link
+                to={order.email ? `/login?email=${encodeURIComponent(order.email)}` : "/login"}
+                className="text-white hover:underline font-semibold"
+                style={{
+                  color: "#ffffff",
+                  fontWeight: 600,
+                  textDecoration: "underline",
+                  transition: "color 0.2s ease",
+                }}
+              >
+                inicia sesión
+              </Link>{" "}
+              o{" "}
+              <Link
+                to={order.email ? `/register?email=${encodeURIComponent(order.email)}` : "/register"}
+                className="text-white hover:underline font-semibold"
+                style={{
+                  color: "#ffffff",
+                  fontWeight: 600,
+                  textDecoration: "underline",
+                  transition: "color 0.2s ease",
+                }}
+              >
+                créate una cuenta
+              </Link>{" "}
+              con el correo electrónico que acabas de introducir.
+            </div>
+          ) : (
+            <div
+              className="text-sm text-gray-400 text-center mt-4 mb-4"
+              style={{
+                marginTop: "1.25rem",
+                marginBottom: "1.25rem",
+                textAlign: "center",
+                fontSize: "0.85rem",
+                lineHeight: "1.5",
+                color: "#9ca3af",
+                padding: "0.85rem 1rem",
+                background: "rgba(255, 255, 255, 0.03)",
+                border: "1px solid rgba(255, 255, 255, 0.1)",
+                borderRadius: "6px",
+              }}
+            >
+              Para ver en qué estado se encuentra tu pedido, puedes acceder directamente a{" "}
+              <Link
+                to="/profile"
+                className="text-white hover:underline font-semibold"
+                style={{
+                  color: "#ffffff",
+                  fontWeight: 600,
+                  textDecoration: "underline",
+                  transition: "color 0.2s ease",
+                }}
+              >
+                Ver mis pedidos
+              </Link>
+              .
+            </div>
+          )}
+
           <button
             onClick={() => {
               window.location.href = "/"
@@ -554,7 +637,7 @@ export default function OrderConfirmation({
               borderRadius: "4px",
               fontWeight: "bold",
               fontSize: "0.9rem",
-              marginTop: "2rem",
+              marginTop: "1rem",
               cursor: "pointer",
               display: "flex",
               justifyContent: "space-between",

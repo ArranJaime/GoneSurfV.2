@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import {
   BrowserRouter,
   Link,
+  Navigate,
   Route,
   Routes,
   useLocation,
@@ -1279,6 +1280,24 @@ function Profile() {
   return <ProfileView />
 }
 
+function LoginRedirect() {
+  const [searchParams] = useSearchParams()
+  const email = searchParams.get("email")
+  const target = email
+    ? `/profile?mode=login&email=${encodeURIComponent(email)}`
+    : "/profile?mode=login"
+  return <Navigate to={target} replace />
+}
+
+function RegisterRedirect() {
+  const [searchParams] = useSearchParams()
+  const email = searchParams.get("email")
+  const target = email
+    ? `/profile?mode=register&email=${encodeURIComponent(email)}`
+    : "/profile?mode=register"
+  return <Navigate to={target} replace />
+}
+
 function AppContent() {
   const location = useLocation()
   const [panel, setPanel] = useState<string | null>(null)
@@ -1308,6 +1327,8 @@ function AppContent() {
         <Route path="/cart" element={<Cart />} />
         <Route path="/checkout" element={<Checkout />} />
         <Route path="/profile" element={<Profile />} />
+        <Route path="/login" element={<LoginRedirect />} />
+        <Route path="/register" element={<RegisterRedirect />} />
         <Route
           path="/about"
           element={

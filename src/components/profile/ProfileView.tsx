@@ -326,6 +326,7 @@ export default function Profile() {
                   name="email"
                   type="email"
                   required
+                  defaultValue={searchParams.get("email") || ""}
                   style={{
                     width: "100%",
                     padding: "1rem",
@@ -593,6 +594,7 @@ export default function Profile() {
                     name="email"
                     type="email"
                     required
+                    defaultValue={searchParams.get("email") || ""}
                     style={{
                       width: "100%",
                       padding: "1rem",
