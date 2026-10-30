@@ -20,6 +20,7 @@ import {
 import Admin from "./Admin"
 import Collections from "./Collections"
 import Checkout, { LIMA_DISTRICTS } from "./Checkout"
+import { api } from "./services/api"
 import { formatPEN } from "./utils/accounting"
 import {
   sanitizeString,
