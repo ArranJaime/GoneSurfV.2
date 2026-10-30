@@ -92,3 +92,29 @@ export interface OrderTransaction extends OrderDetailsInput {
 }
 
 export type Order = OrderTransaction
+
+export interface ComplaintInput {
+  consumerName: string
+  documentType: "DNI" | "CE" | "Pasaporte"
+  documentNumber: string
+  address: string
+  phone: string
+  email: string
+  isMinor?: boolean
+  parentName?: string
+  parentDocument?: string
+  goodType: "producto" | "servicio"
+  claimedAmount?: number
+  goodDescription: string
+  claimType: "reclamo" | "queja"
+  detail: string
+  consumerRequest: string
+}
+
+export interface ComplaintRecord extends ComplaintInput {
+  id: string
+  year: number
+  status: "Pendiente" | "En Proceso" | "Atendido" | "Cerrado"
+  maxResponseDays: number
+  createdAt: string
+}

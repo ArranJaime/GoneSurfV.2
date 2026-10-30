@@ -143,6 +143,7 @@ export default function Checkout() {
   const [phone, setPhone] = useState("")
   const [address, setAddress] = useState("")
   const [reference, setReference] = useState("")
+  const [acceptedTerms, setAcceptedTerms] = useState(false)
   const [documentNumber, setDocumentNumber] = useState("")
 
   useEffect(() => {
@@ -317,6 +318,13 @@ export default function Checkout() {
     try {
       if (!completeOrder) {
         setValidationError("El sistema de tienda no está inicializado.")
+        return
+      }
+
+      if (!acceptedTerms) {
+        setValidationError(
+          "Debes leer y aceptar los Términos y Condiciones y la Política de Privacidad para continuar con tu compra.",
+        )
         return
       }
 
@@ -1762,6 +1770,69 @@ export default function Checkout() {
             {money(accounting.total)}
           </strong>
         </div>
+
+        {/* Checkbox Legal Obligatorio (Términos y Privacidad) */}
+        <div
+          style={{
+            marginBottom: "1.25rem",
+            padding: "1rem",
+            backgroundColor: "#f9fafb",
+            border: "1px solid #e5e7eb",
+            borderRadius: "4px",
+          }}
+        >
+          <label
+            style={{
+              display: "flex",
+              alignItems: "flex-start",
+              gap: "10px",
+              cursor: "pointer",
+              fontSize: "0.78rem",
+              color: "#374151",
+              lineHeight: 1.45,
+            }}
+          >
+            <input
+              type="checkbox"
+              id="accept-terms-checkbox"
+              name="acceptTerms"
+              form="checkout-form"
+              checked={acceptedTerms}
+              onChange={(e) => setAcceptedTerms(e.target.checked)}
+              required
+              style={{
+                marginTop: "2px",
+                accentColor: "#000000",
+                width: "16px",
+                height: "16px",
+                cursor: "pointer",
+                flexShrink: 0,
+              }}
+            />
+            <span>
+              He leído y acepto los{" "}
+              <Link
+                to="/terminos"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ color: "#000000", fontWeight: 700, textDecoration: "underline" }}
+              >
+                Términos y Condiciones
+              </Link>{" "}
+              y la{" "}
+              <Link
+                to="/privacidad"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ color: "#000000", fontWeight: 700, textDecoration: "underline" }}
+              >
+                Política de Privacidad y Tratamiento de Datos Personales
+              </Link>
+              .
+            </span>
+          </label>
+        </div>
+
         <button
           type="submit"
           form="checkout-form"

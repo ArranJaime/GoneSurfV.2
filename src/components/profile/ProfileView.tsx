@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react"
-import { useNavigate, useSearchParams } from "react-router-dom"
+import { useNavigate, useSearchParams, Link } from "react-router-dom"
 import {
   useStore,
   getCurrentSessionUser,
@@ -40,6 +40,7 @@ export default function Profile() {
   )
   const [error, setError] = useState(false)
   const [registerError, setRegisterError] = useState("")
+  const [registerAcceptedTerms, setRegisterAcceptedTerms] = useState(false)
   const [currentTab, setCurrentTab] = useState<"pedidos" | "perfil">("pedidos")
 
   // Estados interactivos para edición de perfil
@@ -104,6 +105,14 @@ export default function Profile() {
 
   const handleRegister = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
+
+    if (!registerAcceptedTerms) {
+      setRegisterError(
+        "Debes leer y aceptar los Términos y Condiciones y la Política de Privacidad para crear tu cuenta.",
+      )
+      return
+    }
+
     const data = new FormData(e.currentTarget)
 
     const rawEmail = sanitizeString(data.get("email")).toLowerCase()
@@ -621,6 +630,66 @@ export default function Profile() {
                   {registerError}
                 </small>
               )}
+
+              {/* Checkbox Legal Obligatorio (Términos y Privacidad) */}
+              <div
+                style={{
+                  marginTop: "0.5rem",
+                  padding: "0.85rem 1rem",
+                  backgroundColor: "#f9fafb",
+                  border: "1px solid #e5e7eb",
+                  borderRadius: "4px",
+                }}
+              >
+                <label
+                  style={{
+                    display: "flex",
+                    alignItems: "flex-start",
+                    gap: "10px",
+                    cursor: "pointer",
+                    fontSize: "0.78rem",
+                    color: "#374151",
+                    lineHeight: 1.45,
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    required
+                    checked={registerAcceptedTerms}
+                    onChange={(e) => setRegisterAcceptedTerms(e.target.checked)}
+                    style={{
+                      marginTop: "2px",
+                      accentColor: "#000000",
+                      width: "16px",
+                      height: "16px",
+                      cursor: "pointer",
+                      flexShrink: 0,
+                    }}
+                  />
+                  <span>
+                    He leído y acepto los{" "}
+                    <Link
+                      to="/terminos"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ color: "#000000", fontWeight: 700, textDecoration: "underline" }}
+                    >
+                      Términos y Condiciones
+                    </Link>{" "}
+                    y la{" "}
+                    <Link
+                      to="/privacidad"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ color: "#000000", fontWeight: 700, textDecoration: "underline" }}
+                    >
+                      Política de Privacidad y Tratamiento de Datos Personales
+                    </Link>
+                    .
+                  </span>
+                </label>
+              </div>
+
               <button
                 style={{
                   background: "#000",

@@ -28,6 +28,8 @@ import type {
   OrderDetailsInput,
   OrderTransaction,
   Order,
+  ComplaintInput,
+  ComplaintRecord,
 } from "../types"
 
 export type {
@@ -41,6 +43,8 @@ export type {
   OrderDetailsInput,
   OrderTransaction,
   Order,
+  ComplaintInput,
+  ComplaintRecord,
 }
 
 export interface MediaUploadResponse {
@@ -1253,6 +1257,80 @@ export const api = {
         format: optimized.format,
         sizeKb: optimized.sizeKb,
       }
+    },
+  },
+
+  // ---------------------------------------------------------------------------
+  // COMPLAINTS BOOK SERVICE (LIBRO DE RECLAMACIONES INDECOPI)
+  // ---------------------------------------------------------------------------
+  complaints: {
+    async submit(data: ComplaintInput): Promise<{
+      ok: boolean
+      complaint?: ComplaintRecord
+      error?: string
+    }> {
+      if (API_GATEWAY_URL) {
+        try {
+          const res = await fetch(`${API_GATEWAY_URL}/complaints`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(data),
+          })
+          const body = await res.json().catch(() => ({}))
+          if (res.ok && body.complaint) {
+            // Guardar copia local de respaldo
+            try {
+              const prev = readStorage<ComplaintRecord[]>("gone_complaints", [])
+              writeStorage("gone_complaints", [body.complaint, ...prev])
+            } catch {}
+            return { ok: true, complaint: body.complaint }
+          }
+          return {
+            ok: false,
+            error:
+              body.message ||
+              "No se pudo registrar la reclamación en el servidor.",
+          }
+        } catch (err: any) {
+          console.warn("[api.complaints.submit] Error de red, usando fallback:", err)
+        }
+      }
+
+      // Fallback local
+      const year = new Date().getFullYear()
+      const fallbackId = `REC-${year}-${Math.floor(1000 + Math.random() * 9000)}`
+      const fallbackRecord: ComplaintRecord = {
+        ...data,
+        id: fallbackId,
+        year,
+        status: "Pendiente",
+        maxResponseDays: 15,
+        createdAt: new Date().toISOString(),
+      }
+      try {
+        const prev = readStorage<ComplaintRecord[]>("gone_complaints", [])
+        writeStorage("gone_complaints", [fallbackRecord, ...prev])
+      } catch {}
+
+      return { ok: true, complaint: fallbackRecord }
+    },
+
+    async getAll(): Promise<ComplaintRecord[]> {
+      if (API_GATEWAY_URL) {
+        try {
+          const token = getAdminToken() || "dev-admin-token"
+          const res = await fetch(`${API_GATEWAY_URL}/complaints`, {
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+          })
+          if (res.ok) {
+            return await res.json()
+          }
+        } catch {}
+      }
+      return readStorage<ComplaintRecord[]>("gone_complaints", [])
     },
   },
 }

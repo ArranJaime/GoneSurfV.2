@@ -76,6 +76,20 @@ Resources:
         - AttributeName: email
           KeyType: HASH
 
+  ComplaintsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub 'GoneSurfing-Complaints-${Environment}'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+
   # ============================================================================
   # 2. S3 BUCKETS (FRONTEND HOSTING & MEDIA STORAGE)
   # ============================================================================
@@ -222,6 +236,7 @@ Resources:
                   - !GetAtt CollectionsTable.Arn
                   - !GetAtt OrdersTable.Arn
                   - !GetAtt UsersTable.Arn
+                  - !GetAtt ComplaintsTable.Arn
         - PolicyName: S3MediaAccess
           PolicyDocument:
             Version: '2012-10-17'
@@ -253,6 +268,7 @@ Resources:
           COLLECTIONS_TABLE: !Ref CollectionsTable
           ORDERS_TABLE: !Ref OrdersTable
           USERS_TABLE: !Ref UsersTable
+          COMPLAINTS_TABLE: !Ref ComplaintsTable
           MEDIA_BUCKET: !Ref MediaBucket
           CLOUDFRONT_DOMAIN: !GetAtt CloudFrontDistribution.DomainName
           ADMIN_USER: admin

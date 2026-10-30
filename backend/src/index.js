@@ -27,6 +27,7 @@ const PRODUCTS_TABLE = process.env.PRODUCTS_TABLE || "GoneSurfing-Products-prod"
 const COLLECTIONS_TABLE = process.env.COLLECTIONS_TABLE || "GoneSurfing-Collections-prod"
 const ORDERS_TABLE = process.env.ORDERS_TABLE || "GoneSurfing-Orders-prod"
 const USERS_TABLE = process.env.USERS_TABLE || "GoneSurfing-Users-prod"
+const COMPLAINTS_TABLE = process.env.COMPLAINTS_TABLE || "GoneSurfing-Complaints-prod"
 const MEDIA_BUCKET = process.env.MEDIA_BUCKET || ""
 const CLOUDFRONT_DOMAIN = process.env.CLOUDFRONT_DOMAIN || ""
 const JWT_SECRET = process.env.JWT_SECRET || "gone_surfing_super_secret_jwt_key_2026_sunat"
@@ -925,6 +926,86 @@ export async function handler(event) {
         fileKey,
         publicUrl,
       })
+    }
+
+    // -------------------------------------------------------------------------
+    // 6. COMPLAINTS BOOK (LIBRO DE RECLAMACIONES INDECOPI / LEY 29733)
+    // -------------------------------------------------------------------------
+    if (httpMethod === "POST" && path === "/complaints") {
+      const data = parseBody(event)
+
+      // Validation according to D.S. 011-2011-PCM
+      const consumerName = (data.consumerName || "").trim()
+      const documentType = (data.documentType || "DNI").trim()
+      const documentNumber = (data.documentNumber || "").trim()
+      const address = (data.address || "").trim()
+      const phone = (data.phone || "").trim()
+      const email = (data.email || "").trim().toLowerCase()
+      const goodType = (data.goodType || "producto").trim()
+      const goodDescription = (data.goodDescription || "").trim()
+      const claimType = (data.claimType || "reclamo").trim() // "reclamo" o "queja"
+      const detail = (data.detail || "").trim()
+      const consumerRequest = (data.consumerRequest || "").trim()
+
+      if (!consumerName || !documentNumber || !address || !phone || !email || !goodDescription || !detail || !consumerRequest) {
+        return response(400, {
+          message: "Todos los campos obligatorios del Libro de Reclamaciones deben ser completados.",
+        })
+      }
+
+      // Generate legal complaint code: REC-{YEAR}-{NUMBER}
+      const year = new Date().getFullYear()
+      const randomSuffix = Math.floor(1000 + Math.random() * 9000)
+      const complaintId = `REC-${year}-${randomSuffix}`
+
+      const complaintRecord = {
+        id: complaintId,
+        year,
+        consumerName,
+        documentType,
+        documentNumber,
+        address,
+        phone,
+        email,
+        isMinor: Boolean(data.isMinor),
+        parentName: (data.parentName || "").trim(),
+        parentDocument: (data.parentDocument || "").trim(),
+        goodType, // "producto" o "servicio"
+        claimedAmount: Number(data.claimedAmount) || 0,
+        goodDescription,
+        claimType, // "reclamo" o "queja"
+        detail,
+        consumerRequest,
+        status: "Pendiente",
+        maxResponseDays: 15, // Conforme a Ley N° 31435
+        createdAt: new Date().toISOString(),
+      }
+
+      await docClient.send(
+        new PutCommand({
+          TableName: COMPLAINTS_TABLE,
+          Item: complaintRecord,
+        })
+      )
+
+      return response(201, {
+        ok: true,
+        complaint: complaintRecord,
+        message: "Hoja de reclamación registrada exitosamente. Se responderá dentro del plazo legal de 15 días hábiles.",
+      })
+    }
+
+    if (httpMethod === "GET" && path === "/complaints") {
+      const user = authenticate(headers, event)
+      if (!user || user.role !== "admin") {
+        return response(403, { message: "Acceso denegado. Se requieren permisos de administrador." })
+      }
+
+      const res = await docClient.send(new ScanCommand({ TableName: COMPLAINTS_TABLE }))
+      const complaints = (res.Items || []).sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      )
+      return response(200, complaints)
     }
 
     return response(404, { message: `Ruta no encontrada: ${httpMethod} ${path}` })

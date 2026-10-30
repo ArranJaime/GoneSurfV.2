@@ -20,6 +20,10 @@ import Admin from "./Admin"
 import Collections from "./Collections"
 import Checkout from "./Checkout"
 import ProfileView from "./components/profile/ProfileView"
+import Footer from "./components/Footer"
+import Terms from "./Terms"
+import PrivacyPolicy from "./PrivacyPolicy"
+import ComplaintsBook from "./ComplaintsBook"
 import { formatPEN } from "./utils/accounting"
 import { sanitizeString, sanitizeUrlParam } from "./utils/security"
 
@@ -1235,37 +1239,6 @@ function Profile() {
   return <ProfileView />
 }
 
-function Footer({ openChat }: { openChat: () => void }) {
-  const navigate = useNavigate()
-  const location = useLocation()
-  if (location.pathname === "/admin" || location.pathname === "/checkout")
-    return null
-  return (
-    <footer>
-      <button
-        onClick={() => navigate("/")}
-        style={{
-          background: "transparent",
-          border: 0,
-          padding: 0,
-          display: "flex",
-          alignItems: "center",
-          cursor: "pointer",
-        }}
-        aria-label="Gone Surfing Home"
-      >
-        <img
-          src="/logo-gone-surfing.png"
-          alt="Gone Surfing Logo"
-          className="brand-logo"
-        />
-      </button>
-      <p>SURF CULTURE FROM LIMA, PERÚ.</p>
-      <button onClick={openChat}>◯ &nbsp; Chat</button>
-    </footer>
-  )
-}
-
 function AppContent() {
   const location = useLocation()
   const [panel, setPanel] = useState<string | null>(null)
@@ -1295,8 +1268,7 @@ function AppContent() {
         <Route path="/cart" element={<Cart />} />
         <Route path="/checkout" element={<Checkout />} />
         <Route path="/profile" element={<Profile />} />
-        <Route
-          path="/about"
+        <Route path="/about"
           element={
             <main className="page">
               <div className="page-title">
@@ -1306,6 +1278,9 @@ function AppContent() {
             </main>
           }
         />
+        <Route path="/terminos" element={<Terms />} />
+        <Route path="/privacidad" element={<PrivacyPolicy />} />
+        <Route path="/libro-reclamaciones" element={<ComplaintsBook />} />
         <Route path="/admin" element={<Admin />} />
       </Routes>
       <Footer openChat={() => setPanel("chat")} />
