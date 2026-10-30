@@ -695,15 +695,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const updateOrderStatus = useCallback(
-    (id: string, nextStatus: OrderStatus) => {
-      api.orders
-        .updateStatus(id, nextStatus)
-        .then(() => {
-          reloadFromStorage()
-        })
-        .catch((err) => {
-          console.error("[Store] Error al actualizar estado de orden:", err)
-        })
+    async (id: string, nextStatus: OrderStatus) => {
+      setTransactions((prev) =>
+        prev.map((t) => (t.id === id ? { ...t, status: nextStatus } : t)),
+      )
+      try {
+        await api.orders.updateStatus(id, nextStatus)
+        reloadFromStorage()
+      } catch (err) {
+        console.error("[Store] Error al actualizar estado de orden:", err)
+      }
     },
     [reloadFromStorage],
   )

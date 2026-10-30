@@ -41,8 +41,8 @@ const ADMIN_PASSWORD_DEFAULT = process.env.ADMIN_PASSWORD || "admin666"
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
-    "Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token",
-  "Access-Control-Allow-Methods": "OPTIONS,GET,POST,PUT,DELETE",
+    "Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Dev-Mode,x-dev-mode",
+  "Access-Control-Allow-Methods": "OPTIONS,GET,POST,PUT,PATCH,DELETE",
 }
 
 function response(statusCode, body, extraHeaders = {}) {
@@ -985,62 +985,104 @@ export async function handler(event) {
       return response(201, transaction)
     }
 
-    if (httpMethod === "PATCH" && path.includes("/status")) {
+    if (
+      (httpMethod === "PATCH" || httpMethod === "PUT") &&
+      path.startsWith("/orders/")
+    ) {
       const user = authenticate(headers, event)
       if (!user || user.role !== "admin")
-        return response(403, { message: "Acceso denegado." })
+        return response(403, {
+          message: "Acceso denegado. Se requieren permisos de administrador.",
+        })
 
-      const match = path.match(/\/orders\/([^/]+)\/status/)
-      const id = match ? match[1] : path.split("/")[2]
-      const { status } = parseBody(event)
+      const match = path.match(/^\/orders\/([^/]+)/)
+      const rawId = match ? match[1] : path.split("/")[2]
+      const id = decodeURIComponent(rawId || "").replace(/\/status$/, "")
+
+      const body = parseBody(event)
+      const status = body.status
+      if (!status) {
+        return response(400, {
+          message:
+            "El campo 'status' es obligatorio para actualizar el pedido.",
+        })
+      }
+
       const orderRes = await docClient.send(
         new GetCommand({ TableName: ORDERS_TABLE, Key: { id } }),
       )
       if (!orderRes.Item)
-        return response(404, { message: "Orden no encontrada." })
+        return response(404, {
+          message: `Orden '${id}' no encontrada en DynamoDB.`,
+        })
 
       const currentStatus = orderRes.Item.status
       if (currentStatus !== status) {
         // Stock rollback if cancelled
         if (status === "Cancelado" && currentStatus !== "Cancelado") {
           for (const item of orderRes.Item.items || []) {
-            await docClient.send(
-              new UpdateCommand({
-                TableName: PRODUCTS_TABLE,
-                Key: { id: item.productId },
-                UpdateExpression: "SET stocks.#sz = stocks.#sz + :qty",
-                ExpressionAttributeNames: { "#sz": item.size },
-                ExpressionAttributeValues: { ":qty": item.quantity },
-              }),
-            )
+            try {
+              await docClient.send(
+                new UpdateCommand({
+                  TableName: PRODUCTS_TABLE,
+                  Key: { id: item.productId },
+                  UpdateExpression: "SET stocks.#sz = stocks.#sz + :qty",
+                  ExpressionAttributeNames: { "#sz": item.size },
+                  ExpressionAttributeValues: { ":qty": item.quantity },
+                }),
+              )
+            } catch (stockErr) {
+              console.warn(
+                "Fallo reponiendo stock de orden cancelada:",
+                stockErr,
+              )
+            }
           }
         } else if (currentStatus === "Cancelado" && status !== "Cancelado") {
           // Re-deduct if un-cancelled
           for (const item of orderRes.Item.items || []) {
-            await docClient.send(
-              new UpdateCommand({
-                TableName: PRODUCTS_TABLE,
-                Key: { id: item.productId },
-                UpdateExpression: "SET stocks.#sz = stocks.#sz - :qty",
-                ExpressionAttributeNames: { "#sz": item.size },
-                ExpressionAttributeValues: { ":qty": item.quantity },
-              }),
-            )
+            try {
+              await docClient.send(
+                new UpdateCommand({
+                  TableName: PRODUCTS_TABLE,
+                  Key: { id: item.productId },
+                  UpdateExpression: "SET stocks.#sz = stocks.#sz - :qty",
+                  ExpressionAttributeNames: { "#sz": item.size },
+                  ExpressionAttributeValues: { ":qty": item.quantity },
+                }),
+              )
+            } catch (stockErr) {
+              console.warn(
+                "Fallo deduciendo stock de orden reactivada:",
+                stockErr,
+              )
+            }
           }
         }
 
+        const now = new Date().toISOString()
         await docClient.send(
           new UpdateCommand({
             TableName: ORDERS_TABLE,
             Key: { id },
-            UpdateExpression: "SET #st = :s",
-            ExpressionAttributeNames: { "#st": "status" },
-            ExpressionAttributeValues: { ":s": status },
+            UpdateExpression: "SET #st = :s, #ua = :ua",
+            ExpressionAttributeNames: { "#st": "status", "#ua": "updatedAt" },
+            ExpressionAttributeValues: { ":s": status, ":ua": now },
           }),
         )
       }
 
-      return response(200, { ...orderRes.Item, status })
+      return response(200, {
+        ok: true,
+        message: `Estado de la orden ${id} actualizado a '${status}' exitosamente.`,
+        order: {
+          ...orderRes.Item,
+          status,
+          updatedAt: new Date().toISOString(),
+        },
+        ...orderRes.Item,
+        status,
+      })
     }
 
     // -------------------------------------------------------------------------

@@ -106,13 +106,7 @@ export interface ComplaintInput {
   consumerRequest: string
 }
 
-export type ComplaintStatus =
-  | "Pendiente"
-  | "En Revisión"
-  | "En Proceso"
-  | "Atendido"
-  | "Cerrado"
-  | "Resuelto"
+export type ComplaintStatus = "Pendiente" | "En Revisión" | "En Proceso" | "Atendido" | "Cerrado" | "Resuelto"
 
 export interface ComplaintRecord extends ComplaintInput {
   id: string
@@ -124,4 +118,15 @@ export interface ComplaintRecord extends ComplaintInput {
   adminNotes?: string
   resolvedAt?: string
   updatedAt?: string
+}
+
+export interface ComplaintStatusUpdateOptions {
+  resolution?: string
+  adminNotes?: string
+}
+
+export interface ComplaintUpdateResult {
+  ok: boolean
+  complaint?: ComplaintRecord
+  error?: string
 }

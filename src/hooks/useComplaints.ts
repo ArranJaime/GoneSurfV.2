@@ -3,6 +3,7 @@ import {
   api,
   type ComplaintRecord,
   type ComplaintStatus,
+  type ComplaintStatusUpdateOptions,
 } from "../services/api"
 
 export function useComplaints() {
@@ -51,7 +52,7 @@ export function useComplaints() {
     async (
       id: string,
       nextStatus: ComplaintStatus,
-      options?: { resolution?: string; adminNotes?: string },
+      options?: ComplaintStatusUpdateOptions,
     ) => {
       // Optimistic update
       setComplaints((prev) =>

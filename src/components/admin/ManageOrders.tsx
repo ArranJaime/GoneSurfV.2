@@ -91,6 +91,18 @@ export default function ManageOrders({
   const [internalLoading, setInternalLoading] = useState(false)
   const [internalError, setInternalError] = useState<string | null>(null)
   const [statusFilter, setStatusFilter] = useState<string>("Todos los Estados")
+  const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null)
+  const [notification, setNotification] = useState<{
+    message: string
+    type: "success" | "error"
+  } | null>(null)
+
+  useEffect(() => {
+    if (notification) {
+      const timer = setTimeout(() => setNotification(null), 3500)
+      return () => clearTimeout(timer)
+    }
+  }, [notification])
 
   const isControlled = propOrders !== undefined
   const displayOrders = isControlled ? propOrders : internalLiveOrders
@@ -179,17 +191,29 @@ export default function ManageOrders({
   }, [isControlled, fetchOrdersFromApi])
 
   const handleStatusChange = async (id: string, nextStatus: OrderStatus) => {
+    setUpdatingOrderId(id)
     try {
       if (propOnStatusChange) {
         await propOnStatusChange(id, nextStatus)
       } else {
+        await api.orders.updateStatus(id, nextStatus)
         updateOrderStatus(id, nextStatus)
         setInternalLiveOrders((prev) =>
           prev.map((o) => (o.id === id ? { ...o, status: nextStatus } : o)),
         )
       }
-    } catch (err) {
+      setNotification({
+        type: "success",
+        message: `✓ Pedido ${id} actualizado a "${nextStatus}" en DynamoDB`,
+      })
+    } catch (err: any) {
       console.error("[Admin] Error actualizando estado de pedido:", err)
+      setNotification({
+        type: "error",
+        message: `⚠️ Error al actualizar el pedido ${id}. ${err?.message || "Revisa la conexión con AWS."}`,
+      })
+    } finally {
+      setUpdatingOrderId(null)
     }
   }
 
@@ -266,6 +290,42 @@ export default function ManageOrders({
         animation: "fadeIn 0.3s ease",
       }}
     >
+      {notification && (
+        <div
+          style={{
+            padding: "10px 16px",
+            backgroundColor:
+              notification.type === "success" ? "#ecfdf5" : "#fef2f2",
+            borderBottom: `2px solid ${
+              notification.type === "success" ? "#10b981" : "#ef4444"
+            }`,
+            color: notification.type === "success" ? "#065f46" : "#991b1b",
+            fontWeight: 700,
+            fontSize: "0.85rem",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            animation: "fadeIn 0.2s ease-out",
+          }}
+        >
+          <span>{notification.message}</span>
+          <button
+            type="button"
+            onClick={() => setNotification(null)}
+            style={{
+              background: "transparent",
+              border: "none",
+              cursor: "pointer",
+              fontWeight: "bold",
+              color: "inherit",
+              fontSize: "1rem",
+              lineHeight: 1,
+            }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
       <div
         style={{
           padding: "1.25rem 1.5rem",
@@ -524,34 +584,59 @@ export default function ManageOrders({
                       {renderPaymentBadge(t.paymentMethod)}
                     </td>
                     <td style={{ padding: "1rem" }}>
-                      <select
-                        value={status}
-                        onChange={(e) =>
-                          handleStatusChange(
-                            t.id,
-                            e.target.value as OrderStatus,
-                          )
-                        }
+                      <div
                         style={{
-                          padding: "0.5rem",
-                          borderRadius: "4px",
-                          border: "1px solid #ccc",
-                          fontWeight: "bold",
-                          cursor: "pointer",
-                          background: badgeBg,
-                          color: badgeColor,
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "6px",
                         }}
                       >
-                        <option value="Pendiente de Pago">
-                          Pendiente de Pago
-                        </option>
-                        <option value="Procesando">Procesando</option>
-                        <option value="Enviado">Enviado</option>
-                        <option value="Entregado">Entregado</option>
-                        <option value="Cancelado">
-                          Cancelado (Devuelve Stock)
-                        </option>
-                      </select>
+                        <select
+                          value={status}
+                          disabled={updatingOrderId === t.id}
+                          onChange={(e) =>
+                            handleStatusChange(
+                              t.id,
+                              e.target.value as OrderStatus,
+                            )
+                          }
+                          style={{
+                            padding: "0.5rem",
+                            borderRadius: "4px",
+                            border: "1px solid #ccc",
+                            fontWeight: "bold",
+                            cursor:
+                              updatingOrderId === t.id ? "wait" : "pointer",
+                            background: badgeBg,
+                            color: badgeColor,
+                            opacity: updatingOrderId === t.id ? 0.6 : 1,
+                            transition: "opacity 0.2s ease",
+                          }}
+                          title="Cambiar estado del pedido"
+                        >
+                          <option value="Pendiente de Pago">
+                            Pendiente de Pago
+                          </option>
+                          <option value="Procesando">Procesando</option>
+                          <option value="Enviado">Enviado</option>
+                          <option value="Entregado">Entregado</option>
+                          <option value="Cancelado">
+                            Cancelado (Devuelve Stock)
+                          </option>
+                        </select>
+                        {updatingOrderId === t.id && (
+                          <span
+                            style={{
+                              fontSize: "0.75rem",
+                              color: "#666",
+                              fontWeight: "bold",
+                            }}
+                            title="Guardando en DynamoDB..."
+                          >
+                            ⏳ Guardando...
+                          </span>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 )

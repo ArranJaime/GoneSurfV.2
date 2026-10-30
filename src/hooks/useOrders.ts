@@ -79,16 +79,27 @@ export function useOrders(initialFilter: string = "Todos los Estados") {
 
   const handleStatusChange = useCallback(
     async (id: string, nextStatus: OrderStatus) => {
+      // 1. Actualización optimista inmediata en memoria
+      setOrders((prev) =>
+        prev.map((o) => (o.id === id ? { ...o, status: nextStatus } : o)),
+      )
+
       try {
+        // 2. Guardar permanentemente en DynamoDB a través del API Gateway
+        await api.orders.updateStatus(id, nextStatus)
+        // 3. Sincronizar el store global
         updateOrderStatus(id, nextStatus)
-        setOrders((prev) =>
-          prev.map((o) => (o.id === id ? { ...o, status: nextStatus } : o)),
-        )
       } catch (err) {
-        console.error("[useOrders] Error actualizando estado de pedido:", err)
+        console.error(
+          "[useOrders] Error actualizando estado de pedido en DynamoDB:",
+          err,
+        )
+        // Revertir si hubo error de conexión
+        await fetchOrders()
+        throw err
       }
     },
-    [updateOrderStatus],
+    [updateOrderStatus, fetchOrders],
   )
 
   const filteredOrders = useMemo(() => {
