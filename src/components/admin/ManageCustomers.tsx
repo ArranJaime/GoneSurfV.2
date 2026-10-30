@@ -157,9 +157,11 @@ export default function ManageCustomers({ orders }: ManageCustomersProps = {}) {
       setCustomerToDelete(null)
     } catch (err: any) {
       console.error("[ManageCustomers] Error durante el borrado en cascada:", err)
-      setDeleteError(
-        err?.message || "Ocurrió un error al procesar el borrado en cascada en AWS.",
-      )
+      const errorMsg =
+        err?.message === "Failed to fetch"
+          ? "Error de conexión con el backend AWS (CORS o red). Por favor, intenta de nuevo."
+          : err?.message || "Ocurrió un error al procesar el borrado en cascada en AWS."
+      setDeleteError(errorMsg)
     } finally {
       setIsDeleting(false)
     }
