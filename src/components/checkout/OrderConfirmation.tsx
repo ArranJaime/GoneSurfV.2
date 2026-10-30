@@ -253,9 +253,7 @@ export default function OrderConfirmation({
             <span style={{ fontSize: "0.9rem", fontWeight: "bold" }}>
               Total (IGV incl.)
             </span>
-            <strong style={{ fontSize: "1.5rem" }}>
-              {money(order.total)}
-            </strong>
+            <strong style={{ fontSize: "1.5rem" }}>{money(order.total)}</strong>
           </div>
 
           {/* Mapa Ilustrativo */}
@@ -518,8 +516,8 @@ export default function OrderConfirmation({
                 </p>
                 <p style={{ fontSize: "0.85rem", color: "#ddd", margin: 0 }}>
                   Pago contra entrega en efectivo. Pagarás{" "}
-                  <strong>{money(order.total)}</strong> al recibir tu pedido en tu
-                  domicilio.
+                  <strong>{money(order.total)}</strong> al recibir tu pedido en
+                  tu domicilio.
                 </p>
               </div>
             )}

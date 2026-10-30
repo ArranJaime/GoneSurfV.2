@@ -5,7 +5,9 @@ import type { ComplaintInput, ComplaintRecord } from "./types"
 
 export default function ComplaintsBook() {
   const [consumerName, setConsumerName] = useState("")
-  const [documentType, setDocumentType] = useState<"DNI" | "CE" | "Pasaporte">("DNI")
+  const [documentType, setDocumentType] = useState<"DNI" | "CE" | "Pasaporte">(
+    "DNI",
+  )
   const [documentNumber, setDocumentNumber] = useState("")
   const [address, setAddress] = useState("")
   const [phone, setPhone] = useState("")
@@ -27,29 +29,44 @@ export default function ComplaintsBook() {
 
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
-  const [confirmedComplaint, setConfirmedComplaint] = useState<ComplaintRecord | null>(null)
+  const [confirmedComplaint, setConfirmedComplaint] =
+    useState<ComplaintRecord | null>(null)
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setErrorMessage(null)
 
     if (!acceptedDeclaration || !acceptedNotification) {
-      setErrorMessage("Debes aceptar la declaración jurada y el consentimiento de notificación para proceder.")
+      setErrorMessage(
+        "Debes aceptar la declaración jurada y el consentimiento de notificación para proceder.",
+      )
       return
     }
 
-    if (!consumerName.trim() || !documentNumber.trim() || !address.trim() || !phone.trim() || !email.trim()) {
-      setErrorMessage("Por favor, completa todos los datos personales obligatorios.")
+    if (
+      !consumerName.trim() ||
+      !documentNumber.trim() ||
+      !address.trim() ||
+      !phone.trim() ||
+      !email.trim()
+    ) {
+      setErrorMessage(
+        "Por favor, completa todos los datos personales obligatorios.",
+      )
       return
     }
 
     if (!goodDescription.trim() || !detail.trim() || !consumerRequest.trim()) {
-      setErrorMessage("Por favor, completa la descripción del bien, el detalle y tu pedido concreto.")
+      setErrorMessage(
+        "Por favor, completa la descripción del bien, el detalle y tu pedido concreto.",
+      )
       return
     }
 
     if (isMinor && (!parentName.trim() || !parentDocument.trim())) {
-      setErrorMessage("Al ser menor de edad, debes ingresar los datos de tu padre, madre o apoderado legal.")
+      setErrorMessage(
+        "Al ser menor de edad, debes ingresar los datos de tu padre, madre o apoderado legal.",
+      )
       return
     }
 
@@ -79,10 +96,15 @@ export default function ComplaintsBook() {
         setConfirmedComplaint(res.complaint)
         window.scrollTo({ top: 0, behavior: "smooth" })
       } else {
-        setErrorMessage(res.error || "Ocurrió un error al enviar tu hoja de reclamación. Inténtalo nuevamente.")
+        setErrorMessage(
+          res.error ||
+            "Ocurrió un error al enviar tu hoja de reclamación. Inténtalo nuevamente.",
+        )
       }
     } catch {
-      setErrorMessage("Error de conexión al enviar el formulario. Verifica tu conexión a internet.")
+      setErrorMessage(
+        "Error de conexión al enviar el formulario. Verifica tu conexión a internet.",
+      )
     } finally {
       setIsSubmitting(false)
     }
@@ -152,7 +174,8 @@ export default function ComplaintsBook() {
                 Hoja de Reclamación Virtual
               </h1>
               <p style={{ margin: 0, fontSize: "0.85rem", color: "#94a3b8" }}>
-                Razón Social: <strong>GONE SURFING PERÚ S.A.C.</strong> • RUC: 20609876543
+                Razón Social: <strong>GONE SURFING PERÚ S.A.C.</strong> • RUC:
+                20609876543
               </p>
             </div>
             <div
@@ -164,14 +187,35 @@ export default function ComplaintsBook() {
                 textAlign: "right",
               }}
             >
-              <span style={{ display: "block", fontSize: "0.7rem", color: "#94a3b8", letterSpacing: "1px" }}>
+              <span
+                style={{
+                  display: "block",
+                  fontSize: "0.7rem",
+                  color: "#94a3b8",
+                  letterSpacing: "1px",
+                }}
+              >
                 CÓDIGO DE RECLAMACIÓN
               </span>
-              <strong style={{ fontSize: "1.25rem", color: "#38bdf8", letterSpacing: "1px" }}>
+              <strong
+                style={{
+                  fontSize: "1.25rem",
+                  color: "#38bdf8",
+                  letterSpacing: "1px",
+                }}
+              >
                 {confirmedComplaint.id}
               </strong>
-              <span style={{ display: "block", fontSize: "0.7rem", color: "#64748b", marginTop: "2px" }}>
-                Fecha: {new Date(confirmedComplaint.createdAt).toLocaleString("es-PE")}
+              <span
+                style={{
+                  display: "block",
+                  fontSize: "0.7rem",
+                  color: "#64748b",
+                  marginTop: "2px",
+                }}
+              >
+                Fecha:{" "}
+                {new Date(confirmedComplaint.createdAt).toLocaleString("es-PE")}
               </span>
             </div>
           </div>
@@ -187,11 +231,21 @@ export default function ComplaintsBook() {
               color: "#bae6fd",
             }}
           >
-            ✓ <strong>Hoja registrada con éxito.</strong> Conforme a la <strong>Ley N° 31435</strong>, el proveedor deberá dar respuesta al reclamo o queja en un plazo no mayor a <strong>15 días hábiles</strong> improrrogables. Se ha remitido una copia a tu correo electrónico registrado.
+            ✓ <strong>Hoja registrada con éxito.</strong> Conforme a la{" "}
+            <strong>Ley N° 31435</strong>, el proveedor deberá dar respuesta al
+            reclamo o queja en un plazo no mayor a{" "}
+            <strong>15 días hábiles</strong> improrrogables. Se ha remitido una
+            copia a tu correo electrónico registrado.
           </div>
 
           {/* Resumen 1: Consumidor */}
-          <div style={{ marginBottom: "1.5rem", borderBottom: "1px solid #232832", paddingBottom: "1.2rem" }}>
+          <div
+            style={{
+              marginBottom: "1.5rem",
+              borderBottom: "1px solid #232832",
+              paddingBottom: "1.2rem",
+            }}
+          >
             <h3
               style={{
                 fontFamily: '"Barlow Condensed", sans-serif',
@@ -205,38 +259,109 @@ export default function ComplaintsBook() {
             >
               1. Identificación del Consumidor Reclamante
             </h3>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "0.75rem", fontSize: "0.85rem" }}>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+                gap: "0.75rem",
+                fontSize: "0.85rem",
+              }}
+            >
               <div>
-                <span style={{ color: "#64748b", display: "block", fontSize: "0.75rem" }}>Nombre Completo</span>
+                <span
+                  style={{
+                    color: "#64748b",
+                    display: "block",
+                    fontSize: "0.75rem",
+                  }}
+                >
+                  Nombre Completo
+                </span>
                 <strong>{confirmedComplaint.consumerName}</strong>
               </div>
               <div>
-                <span style={{ color: "#64748b", display: "block", fontSize: "0.75rem" }}>Documento ({confirmedComplaint.documentType})</span>
+                <span
+                  style={{
+                    color: "#64748b",
+                    display: "block",
+                    fontSize: "0.75rem",
+                  }}
+                >
+                  Documento ({confirmedComplaint.documentType})
+                </span>
                 <strong>{confirmedComplaint.documentNumber}</strong>
               </div>
               <div>
-                <span style={{ color: "#64748b", display: "block", fontSize: "0.75rem" }}>Teléfono / Celular</span>
+                <span
+                  style={{
+                    color: "#64748b",
+                    display: "block",
+                    fontSize: "0.75rem",
+                  }}
+                >
+                  Teléfono / Celular
+                </span>
                 <strong>{confirmedComplaint.phone}</strong>
               </div>
               <div>
-                <span style={{ color: "#64748b", display: "block", fontSize: "0.75rem" }}>Correo Electrónico</span>
+                <span
+                  style={{
+                    color: "#64748b",
+                    display: "block",
+                    fontSize: "0.75rem",
+                  }}
+                >
+                  Correo Electrónico
+                </span>
                 <strong>{confirmedComplaint.email}</strong>
               </div>
               <div style={{ gridColumn: "1 / -1" }}>
-                <span style={{ color: "#64748b", display: "block", fontSize: "0.75rem" }}>Domicilio</span>
+                <span
+                  style={{
+                    color: "#64748b",
+                    display: "block",
+                    fontSize: "0.75rem",
+                  }}
+                >
+                  Domicilio
+                </span>
                 <strong>{confirmedComplaint.address}</strong>
               </div>
               {confirmedComplaint.isMinor && (
-                <div style={{ gridColumn: "1 / -1", background: "#1a1e26", padding: "0.5rem 0.75rem", borderRadius: "3px" }}>
-                  <span style={{ color: "#94a3b8", display: "block", fontSize: "0.75rem" }}>Padre / Madre / Apoderado (Menor de Edad)</span>
-                  <strong>{confirmedComplaint.parentName} — DNI: {confirmedComplaint.parentDocument}</strong>
+                <div
+                  style={{
+                    gridColumn: "1 / -1",
+                    background: "#1a1e26",
+                    padding: "0.5rem 0.75rem",
+                    borderRadius: "3px",
+                  }}
+                >
+                  <span
+                    style={{
+                      color: "#94a3b8",
+                      display: "block",
+                      fontSize: "0.75rem",
+                    }}
+                  >
+                    Padre / Madre / Apoderado (Menor de Edad)
+                  </span>
+                  <strong>
+                    {confirmedComplaint.parentName} — DNI:{" "}
+                    {confirmedComplaint.parentDocument}
+                  </strong>
                 </div>
               )}
             </div>
           </div>
 
           {/* Resumen 2: Bien Contratado */}
-          <div style={{ marginBottom: "1.5rem", borderBottom: "1px solid #232832", paddingBottom: "1.2rem" }}>
+          <div
+            style={{
+              marginBottom: "1.5rem",
+              borderBottom: "1px solid #232832",
+              paddingBottom: "1.2rem",
+            }}
+          >
             <h3
               style={{
                 fontFamily: '"Barlow Condensed", sans-serif',
@@ -250,18 +375,55 @@ export default function ComplaintsBook() {
             >
               2. Identificación del Bien o Servicio Contratado
             </h3>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "0.75rem", fontSize: "0.85rem" }}>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+                gap: "0.75rem",
+                fontSize: "0.85rem",
+              }}
+            >
               <div>
-                <span style={{ color: "#64748b", display: "block", fontSize: "0.75rem" }}>Naturaleza</span>
-                <strong style={{ textTransform: "uppercase" }}>{confirmedComplaint.goodType}</strong>
+                <span
+                  style={{
+                    color: "#64748b",
+                    display: "block",
+                    fontSize: "0.75rem",
+                  }}
+                >
+                  Naturaleza
+                </span>
+                <strong style={{ textTransform: "uppercase" }}>
+                  {confirmedComplaint.goodType}
+                </strong>
               </div>
               <div>
-                <span style={{ color: "#64748b", display: "block", fontSize: "0.75rem" }}>Monto Reclamado</span>
-                <strong>S/. {(confirmedComplaint.claimedAmount || 0).toFixed(2)}</strong>
+                <span
+                  style={{
+                    color: "#64748b",
+                    display: "block",
+                    fontSize: "0.75rem",
+                  }}
+                >
+                  Monto Reclamado
+                </span>
+                <strong>
+                  S/. {(confirmedComplaint.claimedAmount || 0).toFixed(2)}
+                </strong>
               </div>
               <div style={{ gridColumn: "1 / -1" }}>
-                <span style={{ color: "#64748b", display: "block", fontSize: "0.75rem" }}>Descripción del Bien / Pedido</span>
-                <p style={{ margin: "0.2rem 0 0 0", color: "#cbd5e1" }}>{confirmedComplaint.goodDescription}</p>
+                <span
+                  style={{
+                    color: "#64748b",
+                    display: "block",
+                    fontSize: "0.75rem",
+                  }}
+                >
+                  Descripción del Bien / Pedido
+                </span>
+                <p style={{ margin: "0.2rem 0 0 0", color: "#cbd5e1" }}>
+                  {confirmedComplaint.goodDescription}
+                </p>
               </div>
             </div>
           </div>
@@ -291,22 +453,60 @@ export default function ComplaintsBook() {
                   fontWeight: 800,
                   textTransform: "uppercase",
                   letterSpacing: "1px",
-                  backgroundColor: confirmedComplaint.claimType === "reclamo" ? "#fef3c7" : "#e0e7ff",
-                  color: confirmedComplaint.claimType === "reclamo" ? "#92400e" : "#3730a3",
+                  backgroundColor:
+                    confirmedComplaint.claimType === "reclamo"
+                      ? "#fef3c7"
+                      : "#e0e7ff",
+                  color:
+                    confirmedComplaint.claimType === "reclamo"
+                      ? "#92400e"
+                      : "#3730a3",
                 }}
               >
                 {confirmedComplaint.claimType.toUpperCase()}
               </span>
             </div>
             <div style={{ marginBottom: "1rem" }}>
-              <span style={{ color: "#64748b", display: "block", fontSize: "0.75rem" }}>Detalle de los Hechos</span>
-              <p style={{ margin: "0.3rem 0 0 0", color: "#e2e8f0", fontSize: "0.88rem", whiteSpace: "pre-wrap", lineHeight: 1.6 }}>
+              <span
+                style={{
+                  color: "#64748b",
+                  display: "block",
+                  fontSize: "0.75rem",
+                }}
+              >
+                Detalle de los Hechos
+              </span>
+              <p
+                style={{
+                  margin: "0.3rem 0 0 0",
+                  color: "#e2e8f0",
+                  fontSize: "0.88rem",
+                  whiteSpace: "pre-wrap",
+                  lineHeight: 1.6,
+                }}
+              >
                 {confirmedComplaint.detail}
               </p>
             </div>
             <div>
-              <span style={{ color: "#64748b", display: "block", fontSize: "0.75rem" }}>Pedido Concreto del Consumidor</span>
-              <p style={{ margin: "0.3rem 0 0 0", color: "#e2e8f0", fontSize: "0.88rem", whiteSpace: "pre-wrap", lineHeight: 1.6 }}>
+              <span
+                style={{
+                  color: "#64748b",
+                  display: "block",
+                  fontSize: "0.75rem",
+                }}
+              >
+                Pedido Concreto del Consumidor
+              </span>
+              <p
+                style={{
+                  margin: "0.3rem 0 0 0",
+                  color: "#e2e8f0",
+                  fontSize: "0.88rem",
+                  whiteSpace: "pre-wrap",
+                  lineHeight: 1.6,
+                }}
+              >
                 {confirmedComplaint.consumerRequest}
               </p>
             </div>
@@ -421,7 +621,14 @@ export default function ComplaintsBook() {
             marginBottom: "2.5rem",
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "0.5rem" }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+              marginBottom: "0.5rem",
+            }}
+          >
             <span
               style={{
                 padding: "3px 8px",
@@ -460,9 +667,12 @@ export default function ComplaintsBook() {
               lineHeight: 1.6,
             }}
           >
-            <strong>GONE SURFING PERÚ S.A.C.</strong> • RUC: <strong>20609876543</strong> • Domicilio Legal: Lima, Perú.
+            <strong>GONE SURFING PERÚ S.A.C.</strong> • RUC:{" "}
+            <strong>20609876543</strong> • Domicilio Legal: Lima, Perú.
             <br />
-            Conforme a la <strong>Ley N° 31435</strong>, responderemos a su reclamo o queja en un plazo máximo de <strong>15 días hábiles</strong>.
+            Conforme a la <strong>Ley N° 31435</strong>, responderemos a su
+            reclamo o queja en un plazo máximo de{" "}
+            <strong>15 días hábiles</strong>.
           </p>
         </header>
 
@@ -483,11 +693,29 @@ export default function ComplaintsBook() {
               borderRadius: "4px",
             }}
           >
-            <strong style={{ display: "block", color: "#f59e0b", fontSize: "0.85rem", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "0.4rem" }}>
+            <strong
+              style={{
+                display: "block",
+                color: "#f59e0b",
+                fontSize: "0.85rem",
+                textTransform: "uppercase",
+                letterSpacing: "1px",
+                marginBottom: "0.4rem",
+              }}
+            >
               ¿Qué es un Reclamo?
             </strong>
-            <p style={{ margin: 0, fontSize: "0.82rem", color: "#94a3b8", lineHeight: 1.5 }}>
-              Disconformidad relacionada con los productos o prendas adquiridas en la tienda (tallas, defectos, demoras en el despacho o disconformidad con el bien entregado).
+            <p
+              style={{
+                margin: 0,
+                fontSize: "0.82rem",
+                color: "#94a3b8",
+                lineHeight: 1.5,
+              }}
+            >
+              Disconformidad relacionada con los productos o prendas adquiridas
+              en la tienda (tallas, defectos, demoras en el despacho o
+              disconformidad con el bien entregado).
             </p>
           </div>
           <div
@@ -498,17 +726,38 @@ export default function ComplaintsBook() {
               borderRadius: "4px",
             }}
           >
-            <strong style={{ display: "block", color: "#818cf8", fontSize: "0.85rem", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "0.4rem" }}>
+            <strong
+              style={{
+                display: "block",
+                color: "#818cf8",
+                fontSize: "0.85rem",
+                textTransform: "uppercase",
+                letterSpacing: "1px",
+                marginBottom: "0.4rem",
+              }}
+            >
               ¿Qué es una Queja?
             </strong>
-            <p style={{ margin: 0, fontSize: "0.82rem", color: "#94a3b8", lineHeight: 1.5 }}>
-              Malestar o descontento respecto a la atención recibida por parte de nuestro personal o canales de soporte al público, no relacionada directamente al producto.
+            <p
+              style={{
+                margin: 0,
+                fontSize: "0.82rem",
+                color: "#94a3b8",
+                lineHeight: 1.5,
+              }}
+            >
+              Malestar o descontento respecto a la atención recibida por parte
+              de nuestro personal o canales de soporte al público, no
+              relacionada directamente al producto.
             </p>
           </div>
         </div>
 
         {/* Formulario */}
-        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "2.5rem" }}>
+        <form
+          onSubmit={handleSubmit}
+          style={{ display: "flex", flexDirection: "column", gap: "2.5rem" }}
+        >
           {errorMessage && (
             <div
               style={{
@@ -549,9 +798,25 @@ export default function ComplaintsBook() {
               1. Identificación del Consumidor Reclamante
             </h2>
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "1.25rem" }}>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+                gap: "1.25rem",
+              }}
+            >
               <div style={{ gridColumn: "1 / -1" }}>
-                <label style={{ display: "block", fontSize: "0.75rem", fontWeight: 700, letterSpacing: "1px", color: "#94a3b8", textTransform: "uppercase", marginBottom: "0.4rem" }}>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: "0.75rem",
+                    fontWeight: 700,
+                    letterSpacing: "1px",
+                    color: "#94a3b8",
+                    textTransform: "uppercase",
+                    marginBottom: "0.4rem",
+                  }}
+                >
                   Nombres y Apellidos Completos *
                 </label>
                 <input
@@ -573,7 +838,17 @@ export default function ComplaintsBook() {
               </div>
 
               <div>
-                <label style={{ display: "block", fontSize: "0.75rem", fontWeight: 700, letterSpacing: "1px", color: "#94a3b8", textTransform: "uppercase", marginBottom: "0.4rem" }}>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: "0.75rem",
+                    fontWeight: 700,
+                    letterSpacing: "1px",
+                    color: "#94a3b8",
+                    textTransform: "uppercase",
+                    marginBottom: "0.4rem",
+                  }}
+                >
                   Tipo de Documento *
                 </label>
                 <select
@@ -589,14 +864,26 @@ export default function ComplaintsBook() {
                     fontSize: "0.9rem",
                   }}
                 >
-                  <option value="DNI">DNI (Documento Nacional de Identidad)</option>
+                  <option value="DNI">
+                    DNI (Documento Nacional de Identidad)
+                  </option>
                   <option value="CE">Carné de Extranjería (CE)</option>
                   <option value="Pasaporte">Pasaporte</option>
                 </select>
               </div>
 
               <div>
-                <label style={{ display: "block", fontSize: "0.75rem", fontWeight: 700, letterSpacing: "1px", color: "#94a3b8", textTransform: "uppercase", marginBottom: "0.4rem" }}>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: "0.75rem",
+                    fontWeight: 700,
+                    letterSpacing: "1px",
+                    color: "#94a3b8",
+                    textTransform: "uppercase",
+                    marginBottom: "0.4rem",
+                  }}
+                >
                   Número de Documento *
                 </label>
                 <input
@@ -618,7 +905,17 @@ export default function ComplaintsBook() {
               </div>
 
               <div>
-                <label style={{ display: "block", fontSize: "0.75rem", fontWeight: 700, letterSpacing: "1px", color: "#94a3b8", textTransform: "uppercase", marginBottom: "0.4rem" }}>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: "0.75rem",
+                    fontWeight: 700,
+                    letterSpacing: "1px",
+                    color: "#94a3b8",
+                    textTransform: "uppercase",
+                    marginBottom: "0.4rem",
+                  }}
+                >
                   Teléfono / Celular *
                 </label>
                 <input
@@ -640,7 +937,17 @@ export default function ComplaintsBook() {
               </div>
 
               <div>
-                <label style={{ display: "block", fontSize: "0.75rem", fontWeight: 700, letterSpacing: "1px", color: "#94a3b8", textTransform: "uppercase", marginBottom: "0.4rem" }}>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: "0.75rem",
+                    fontWeight: 700,
+                    letterSpacing: "1px",
+                    color: "#94a3b8",
+                    textTransform: "uppercase",
+                    marginBottom: "0.4rem",
+                  }}
+                >
                   Correo Electrónico (Copia oficial) *
                 </label>
                 <input
@@ -662,7 +969,17 @@ export default function ComplaintsBook() {
               </div>
 
               <div style={{ gridColumn: "1 / -1" }}>
-                <label style={{ display: "block", fontSize: "0.75rem", fontWeight: 700, letterSpacing: "1px", color: "#94a3b8", textTransform: "uppercase", marginBottom: "0.4rem" }}>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: "0.75rem",
+                    fontWeight: 700,
+                    letterSpacing: "1px",
+                    color: "#94a3b8",
+                    textTransform: "uppercase",
+                    marginBottom: "0.4rem",
+                  }}
+                >
                   Domicilio Completo (Dirección, Distrito, Ciudad) *
                 </label>
                 <input
@@ -684,21 +1001,47 @@ export default function ComplaintsBook() {
               </div>
 
               <div style={{ gridColumn: "1 / -1", marginTop: "0.5rem" }}>
-                <label style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", fontSize: "0.85rem", color: "#94a3b8" }}>
+                <label
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    cursor: "pointer",
+                    fontSize: "0.85rem",
+                    color: "#94a3b8",
+                  }}
+                >
                   <input
                     type="checkbox"
                     checked={isMinor}
                     onChange={(e) => setIsMinor(e.target.checked)}
-                    style={{ accentColor: "#ffffff", width: "16px", height: "16px" }}
+                    style={{
+                      accentColor: "#ffffff",
+                      width: "16px",
+                      height: "16px",
+                    }}
                   />
-                  <span>El consumidor reclamante es menor de edad (requiere datos del apoderado).</span>
+                  <span>
+                    El consumidor reclamante es menor de edad (requiere datos
+                    del apoderado).
+                  </span>
                 </label>
               </div>
 
               {isMinor && (
                 <>
                   <div>
-                    <label style={{ display: "block", fontSize: "0.75rem", fontWeight: 700, letterSpacing: "1px", color: "#94a3b8", textTransform: "uppercase", marginBottom: "0.4rem" }}>
+                    <label
+                      style={{
+                        display: "block",
+                        fontSize: "0.75rem",
+                        fontWeight: 700,
+                        letterSpacing: "1px",
+                        color: "#94a3b8",
+                        textTransform: "uppercase",
+                        marginBottom: "0.4rem",
+                      }}
+                    >
                       Nombre del Padre / Madre o Apoderado *
                     </label>
                     <input
@@ -719,7 +1062,17 @@ export default function ComplaintsBook() {
                     />
                   </div>
                   <div>
-                    <label style={{ display: "block", fontSize: "0.75rem", fontWeight: 700, letterSpacing: "1px", color: "#94a3b8", textTransform: "uppercase", marginBottom: "0.4rem" }}>
+                    <label
+                      style={{
+                        display: "block",
+                        fontSize: "0.75rem",
+                        fontWeight: 700,
+                        letterSpacing: "1px",
+                        color: "#94a3b8",
+                        textTransform: "uppercase",
+                        marginBottom: "0.4rem",
+                      }}
+                    >
                       DNI del Padre / Madre o Apoderado *
                     </label>
                     <input
@@ -769,9 +1122,25 @@ export default function ComplaintsBook() {
               2. Identificación del Bien o Servicio Contratado
             </h2>
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "1.25rem" }}>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+                gap: "1.25rem",
+              }}
+            >
               <div>
-                <label style={{ display: "block", fontSize: "0.75rem", fontWeight: 700, letterSpacing: "1px", color: "#94a3b8", textTransform: "uppercase", marginBottom: "0.6rem" }}>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: "0.75rem",
+                    fontWeight: 700,
+                    letterSpacing: "1px",
+                    color: "#94a3b8",
+                    textTransform: "uppercase",
+                    marginBottom: "0.6rem",
+                  }}
+                >
                   Tipo de Contratación *
                 </label>
                 <div style={{ display: "flex", gap: "1rem" }}>
@@ -783,10 +1152,12 @@ export default function ComplaintsBook() {
                       justifyContent: "center",
                       gap: "6px",
                       padding: "0.75rem",
-                      backgroundColor: goodType === "producto" ? "#ffffff" : "#0a0c10",
+                      backgroundColor:
+                        goodType === "producto" ? "#ffffff" : "#0a0c10",
                       color: goodType === "producto" ? "#0a0a0a" : "#94a3b8",
                       border: "1px solid",
-                      borderColor: goodType === "producto" ? "#ffffff" : "#2a3240",
+                      borderColor:
+                        goodType === "producto" ? "#ffffff" : "#2a3240",
                       borderRadius: "4px",
                       cursor: "pointer",
                       fontWeight: 700,
@@ -814,10 +1185,12 @@ export default function ComplaintsBook() {
                       justifyContent: "center",
                       gap: "6px",
                       padding: "0.75rem",
-                      backgroundColor: goodType === "servicio" ? "#ffffff" : "#0a0c10",
+                      backgroundColor:
+                        goodType === "servicio" ? "#ffffff" : "#0a0c10",
                       color: goodType === "servicio" ? "#0a0a0a" : "#94a3b8",
                       border: "1px solid",
-                      borderColor: goodType === "servicio" ? "#ffffff" : "#2a3240",
+                      borderColor:
+                        goodType === "servicio" ? "#ffffff" : "#2a3240",
                       borderRadius: "4px",
                       cursor: "pointer",
                       fontWeight: 700,
@@ -841,7 +1214,17 @@ export default function ComplaintsBook() {
               </div>
 
               <div>
-                <label style={{ display: "block", fontSize: "0.75rem", fontWeight: 700, letterSpacing: "1px", color: "#94a3b8", textTransform: "uppercase", marginBottom: "0.4rem" }}>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: "0.75rem",
+                    fontWeight: 700,
+                    letterSpacing: "1px",
+                    color: "#94a3b8",
+                    textTransform: "uppercase",
+                    marginBottom: "0.4rem",
+                  }}
+                >
                   Monto Reclamado (S/.)
                 </label>
                 <input
@@ -864,7 +1247,17 @@ export default function ComplaintsBook() {
               </div>
 
               <div style={{ gridColumn: "1 / -1" }}>
-                <label style={{ display: "block", fontSize: "0.75rem", fontWeight: 700, letterSpacing: "1px", color: "#94a3b8", textTransform: "uppercase", marginBottom: "0.4rem" }}>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: "0.75rem",
+                    fontWeight: 700,
+                    letterSpacing: "1px",
+                    color: "#94a3b8",
+                    textTransform: "uppercase",
+                    marginBottom: "0.4rem",
+                  }}
+                >
                   Descripción del Producto / Servicio / N° de Pedido *
                 </label>
                 <input
@@ -913,7 +1306,17 @@ export default function ComplaintsBook() {
             </h2>
 
             <div style={{ marginBottom: "1.5rem" }}>
-              <label style={{ display: "block", fontSize: "0.75rem", fontWeight: 700, letterSpacing: "1px", color: "#94a3b8", textTransform: "uppercase", marginBottom: "0.6rem" }}>
+              <label
+                style={{
+                  display: "block",
+                  fontSize: "0.75rem",
+                  fontWeight: 700,
+                  letterSpacing: "1px",
+                  color: "#94a3b8",
+                  textTransform: "uppercase",
+                  marginBottom: "0.6rem",
+                }}
+              >
                 Tipo de Reclamación *
               </label>
               <div style={{ display: "flex", gap: "1rem" }}>
@@ -925,10 +1328,12 @@ export default function ComplaintsBook() {
                     alignItems: "center",
                     justifyContent: "center",
                     padding: "1rem",
-                    backgroundColor: claimType === "reclamo" ? "#1e293b" : "#0a0c10",
+                    backgroundColor:
+                      claimType === "reclamo" ? "#1e293b" : "#0a0c10",
                     color: claimType === "reclamo" ? "#f59e0b" : "#94a3b8",
                     border: "1px solid",
-                    borderColor: claimType === "reclamo" ? "#f59e0b" : "#2a3240",
+                    borderColor:
+                      claimType === "reclamo" ? "#f59e0b" : "#2a3240",
                     borderRadius: "4px",
                     cursor: "pointer",
                     textAlign: "center",
@@ -942,10 +1347,23 @@ export default function ComplaintsBook() {
                     onChange={() => setClaimType("reclamo")}
                     style={{ display: "none" }}
                   />
-                  <strong style={{ fontFamily: '"Barlow Condensed", sans-serif', fontSize: "1.1rem", textTransform: "uppercase", letterSpacing: "1px" }}>
+                  <strong
+                    style={{
+                      fontFamily: '"Barlow Condensed", sans-serif',
+                      fontSize: "1.1rem",
+                      textTransform: "uppercase",
+                      letterSpacing: "1px",
+                    }}
+                  >
                     RECLAMO
                   </strong>
-                  <span style={{ fontSize: "0.75rem", color: "#94a3b8", marginTop: "4px" }}>
+                  <span
+                    style={{
+                      fontSize: "0.75rem",
+                      color: "#94a3b8",
+                      marginTop: "4px",
+                    }}
+                  >
                     Disconformidad con el producto o servicio adquirido
                   </span>
                 </label>
@@ -958,7 +1376,8 @@ export default function ComplaintsBook() {
                     alignItems: "center",
                     justifyContent: "center",
                     padding: "1rem",
-                    backgroundColor: claimType === "queja" ? "#1e293b" : "#0a0c10",
+                    backgroundColor:
+                      claimType === "queja" ? "#1e293b" : "#0a0c10",
                     color: claimType === "queja" ? "#818cf8" : "#94a3b8",
                     border: "1px solid",
                     borderColor: claimType === "queja" ? "#818cf8" : "#2a3240",
@@ -975,19 +1394,48 @@ export default function ComplaintsBook() {
                     onChange={() => setClaimType("queja")}
                     style={{ display: "none" }}
                   />
-                  <strong style={{ fontFamily: '"Barlow Condensed", sans-serif', fontSize: "1.1rem", textTransform: "uppercase", letterSpacing: "1px" }}>
+                  <strong
+                    style={{
+                      fontFamily: '"Barlow Condensed", sans-serif',
+                      fontSize: "1.1rem",
+                      textTransform: "uppercase",
+                      letterSpacing: "1px",
+                    }}
+                  >
                     QUEJA
                   </strong>
-                  <span style={{ fontSize: "0.75rem", color: "#94a3b8", marginTop: "4px" }}>
+                  <span
+                    style={{
+                      fontSize: "0.75rem",
+                      color: "#94a3b8",
+                      marginTop: "4px",
+                    }}
+                  >
                     Malestar o descontento respecto a la atención recibida
                   </span>
                 </label>
               </div>
             </div>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "1.25rem",
+              }}
+            >
               <div>
-                <label style={{ display: "block", fontSize: "0.75rem", fontWeight: 700, letterSpacing: "1px", color: "#94a3b8", textTransform: "uppercase", marginBottom: "0.4rem" }}>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: "0.75rem",
+                    fontWeight: 700,
+                    letterSpacing: "1px",
+                    color: "#94a3b8",
+                    textTransform: "uppercase",
+                    marginBottom: "0.4rem",
+                  }}
+                >
                   Detalle del Reclamo o Queja *
                 </label>
                 <textarea
@@ -1010,7 +1458,17 @@ export default function ComplaintsBook() {
               </div>
 
               <div>
-                <label style={{ display: "block", fontSize: "0.75rem", fontWeight: 700, letterSpacing: "1px", color: "#94a3b8", textTransform: "uppercase", marginBottom: "0.4rem" }}>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: "0.75rem",
+                    fontWeight: 700,
+                    letterSpacing: "1px",
+                    color: "#94a3b8",
+                    textTransform: "uppercase",
+                    marginBottom: "0.4rem",
+                  }}
+                >
                   Pedido Concreto del Consumidor *
                 </label>
                 <textarea
@@ -1046,29 +1504,65 @@ export default function ComplaintsBook() {
               gap: "1rem",
             }}
           >
-            <label style={{ display: "flex", alignItems: "flex-start", gap: "10px", cursor: "pointer", fontSize: "0.85rem", color: "#cbd5e1", lineHeight: 1.5 }}>
+            <label
+              style={{
+                display: "flex",
+                alignItems: "flex-start",
+                gap: "10px",
+                cursor: "pointer",
+                fontSize: "0.85rem",
+                color: "#cbd5e1",
+                lineHeight: 1.5,
+              }}
+            >
               <input
                 type="checkbox"
                 required
                 checked={acceptedDeclaration}
                 onChange={(e) => setAcceptedDeclaration(e.target.checked)}
-                style={{ marginTop: "3px", accentColor: "#ffffff", width: "16px", height: "16px" }}
+                style={{
+                  marginTop: "3px",
+                  accentColor: "#ffffff",
+                  width: "16px",
+                  height: "16px",
+                }}
               />
               <span>
-                <strong>Declaración Jurada:</strong> Declaro ser el titular del bien/servicio o representante legalmente facultado, y doy fe de que los datos consignados en esta Hoja de Reclamación son verídicos conforme al Código de Protección y Defensa del Consumidor (Ley N° 29571).
+                <strong>Declaración Jurada:</strong> Declaro ser el titular del
+                bien/servicio o representante legalmente facultado, y doy fe de
+                que los datos consignados en esta Hoja de Reclamación son
+                verídicos conforme al Código de Protección y Defensa del
+                Consumidor (Ley N° 29571).
               </span>
             </label>
 
-            <label style={{ display: "flex", alignItems: "flex-start", gap: "10px", cursor: "pointer", fontSize: "0.85rem", color: "#cbd5e1", lineHeight: 1.5 }}>
+            <label
+              style={{
+                display: "flex",
+                alignItems: "flex-start",
+                gap: "10px",
+                cursor: "pointer",
+                fontSize: "0.85rem",
+                color: "#cbd5e1",
+                lineHeight: 1.5,
+              }}
+            >
               <input
                 type="checkbox"
                 required
                 checked={acceptedNotification}
                 onChange={(e) => setAcceptedNotification(e.target.checked)}
-                style={{ marginTop: "3px", accentColor: "#ffffff", width: "16px", height: "16px" }}
+                style={{
+                  marginTop: "3px",
+                  accentColor: "#ffffff",
+                  width: "16px",
+                  height: "16px",
+                }}
               />
               <span>
-                <strong>Notificación Electrónica:</strong> Autorizo expresamente que la respuesta a la presente reclamación sea remitida a la dirección de correo electrónico indicada en el formulario.
+                <strong>Notificación Electrónica:</strong> Autorizo expresamente
+                que la respuesta a la presente reclamación sea remitida a la
+                dirección de correo electrónico indicada en el formulario.
               </span>
             </label>
           </section>
@@ -1096,10 +1590,20 @@ export default function ComplaintsBook() {
                 transition: "all 0.2s ease",
               }}
             >
-              {isSubmitting ? "REGISTRANDO HOJA DE RECLAMACIÓN..." : "ENVIAR HOJA DE RECLAMACIÓN"}
+              {isSubmitting
+                ? "REGISTRANDO HOJA DE RECLAMACIÓN..."
+                : "ENVIAR HOJA DE RECLAMACIÓN"}
             </button>
-            <p style={{ textAlign: "center", fontSize: "0.75rem", color: "#64748b", marginTop: "0.75rem" }}>
-              Al enviar, se generará de inmediato un número de registro único legal para seguimiento.
+            <p
+              style={{
+                textAlign: "center",
+                fontSize: "0.75rem",
+                color: "#64748b",
+                marginTop: "0.75rem",
+              }}
+            >
+              Al enviar, se generará de inmediato un número de registro único
+              legal para seguimiento.
             </p>
           </div>
         </form>
@@ -1107,4 +1611,3 @@ export default function ComplaintsBook() {
     </main>
   )
 }
-

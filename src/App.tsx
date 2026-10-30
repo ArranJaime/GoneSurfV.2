@@ -24,6 +24,7 @@ import Footer from "./components/Footer"
 import Terms from "./Terms"
 import PrivacyPolicy from "./PrivacyPolicy"
 import ComplaintsBook from "./ComplaintsBook"
+import { api } from "./services/api"
 import { formatPEN } from "./utils/accounting"
 import { sanitizeString, sanitizeUrlParam } from "./utils/security"
 
@@ -129,291 +130,313 @@ function Header() {
 
   return (
     <>
-    <header
-      className="header"
-      style={{
-        backgroundColor: "#000000",
-        color: "#ffffff",
-        borderBottom: "1px solid #1a1a1a",
-        position: "relative",
-        zIndex: 1000,
-      }}
-    >
-      <button
-        type="button"
-        className="mobile-menu"
-        aria-label={isMobileMenuOpen ? "Cerrar menú" : "Abrir menú"}
-        onClick={() => setIsMobileMenuOpen((prev) => !prev)}
-      >
-        <svg
-          width="20"
-          height="20"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          {isMobileMenuOpen ? (
-            <>
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </>
-          ) : (
-            <>
-              <line x1="3" y1="12" x2="21" y2="12" />
-              <line x1="3" y1="6" x2="21" y2="6" />
-              <line x1="3" y1="18" x2="21" y2="18" />
-            </>
-          )}
-        </svg>
-      </button>
-      <button
-        className="logo-button"
-        onClick={() => navigate("/")}
+      <header
+        className="header"
         style={{
-          background: "transparent",
-          border: 0,
-          padding: 0,
-          display: "flex",
-          alignItems: "center",
-          cursor: "pointer",
-        }}
-        aria-label="Gone Surfing Home"
-      >
-        <img
-          src="/logo-gone-surfing.png"
-          alt="Gone Surfing Logo"
-          className="brand-logo"
-        />
-      </button>
-      <nav
-        className="desktop-nav"
-        style={{ display: "flex", gap: "2rem", backgroundColor: "transparent" }}
-      >
-        <button
-          onClick={() => navigate("/shop")}
-          style={{
-            color: "#fff",
-            background: "transparent",
-            border: "none",
-            fontWeight: "bold",
-            cursor: "pointer",
-            textTransform: "uppercase",
-          }}
-        >
-          SHOP⌄
-        </button>
-        <button
-          onClick={() => navigate("/collections")}
-          style={{
-            color: "#fff",
-            background: "transparent",
-            border: "none",
-            fontWeight: "bold",
-            cursor: "pointer",
-            textTransform: "uppercase",
-          }}
-        >
-          COLLECTIONS⌄
-        </button>
-        <button
-          onClick={() => navigate("/about")}
-          style={{
-            color: "#fff",
-            background: "transparent",
-            border: "none",
-            fontWeight: "bold",
-            cursor: "pointer",
-            textTransform: "uppercase",
-          }}
-        >
-          ABOUT
-        </button>
-      </nav>
-      <div
-        className="header-actions utilities"
-        style={{
-          display: "flex",
-          gap: "1.5rem",
-          color: "#fff",
-          alignItems: "center",
+          backgroundColor: "#000000",
+          color: "#ffffff",
+          borderBottom: "1px solid #1a1a1a",
+          position: "relative",
+          zIndex: 1000,
         }}
       >
-        {isSearching ? (
-          <div style={{ position: "relative" }}>
-            <form
-              onSubmit={handleSearch}
-              style={{ display: "flex", margin: 0 }}
-            >
-              <input
-                autoFocus
-                type="text"
-                placeholder="Buscar prenda..."
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                onBlur={() => {
-                  if (!query) setIsSearching(false)
-                }}
-                style={{
-                  padding: "0.4rem 2rem 0.4rem 1rem",
-                  borderRadius: "20px",
-                  border: "1px solid #333",
-                  outline: "none",
-                  background: "#111",
-                  color: "#fff",
-                  fontSize: "0.8rem",
-                  width: "200px",
-                  transition: "all 0.3s ease",
-                }}
-              />
-              <button
-                type="button"
-                onClick={() => {
-                  setIsSearching(false)
-                  setQuery("")
-                }}
-                style={{
-                  position: "absolute",
-                  right: "10px",
-                  top: "50%",
-                  transform: "translateY(-50%)",
-                  background: "none",
-                  border: "none",
-                  color: "#888",
-                  cursor: "pointer",
-                  fontSize: "12px",
-                }}
+        <button
+          type="button"
+          className="mobile-menu"
+          aria-label={isMobileMenuOpen ? "Cerrar menú" : "Abrir menú"}
+          onClick={() => setIsMobileMenuOpen((prev) => !prev)}
+        >
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            {isMobileMenuOpen ? (
+              <>
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </>
+            ) : (
+              <>
+                <line x1="3" y1="12" x2="21" y2="12" />
+                <line x1="3" y1="6" x2="21" y2="6" />
+                <line x1="3" y1="18" x2="21" y2="18" />
+              </>
+            )}
+          </svg>
+        </button>
+        <button
+          className="logo-button"
+          onClick={() => navigate("/")}
+          style={{
+            background: "transparent",
+            border: 0,
+            padding: 0,
+            display: "flex",
+            alignItems: "center",
+            cursor: "pointer",
+          }}
+          aria-label="Gone Surfing Home"
+        >
+          <img
+            src="/logo-gone-surfing.png"
+            alt="Gone Surfing Logo"
+            className="brand-logo"
+          />
+        </button>
+        <nav
+          className="desktop-nav"
+          style={{
+            display: "flex",
+            gap: "2rem",
+            backgroundColor: "transparent",
+          }}
+        >
+          <button
+            onClick={() => navigate("/shop")}
+            style={{
+              color: "#fff",
+              background: "transparent",
+              border: "none",
+              fontWeight: "bold",
+              cursor: "pointer",
+              textTransform: "uppercase",
+            }}
+          >
+            SHOP⌄
+          </button>
+          <button
+            onClick={() => navigate("/collections")}
+            style={{
+              color: "#fff",
+              background: "transparent",
+              border: "none",
+              fontWeight: "bold",
+              cursor: "pointer",
+              textTransform: "uppercase",
+            }}
+          >
+            COLLECTIONS⌄
+          </button>
+          <button
+            onClick={() => navigate("/about")}
+            style={{
+              color: "#fff",
+              background: "transparent",
+              border: "none",
+              fontWeight: "bold",
+              cursor: "pointer",
+              textTransform: "uppercase",
+            }}
+          >
+            ABOUT
+          </button>
+        </nav>
+        <div
+          className="header-actions utilities"
+          style={{
+            display: "flex",
+            gap: "1.5rem",
+            color: "#fff",
+            alignItems: "center",
+          }}
+        >
+          {isSearching ? (
+            <div style={{ position: "relative" }}>
+              <form
+                onSubmit={handleSearch}
+                style={{ display: "flex", margin: 0 }}
               >
-                ✕
-              </button>
-            </form>
-            {query.trim().length > 0 && (
-              <div
-                style={{
-                  position: "absolute",
-                  top: "calc(100% + 12px)",
-                  right: 0,
-                  width: "320px",
-                  background: "#0a0a0a",
-                  borderRadius: "8px",
-                  boxShadow: "0 10px 40px rgba(0,0,0,0.8)",
-                  overflow: "hidden",
-                  zIndex: 100,
-                  color: "#fff",
-                  border: "1px solid #222",
-                }}
-              >
-                {liveResults.length > 0 ? (
-                  <>
-                    {liveResults.map((p) => (
-                      <div
-                        key={p.id}
-                        onMouseDown={() => {
-                          navigate(`/shop?search=${encodeURIComponent(p.name)}`)
-                          setIsSearching(false)
-                          setQuery("")
-                        }}
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "1rem",
-                          padding: "1rem",
-                          cursor: "pointer",
-                          borderBottom: "1px solid #1a1a1a",
-                          transition: "background 0.2s",
-                        }}
-                        onMouseOver={(e) =>
-                          (e.currentTarget.style.backgroundColor = "#161616")
-                        }
-                        onMouseOut={(e) =>
-                          (e.currentTarget.style.backgroundColor =
-                            "transparent")
-                        }
-                      >
+                <input
+                  autoFocus
+                  type="text"
+                  placeholder="Buscar prenda..."
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  onBlur={() => {
+                    if (!query) setIsSearching(false)
+                  }}
+                  style={{
+                    padding: "0.4rem 2rem 0.4rem 1rem",
+                    borderRadius: "20px",
+                    border: "1px solid #333",
+                    outline: "none",
+                    background: "#111",
+                    color: "#fff",
+                    fontSize: "0.8rem",
+                    width: "200px",
+                    transition: "all 0.3s ease",
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsSearching(false)
+                    setQuery("")
+                  }}
+                  style={{
+                    position: "absolute",
+                    right: "10px",
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    background: "none",
+                    border: "none",
+                    color: "#888",
+                    cursor: "pointer",
+                    fontSize: "12px",
+                  }}
+                >
+                  ✕
+                </button>
+              </form>
+              {query.trim().length > 0 && (
+                <div
+                  style={{
+                    position: "absolute",
+                    top: "calc(100% + 12px)",
+                    right: 0,
+                    width: "320px",
+                    background: "#0a0a0a",
+                    borderRadius: "8px",
+                    boxShadow: "0 10px 40px rgba(0,0,0,0.8)",
+                    overflow: "hidden",
+                    zIndex: 100,
+                    color: "#fff",
+                    border: "1px solid #222",
+                  }}
+                >
+                  {liveResults.length > 0 ? (
+                    <>
+                      {liveResults.map((p) => (
                         <div
+                          key={p.id}
+                          onMouseDown={() => {
+                            navigate(
+                              `/shop?search=${encodeURIComponent(p.name)}`,
+                            )
+                            setIsSearching(false)
+                            setQuery("")
+                          }}
                           style={{
-                            width: "48px",
-                            height: "48px",
-                            flexShrink: 0,
-                            borderRadius: "4px",
-                            overflow: "hidden",
-                            backgroundColor: "#111",
                             display: "flex",
                             alignItems: "center",
-                            justifyContent: "center",
+                            gap: "1rem",
+                            padding: "1rem",
+                            cursor: "pointer",
+                            borderBottom: "1px solid #1a1a1a",
+                            transition: "background 0.2s",
                           }}
+                          onMouseOver={(e) =>
+                            (e.currentTarget.style.backgroundColor = "#161616")
+                          }
+                          onMouseOut={(e) =>
+                            (e.currentTarget.style.backgroundColor =
+                              "transparent")
+                          }
                         >
-                          <img
-                            src={p.imageUrl || p.image}
-                            alt={p.name}
+                          <div
                             style={{
-                              width: "100%",
-                              height: "100%",
-                              objectFit: "cover",
-                            }}
-                          />
-                        </div>
-                        <div style={{ overflow: "hidden" }}>
-                          <strong
-                            style={{
-                              display: "block",
-                              fontSize: "0.85rem",
-                              whiteSpace: "nowrap",
+                              width: "48px",
+                              height: "48px",
+                              flexShrink: 0,
+                              borderRadius: "4px",
                               overflow: "hidden",
-                              textOverflow: "ellipsis",
-                              color: "#fff",
+                              backgroundColor: "#111",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
                             }}
                           >
-                            {p.name}
-                          </strong>
-                          <span style={{ fontSize: "0.75rem", color: "#888" }}>
-                            {money(p.price)}
-                          </span>
+                            <img
+                              src={p.imageUrl || p.image}
+                              alt={p.name}
+                              style={{
+                                width: "100%",
+                                height: "100%",
+                                objectFit: "cover",
+                              }}
+                            />
+                          </div>
+                          <div style={{ overflow: "hidden" }}>
+                            <strong
+                              style={{
+                                display: "block",
+                                fontSize: "0.85rem",
+                                whiteSpace: "nowrap",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                color: "#fff",
+                              }}
+                            >
+                              {p.name}
+                            </strong>
+                            <span
+                              style={{ fontSize: "0.75rem", color: "#888" }}
+                            >
+                              {money(p.price)}
+                            </span>
+                          </div>
                         </div>
+                      ))}
+                      <div
+                        onMouseDown={handleSearch}
+                        style={{
+                          padding: "1rem",
+                          textAlign: "center",
+                          fontSize: "0.75rem",
+                          fontWeight: "bold",
+                          background: "#111",
+                          cursor: "pointer",
+                          color: "#fff",
+                        }}
+                        onMouseOver={(e) =>
+                          (e.currentTarget.style.backgroundColor = "#1a1a1a")
+                        }
+                        onMouseOut={(e) =>
+                          (e.currentTarget.style.backgroundColor = "#111")
+                        }
+                      >
+                        Ver todos los resultados →
                       </div>
-                    ))}
+                    </>
+                  ) : (
                     <div
-                      onMouseDown={handleSearch}
                       style={{
-                        padding: "1rem",
+                        padding: "1.5rem 1rem",
                         textAlign: "center",
-                        fontSize: "0.75rem",
-                        fontWeight: "bold",
-                        background: "#111",
-                        cursor: "pointer",
-                        color: "#fff",
+                        fontSize: "0.8rem",
+                        color: "#666",
                       }}
-                      onMouseOver={(e) =>
-                        (e.currentTarget.style.backgroundColor = "#1a1a1a")
-                      }
-                      onMouseOut={(e) =>
-                        (e.currentTarget.style.backgroundColor = "#111")
-                      }
                     >
-                      Ver todos los resultados →
+                      No se encontraron prendas para "{query}"
                     </div>
-                  </>
-                ) : (
-                  <div
-                    style={{
-                      padding: "1.5rem 1rem",
-                      textAlign: "center",
-                      fontSize: "0.8rem",
-                      color: "#666",
-                    }}
-                  >
-                    No se encontraron prendas para "{query}"
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        ) : (
+                  )}
+                </div>
+              )}
+            </div>
+          ) : (
+            <button
+              aria-label="Buscar"
+              onClick={() => setIsSearching(true)}
+              style={{
+                color: "#fff",
+                background: "transparent",
+                border: "none",
+                cursor: "pointer",
+                width: "24px",
+              }}
+            >
+              <Icon name="search" />
+            </button>
+          )}
           <button
-            aria-label="Buscar"
-            onClick={() => setIsSearching(true)}
+            aria-label="Cuenta"
+            onClick={() => navigate("/profile")}
             style={{
               color: "#fff",
               background: "transparent",
@@ -422,138 +445,124 @@ function Header() {
               width: "24px",
             }}
           >
-            <Icon name="search" />
+            <Icon name="user" />
           </button>
-        )}
-        <button
-          aria-label="Cuenta"
-          onClick={() => navigate("/profile")}
+          <button
+            className="bag"
+            aria-label="Carrito"
+            onClick={() => navigate("/cart")}
+            style={{
+              color: "#fff",
+              background: "transparent",
+              border: "none",
+              cursor: "pointer",
+              width: "24px",
+              position: "relative",
+            }}
+          >
+            <Icon name="bag" />
+            {count > 0 && (
+              <span
+                style={{
+                  position: "absolute",
+                  top: "-8px",
+                  right: "-8px",
+                  background: "white",
+                  color: "black",
+                  borderRadius: "50%",
+                  width: "18px",
+                  height: "18px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: "10px",
+                  fontWeight: "bold",
+                  boxShadow: "0 2px 4px rgba(0,0,0,0.3)",
+                }}
+              >
+                {count}
+              </span>
+            )}
+          </button>
+        </div>
+      </header>
+      {isMobileMenuOpen && (
+        <div
+          className="mobile-dropdown-menu"
           style={{
-            color: "#fff",
-            background: "transparent",
-            border: "none",
-            cursor: "pointer",
-            width: "24px",
+            backgroundColor: "#111315",
+            borderBottom: "1px solid #222",
+            padding: "16px 20px",
+            display: "flex",
+            flexDirection: "column",
+            gap: "16px",
+            position: "sticky",
+            top: "52px",
+            zIndex: 999,
           }}
         >
-          <Icon name="user" />
-        </button>
-        <button
-          className="bag"
-          aria-label="Carrito"
-          onClick={() => navigate("/cart")}
-          style={{
-            color: "#fff",
-            background: "transparent",
-            border: "none",
-            cursor: "pointer",
-            width: "24px",
-            position: "relative",
-          }}
-        >
-          <Icon name="bag" />
-          {count > 0 && (
-            <span
-              style={{
-                position: "absolute",
-                top: "-8px",
-                right: "-8px",
-                background: "white",
-                color: "black",
-                borderRadius: "50%",
-                width: "18px",
-                height: "18px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: "10px",
-                fontWeight: "bold",
-                boxShadow: "0 2px 4px rgba(0,0,0,0.3)",
-              }}
-            >
-              {count}
-            </span>
-          )}
-        </button>
-      </div>
-    </header>
-    {isMobileMenuOpen && (
-      <div
-        className="mobile-dropdown-menu"
-        style={{
-          backgroundColor: "#111315",
-          borderBottom: "1px solid #222",
-          padding: "16px 20px",
-          display: "flex",
-          flexDirection: "column",
-          gap: "16px",
-          position: "sticky",
-          top: "52px",
-          zIndex: 999,
-        }}
-      >
-        <button
-          onClick={() => {
-            navigate("/shop")
-            setIsMobileMenuOpen(false)
-          }}
-          style={{
-            color: "#fff",
-            background: "transparent",
-            border: "none",
-            fontFamily: "'Barlow Condensed', sans-serif",
-            fontSize: "15px",
-            fontWeight: 600,
-            letterSpacing: "1.5px",
-            textAlign: "left",
-            cursor: "pointer",
-            textTransform: "uppercase",
-          }}
-        >
-          SHOP
-        </button>
-        <button
-          onClick={() => {
-            navigate("/collections")
-            setIsMobileMenuOpen(false)
-          }}
-          style={{
-            color: "#fff",
-            background: "transparent",
-            border: "none",
-            fontFamily: "'Barlow Condensed', sans-serif",
-            fontSize: "15px",
-            fontWeight: 600,
-            letterSpacing: "1.5px",
-            textAlign: "left",
-            cursor: "pointer",
-            textTransform: "uppercase",
-          }}
-        >
-          COLLECTIONS
-        </button>
-        <button
-          onClick={() => {
-            navigate("/about")
-            setIsMobileMenuOpen(false)
-          }}
-          style={{
-            color: "#fff",
-            background: "transparent",
-            border: "none",
-            fontFamily: "'Barlow Condensed', sans-serif",
-            fontSize: "15px",
-            fontWeight: 600,
-            letterSpacing: "1.5px",
-            textAlign: "left",
-            cursor: "pointer",
-            textTransform: "uppercase",
-          }}
-        >
-          ABOUT
-        </button>
-      </div>
-    )}
+          <button
+            onClick={() => {
+              navigate("/shop")
+              setIsMobileMenuOpen(false)
+            }}
+            style={{
+              color: "#fff",
+              background: "transparent",
+              border: "none",
+              fontFamily: "'Barlow Condensed', sans-serif",
+              fontSize: "15px",
+              fontWeight: 600,
+              letterSpacing: "1.5px",
+              textAlign: "left",
+              cursor: "pointer",
+              textTransform: "uppercase",
+            }}
+          >
+            SHOP
+          </button>
+          <button
+            onClick={() => {
+              navigate("/collections")
+              setIsMobileMenuOpen(false)
+            }}
+            style={{
+              color: "#fff",
+              background: "transparent",
+              border: "none",
+              fontFamily: "'Barlow Condensed', sans-serif",
+              fontSize: "15px",
+              fontWeight: 600,
+              letterSpacing: "1.5px",
+              textAlign: "left",
+              cursor: "pointer",
+              textTransform: "uppercase",
+            }}
+          >
+            COLLECTIONS
+          </button>
+          <button
+            onClick={() => {
+              navigate("/about")
+              setIsMobileMenuOpen(false)
+            }}
+            style={{
+              color: "#fff",
+              background: "transparent",
+              border: "none",
+              fontFamily: "'Barlow Condensed', sans-serif",
+              fontSize: "15px",
+              fontWeight: 600,
+              letterSpacing: "1.5px",
+              textAlign: "left",
+              cursor: "pointer",
+              textTransform: "uppercase",
+            }}
+          >
+            ABOUT
+          </button>
+        </div>
+      )}
     </>
   )
 }
@@ -971,7 +980,14 @@ function Shop() {
     }
 
     return filtered
-  }, [products, searchParam, collectionParam, category, isBestSellers, transactions])
+  }, [
+    products,
+    searchParam,
+    collectionParam,
+    category,
+    isBestSellers,
+    transactions,
+  ])
 
   const pageTitle = searchParam
     ? `RESULTADOS PARA: "${searchParam.toUpperCase()}"`
@@ -1127,7 +1143,8 @@ function Shop() {
               margin: "0 0 2rem 0",
             }}
           >
-            Estamos preparando nuestra colección con lo mejor de la cultura de surf de Lima. Mantente atento a las próximas olas.
+            Estamos preparando nuestra colección con lo mejor de la cultura de
+            surf de Lima. Mantente atento a las próximas olas.
           </p>
           <button
             onClick={() => navigate("/")}
@@ -1154,7 +1171,7 @@ function Shop() {
 }
 
 function Cart() {
-  const { products, cart, changeQuantity } = useStore()
+  const { products, cart, changeQuantity, removeFromCart } = useStore()
   const navigate = useNavigate()
   const subtotal = getSubtotal(cart, products)
 
@@ -1186,11 +1203,34 @@ function Cart() {
                   className="cart-item"
                   key={`${item.productId}-${item.size}`}
                 >
-                  <img src={product.imageUrl || product.image} alt={product.name} />
+                  <img
+                    src={product.imageUrl || product.image}
+                    alt={product.name}
+                  />
                   <div className="cart-copy">
                     <h2>{product.name}</h2>
                     <p>SIZE: {item.size}</p>
                     <p>{money(product.price)}</p>
+                    <button
+                      type="button"
+                      onClick={() => removeFromCart(item.productId, item.size)}
+                      style={{
+                        background: "transparent",
+                        border: "none",
+                        color: "#dc2626",
+                        fontSize: "0.72rem",
+                        padding: 0,
+                        cursor: "pointer",
+                        marginTop: "4px",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "3px",
+                        fontWeight: 600,
+                      }}
+                      title="Eliminar prenda de la bolsa"
+                    >
+                      ✕ Eliminar
+                    </button>
                   </div>
                   <div className="quantity">
                     <button
@@ -1268,7 +1308,8 @@ function AppContent() {
         <Route path="/cart" element={<Cart />} />
         <Route path="/checkout" element={<Checkout />} />
         <Route path="/profile" element={<Profile />} />
-        <Route path="/about"
+        <Route
+          path="/about"
           element={
             <main className="page">
               <div className="page-title">
@@ -1344,3 +1385,5 @@ export default function App() {
     </BrowserRouter>
   )
 }
+
+export { api }

@@ -3,11 +3,7 @@ import { api } from "../services/api"
 import { useStore } from "../store"
 import type { OrderStatus, OrderTransaction } from "../types"
 
-const RESIDUAL_TEST_ORDER_IDS = new Set([
-  "ORD-3314",
-  "ORD-6933",
-  "ORD-6347",
-])
+const RESIDUAL_TEST_ORDER_IDS = new Set(["ORD-3314", "ORD-6933", "ORD-6347"])
 
 export function useOrders(initialFilter: string = "Todos los Estados") {
   const { updateOrderStatus } = useStore()

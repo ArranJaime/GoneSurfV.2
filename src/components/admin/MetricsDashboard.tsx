@@ -69,7 +69,7 @@ export function MetricsDashboard({
     activeFilteredTransactions.forEach((t) => {
       const m = t.paymentMethod || "tarjeta"
       if (m in summary) {
-        summary[m as keyof typeof summary] += t.total || 0
+        summary[(m as keyof typeof summary)] += t.total || 0
       } else {
         summary.tarjeta += t.total || 0
       }
@@ -95,7 +95,7 @@ export function MetricsDashboard({
     let outOfStockSizes = 0
     products.forEach((p) => {
       const relevantSizes =
-        p.category === "Accesorios" ? (["Única"] as Size[]) : SIZES
+        p.category === "Accesorios" ? ["Única"] as Size[] : SIZES
       relevantSizes.forEach((sz) => {
         const units = p.stocks[sz] || 0
         totalUnits += units
@@ -445,4 +445,3 @@ export function MetricsDashboard({
 }
 
 export default MetricsDashboard
-

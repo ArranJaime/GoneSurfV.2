@@ -65,7 +65,9 @@ export interface Store {
   updateProduct: (id: string, updates: Partial<Omit<Product, "id">>) => void
   updateProductPrice: (productId: string, newPrice: number) => void
   updateProductCollection: (productId: string, collectionName: string) => void
-  addCollection: (col: Omit<CollectionData, "id" | "active">) => Promise<void> | void
+  addCollection: (
+    col: Omit<CollectionData, "id" | "active">,
+  ) => Promise<void> | void
   toggleCollection: (id: string) => void
   deleteCollection: (id: string) => void
   deleteProduct: (id: string) => void
@@ -122,9 +124,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       return parsed.filter((c): c is CollectionData =>
         Boolean(
           c &&
-          typeof c.title === "string" &&
-          c.title.trim() !== "" &&
-          !["c1", "c2"].includes(c.id),
+            typeof c.title === "string" &&
+            c.title.trim() !== "" &&
+            !["c1", "c2"].includes(c.id),
         ),
       )
     }),
@@ -135,7 +137,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const [cart, setCart] = useState<CartItem[]>(() =>
     safeReadStorage("gone_cart", [], (parsed) =>
-      Array.isArray(parsed) ? (parsed as CartItem[]) : [],
+      Array.isArray(parsed) ? parsed as CartItem[] : [],
     ),
   )
 
@@ -156,7 +158,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const [users, setUsers] = useState<CustomerUser[]>(() =>
     safeReadStorage("gone_users", [], (parsed) =>
-      Array.isArray(parsed) ? (parsed as CustomerUser[]) : [],
+      Array.isArray(parsed) ? parsed as CustomerUser[] : [],
     ),
   )
 
@@ -182,9 +184,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       "Off Duty Tee",
     ])
     const cleanProds = Array.isArray(rawProds)
-      ? rawProds.filter(
-          (p) => !MOCK_IDS.has(p?.id) && !MOCK_NAMES.has(p?.name),
-        )
+      ? rawProds.filter((p) => !MOCK_IDS.has(p?.id) && !MOCK_NAMES.has(p?.name))
       : []
     setProducts(cleanProds)
     const rawTx = safeReadStorage<OrderTransaction[]>("gone_transactions", [])
@@ -263,7 +263,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             (o: any) => !RESIDUAL_TEST_ORDER_IDS.has(o?.id),
           )
           if (cleanOrders.length !== parsedOrders.length) {
-            localStorage.setItem("gone_transactions", JSON.stringify(cleanOrders))
+            localStorage.setItem(
+              "gone_transactions",
+              JSON.stringify(cleanOrders),
+            )
             setTransactions(cleanOrders)
           }
         }
@@ -461,10 +464,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   )
 
   const completeOrder = useCallback(
-    (
-      details: OrderDetailsInput,
-      createdTransaction?: OrderTransaction,
-    ): { id: string } => {
+    (details: OrderDetailsInput, createdTransaction?: OrderTransaction): {
+      id: string
+    } => {
       // 1. Verify stock against catalog products
       const validCartItems = cart.filter((item) => {
         const prod = products.find((p) => p.id === item.productId)
@@ -573,10 +575,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
       const saved = await api.products.create(product)
       setProducts((prev) => {
-        const updated = [
-          saved,
-          ...prev.filter((p) => p.id !== saved.id),
-        ]
+        const updated = [saved, ...prev.filter((p) => p.id !== saved.id)]
         safeWriteStorage("gone_products", updated)
         return updated
       })
@@ -734,7 +733,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       )
 
       // Sincronización automática de órdenes previas de invitado con este correo
-      const fullName = `${normalizedUser.firstName} ${normalizedUser.lastName}`.trim()
+      const fullName =
+        `${normalizedUser.firstName} ${normalizedUser.lastName}`.trim()
       setTransactions((prevTx) => {
         let changed = false
         const nextTx = prevTx.map((t) => {
@@ -765,9 +765,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   )
 
   const updateUserProfile = useCallback(
-    async (
-      profileData: Partial<CustomerUser>,
-    ): Promise<{ ok: boolean; user?: CustomerUser; error?: string }> => {
+    async (profileData: Partial<CustomerUser>): Promise<{
+      ok: boolean
+      user?: CustomerUser
+      error?: string
+    }> => {
       const res = await api.users.updateProfile(profileData)
       if (res.ok && res.user) {
         const updated = res.user

@@ -2,7 +2,7 @@
  * Gone Surfing - Accounting Integrity (SUNAT Perú Compliance)
  * Computes all cart, checkout and cashier amounts strictly in integer céntimos to avoid
  * IEEE 754 floating point precision errors.
- * 
+ *
  * In Peru, retail prices include 18% IGV (Impuesto General a las Ventas).
  * Base Imponible = Total Items / 1.18
  * IGV = Total Items - Base Imponible
@@ -23,8 +23,8 @@ export interface AccountingBreakdown {
   itemsTotalCents: number
   shippingCents: number
   subtotalCents: number // Base imponible
-  igvCents: number      // 18% IGV
-  totalCents: number    // Final payable amount
+  igvCents: number // 18% IGV
+  totalCents: number // Final payable amount
   itemsTotal: number
   shipping: number
   subtotal: number
@@ -52,7 +52,7 @@ export function calculateOrderAmounts(
   cartItems: CartItemLike[],
   catalogProducts: CatalogProductLike[],
   shippingMethod: "standard" | "express" = "standard",
-  freeShippingThresholdCents = 30000
+  freeShippingThresholdCents = 30000,
 ): AccountingBreakdown {
   const items: OrderItemCalculation[] = []
   let itemsTotalCents = 0
@@ -112,4 +112,3 @@ export function formatPEN(amountInSoles: number): string {
   const safeNum = Number.isFinite(amountInSoles) ? amountInSoles : 0
   return `S/. ${safeNum.toFixed(2)}`
 }
-

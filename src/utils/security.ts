@@ -32,11 +32,13 @@ export interface ImageValidation {
  */
 export function sanitizeString(input: unknown): string {
   if (typeof input !== "string") return ""
-  return input
-    .replace(/<[^>]*>?/gm, "") // Strip HTML tags
-    .replace(/javascript:/gi, "") // Neutralize javascript: pseudo-protocols
-    .replace(/on\w+\s*=/gi, "") // Neutralize inline event handlers like onclick=
-    .trim()
+  return (
+    input
+      .replace(/<[^>]*>?/gm, "") // Strip HTML tags
+      .replace(/javascript:/gi, "") // Neutralize javascript: pseudo-protocols
+      .replace(/on\w+\s*=/gi, "") // Neutralize inline event handlers like onclick=
+      .trim()
+  )
 }
 
 /**
@@ -50,17 +52,27 @@ export function sanitizeUrlParam(param: string | null): string {
 /**
  * Validates Peruvian DNI (exactly 8 digits) or Carné de Extranjería (9 to 12 alphanumeric characters).
  */
-export function validateDocument(type: "DNI" | "CE", docNumber: string): DocumentValidation {
+export function validateDocument(
+  type: "DNI" | "CE",
+  docNumber: string,
+): DocumentValidation {
   const clean = docNumber.trim()
   if (type === "DNI") {
     const is8Digits = /^\d{8}$/.test(clean)
     if (!is8Digits) {
-      return { valid: false, error: "El DNI debe contener exactamente 8 dígitos numéricos." }
+      return {
+        valid: false,
+        error: "El DNI debe contener exactamente 8 dígitos numéricos.",
+      }
     }
   } else if (type === "CE") {
     const isCeValid = /^[a-zA-Z0-9]{9,12}$/.test(clean)
     if (!isCeValid) {
-      return { valid: false, error: "El Carné de Extranjería debe tener entre 9 y 12 caracteres alfanuméricos." }
+      return {
+        valid: false,
+        error:
+          "El Carné de Extranjería debe tener entre 9 y 12 caracteres alfanuméricos.",
+      }
     }
   }
   return { valid: true }
@@ -71,7 +83,8 @@ export function validateDocument(type: "DNI" | "CE", docNumber: string): Documen
  */
 export function validateEmail(email: string): boolean {
   if (!email || email.length > 254) return false
-  const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/
+  const emailRegex =
+    /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/
   return emailRegex.test(email.trim())
 }
 
@@ -108,17 +121,32 @@ export function validateStock(stock: unknown): number {
 /**
  * Validates uploaded image file against allowed MIME types and max payload size.
  */
-export function validateImageFile(file: File, maxSizeBytes = 10 * 1024 * 1024): ImageValidation {
-  const allowedMimeTypes = ["image/jpeg", "image/png", "image/webp", "image/avif", "image/gif"]
+export function validateImageFile(
+  file: File,
+  maxSizeBytes = 10 * 1024 * 1024,
+): ImageValidation {
+  const allowedMimeTypes = [
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "image/avif",
+    "image/gif",
+  ]
   if (!file) {
     return { ok: false, error: "No se seleccionó ningún archivo de imagen." }
   }
   if (!allowedMimeTypes.includes(file.type.toLowerCase())) {
-    return { ok: false, error: `Tipo de archivo no permitido (${file.type}). Sube JPEG, PNG, WebP o AVIF.` }
+    return {
+      ok: false,
+      error: `Tipo de archivo no permitido (${file.type}). Sube JPEG, PNG, WebP o AVIF.`,
+    }
   }
   if (file.size > maxSizeBytes) {
     const maxMb = Math.round(maxSizeBytes / (1024 * 1024))
-    return { ok: false, error: `La imagen excede el límite permitido de ${maxMb}MB.` }
+    return {
+      ok: false,
+      error: `La imagen excede el límite permitido de ${maxMb}MB.`,
+    }
   }
   return { ok: true }
 }
@@ -136,7 +164,9 @@ export function createAdminSession(user: string, hours = 4): SessionData {
   if (typeof crypto !== "undefined" && crypto.getRandomValues) {
     crypto.getRandomValues(array)
   }
-  const token = Array.from(array, (byte) => byte.toString(16).padStart(2, "0")).join("")
+  const token = Array.from(array, (byte) =>
+    byte.toString(16).padStart(2, "0"),
+  ).join("")
 
   const session: SessionData = {
     user,
@@ -201,8 +231,7 @@ export function getAdminToken(): string | null {
 
   if (typeof sessionStorage !== "undefined") {
     const sessionToken =
-      sessionStorage.getItem("token") ||
-      sessionStorage.getItem("admin_token")
+      sessionStorage.getItem("token") || sessionStorage.getItem("admin_token")
     if (sessionToken) return sessionToken
   }
 
@@ -224,4 +253,3 @@ export function isSessionExpired(session: SessionData | null): boolean {
   if (!session) return true
   return Date.now() > session.expiresAt
 }
-

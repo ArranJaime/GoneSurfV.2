@@ -82,7 +82,10 @@ export default function PrivacyPolicy() {
               lineHeight: 1.6,
             }}
           >
-            En cumplimiento estricto de la <strong>Ley N° 29733</strong> (Ley de Protección de Datos Personales de la República del Perú) y su Reglamento aprobado por el <strong>Decreto Supremo N° 003-2013-JUS</strong>.
+            En cumplimiento estricto de la <strong>Ley N° 29733</strong> (Ley de
+            Protección de Datos Personales de la República del Perú) y su
+            Reglamento aprobado por el{" "}
+            <strong>Decreto Supremo N° 003-2013-JUS</strong>.
           </p>
         </header>
 
@@ -112,10 +115,17 @@ export default function PrivacyPolicy() {
               1. Titular del Banco de Datos Personales
             </h2>
             <p>
-              El titular del banco de datos personales correspondiente a los usuarios y clientes de la tienda en línea es <strong>Gone Surfing Perú S.A.C.</strong>, con domicilio legal en Lima, Perú, y correo electrónico de contacto: <strong>privacidad@gonesurfing.pe</strong>.
+              El titular del banco de datos personales correspondiente a los
+              usuarios y clientes de la tienda en línea es{" "}
+              <strong>Gone Surfing Perú S.A.C.</strong>, con domicilio legal en
+              Lima, Perú, y correo electrónico de contacto:{" "}
+              <strong>privacidad@gonesurfing.pe</strong>.
             </p>
             <p style={{ marginTop: "0.8rem" }}>
-              Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aliquam erat volutpat. Ut tincidunt, nisl nec feugiat pellentesque, turpis enim hendrerit neque, eu interdum nulla lorem a sem. Suspendisse potenti. Nunc dignissim bibendum hendrerit.
+              Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aliquam
+              erat volutpat. Ut tincidunt, nisl nec feugiat pellentesque, turpis
+              enim hendrerit neque, eu interdum nulla lorem a sem. Suspendisse
+              potenti. Nunc dignissim bibendum hendrerit.
             </p>
           </section>
 
@@ -134,13 +144,29 @@ export default function PrivacyPolicy() {
               2. Datos Personales Objeto de Tratamiento
             </h2>
             <p>
-              Para la correcta prestación de nuestros servicios de comercio electrónico, despacho a domicilio y atención al cliente, recopilamos los siguientes datos personales:
+              Para la correcta prestación de nuestros servicios de comercio
+              electrónico, despacho a domicilio y atención al cliente,
+              recopilamos los siguientes datos personales:
             </p>
             <ul style={{ paddingLeft: "1.5rem", marginTop: "0.5rem" }}>
-              <li><strong>Datos de Identificación:</strong> Nombres, apellidos, tipo y número de documento de identidad (DNI, CE o Pasaporte).</li>
-              <li><strong>Datos de Contacto:</strong> Correo electrónico, número de teléfono fijo o móvil.</li>
-              <li><strong>Datos de Ubicación y Entrega:</strong> Dirección domiciliaria, departamento, provincia, distrito y puntos de referencia.</li>
-              <li><strong>Datos de Transacción:</strong> Historial de compras, productos seleccionados, montos facturados y método de pago elegido.</li>
+              <li>
+                <strong>Datos de Identificación:</strong> Nombres, apellidos,
+                tipo y número de documento de identidad (DNI, CE o Pasaporte).
+              </li>
+              <li>
+                <strong>Datos de Contacto:</strong> Correo electrónico, número
+                de teléfono fijo o móvil.
+              </li>
+              <li>
+                <strong>Datos de Ubicación y Entrega:</strong> Dirección
+                domiciliaria, departamento, provincia, distrito y puntos de
+                referencia.
+              </li>
+              <li>
+                <strong>Datos de Transacción:</strong> Historial de compras,
+                productos seleccionados, montos facturados y método de pago
+                elegido.
+              </li>
             </ul>
           </section>
 
@@ -159,14 +185,27 @@ export default function PrivacyPolicy() {
               3. Finalidad del Tratamiento de Datos
             </h2>
             <p>
-              Los datos personales recolectados serán tratados con las siguientes finalidades:
+              Los datos personales recolectados serán tratados con las
+              siguientes finalidades:
             </p>
             <ol style={{ paddingLeft: "1.5rem", marginTop: "0.5rem" }}>
               <li>Validar y procesar las órdenes de compra en línea.</li>
-              <li>Coordinar el despacho y la entrega de productos en la dirección indicada por el usuario.</li>
-              <li>Emitir los comprobantes de pago electrónicos correspondientes exigidos por SUNAT.</li>
-              <li>Atender consultas, reclamos o sugerencias a través del Libro de Reclamaciones o canales de soporte.</li>
-              <li>Remitir comunicaciones sobre el estado de su pedido mediante correo electrónico o WhatsApp.</li>
+              <li>
+                Coordinar el despacho y la entrega de productos en la dirección
+                indicada por el usuario.
+              </li>
+              <li>
+                Emitir los comprobantes de pago electrónicos correspondientes
+                exigidos por SUNAT.
+              </li>
+              <li>
+                Atender consultas, reclamos o sugerencias a través del Libro de
+                Reclamaciones o canales de soporte.
+              </li>
+              <li>
+                Remitir comunicaciones sobre el estado de su pedido mediante
+                correo electrónico o WhatsApp.
+              </li>
             </ol>
           </section>
 
@@ -185,10 +224,17 @@ export default function PrivacyPolicy() {
               4. Consentimiento Libre, Previo, Expreso e Informado
             </h2>
             <p>
-              Al marcar la casilla de verificación correspondiente durante el proceso de registro o checkout, el usuario otorga su consentimiento previo, expreso, inequívoco e informado para el tratamiento de sus datos personales conforme a las finalidades aquí expuestas.
+              Al marcar la casilla de verificación correspondiente durante el
+              proceso de registro o checkout, el usuario otorga su
+              consentimiento previo, expreso, inequívoco e informado para el
+              tratamiento de sus datos personales conforme a las finalidades
+              aquí expuestas.
             </p>
             <p style={{ marginTop: "0.8rem" }}>
-              Lorem ipsum dolor sit amet, consectetur adipiscing elit. Cras sed felis eget velit aliquet aliquet. Morbi dapibus, eros sed interdum molestie, velit nulla vulputate mi, non elementum turpis odio a magna.
+              Lorem ipsum dolor sit amet, consectetur adipiscing elit. Cras sed
+              felis eget velit aliquet aliquet. Morbi dapibus, eros sed interdum
+              molestie, velit nulla vulputate mi, non elementum turpis odio a
+              magna.
             </p>
           </section>
 
@@ -207,7 +253,12 @@ export default function PrivacyPolicy() {
               5. Transferencia y Terceros Encargados del Tratamiento
             </h2>
             <p>
-              Sus datos personales podrán ser compartidos exclusivamente con proveedores indispensables para la prestación del servicio (empresas de logística/courier y procesadores de pago seguros). Dichos terceros se encuentran contractualmente obligados a garantizar la confidencialidad y seguridad de la información. No vendemos ni alquilamos bases de datos a terceros.
+              Sus datos personales podrán ser compartidos exclusivamente con
+              proveedores indispensables para la prestación del servicio
+              (empresas de logística/courier y procesadores de pago seguros).
+              Dichos terceros se encuentran contractualmente obligados a
+              garantizar la confidencialidad y seguridad de la información. No
+              vendemos ni alquilamos bases de datos a terceros.
             </p>
           </section>
 
@@ -223,13 +274,22 @@ export default function PrivacyPolicy() {
                 marginBottom: "0.8rem",
               }}
             >
-              6. Ejercicio de los Derechos ARCO (Acceso, Rectificación, Cancelación y Oposición)
+              6. Ejercicio de los Derechos ARCO (Acceso, Rectificación,
+              Cancelación y Oposición)
             </h2>
             <p>
-              Conforme a la Ley N° 29733, los titulares de los datos tienen derecho a acceder a sus datos personales, solicitar su rectificación cuando sean inexactos o incompletos, exigir su cancelación cuando hayan dejado de ser necesarios para las finalidades recopiladas, u oponerse a su tratamiento.
+              Conforme a la Ley N° 29733, los titulares de los datos tienen
+              derecho a acceder a sus datos personales, solicitar su
+              rectificación cuando sean inexactos o incompletos, exigir su
+              cancelación cuando hayan dejado de ser necesarios para las
+              finalidades recopiladas, u oponerse a su tratamiento.
             </p>
             <p style={{ marginTop: "0.8rem" }}>
-              Para ejercer cualquiera de sus derechos ARCO, puede remitir una solicitud formal al correo <strong>privacidad@gonesurfing.pe</strong> adjuntando copia de su documento de identidad. Su requerimiento será atendido dentro de los plazos fijados por ley.
+              Para ejercer cualquiera de sus derechos ARCO, puede remitir una
+              solicitud formal al correo{" "}
+              <strong>privacidad@gonesurfing.pe</strong> adjuntando copia de su
+              documento de identidad. Su requerimiento será atendido dentro de
+              los plazos fijados por ley.
             </p>
           </section>
 
@@ -248,7 +308,11 @@ export default function PrivacyPolicy() {
               7. Medidas de Seguridad y Conservación
             </h2>
             <p>
-              Implementamos rigurosas medidas técnicas, organizativas y legales de seguridad para proteger los datos personales contra accesos no autorizados, pérdida accidental, alteración o divulgación indebida, incluyendo cifrado SSL en tránsito y almacenamiento seguro en infraestructura de nube de Amazon Web Services (AWS).
+              Implementamos rigurosas medidas técnicas, organizativas y legales
+              de seguridad para proteger los datos personales contra accesos no
+              autorizados, pérdida accidental, alteración o divulgación
+              indebida, incluyendo cifrado SSL en tránsito y almacenamiento
+              seguro en infraestructura de nube de Amazon Web Services (AWS).
             </p>
           </section>
         </div>
@@ -287,4 +351,3 @@ export default function PrivacyPolicy() {
     </main>
   )
 }
-

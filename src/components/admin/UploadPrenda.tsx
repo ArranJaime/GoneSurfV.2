@@ -1186,13 +1186,16 @@ export function UploadPrenda() {
                       fontStyle: "italic",
                     }}
                   >
-                    No hay productos registrados en el inventario. Agrega uno nuevo con el formulario superior.
+                    No hay productos registrados en el inventario. Agrega uno
+                    nuevo con el formulario superior.
                   </td>
                 </tr>
               ) : (
                 products.map((p) => {
                   const isAcc = p.category === "Accesorios"
-                  const activeSizes: Size[] = isAcc ? (["Única"] as Size[]) : SIZES
+                  const activeSizes: Size[] = isAcc
+                    ? ["Única"] as Size[]
+                    : SIZES
 
                   return (
                     <tr key={p.id} style={{ borderBottom: "1px solid #eee" }}>
@@ -1393,7 +1396,9 @@ export function UploadPrenda() {
                                 style={{
                                   padding: "0.2rem 0.2rem",
                                   fontWeight:
-                                    (p.stocks[s] || 0) === 0 ? "bold" : "normal",
+                                    (p.stocks[s] || 0) === 0
+                                      ? "bold"
+                                      : "normal",
                                   color:
                                     (p.stocks[s] || 0) === 0
                                       ? "#ff4d4d"
@@ -1477,4 +1482,3 @@ export function UploadPrenda() {
 }
 
 export default UploadPrenda
-

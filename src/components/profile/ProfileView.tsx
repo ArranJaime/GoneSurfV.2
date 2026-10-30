@@ -1,10 +1,6 @@
 import React, { useState, useEffect } from "react"
 import { useNavigate, useSearchParams, Link } from "react-router-dom"
-import {
-  useStore,
-  getCurrentSessionUser,
-  type CustomerUser,
-} from "../../store"
+import { useStore, getCurrentSessionUser, type CustomerUser } from "../../store"
 import { api } from "../../services/api"
 import {
   validateDocument,
@@ -13,17 +9,13 @@ import {
   sanitizeString,
 } from "../../utils/security"
 import { formatPEN } from "../../utils/accounting"
-import { LIMA_DISTRICTS } from "../../Checkout"
+import { LIMA_DISTRICTS } from "../../utils/districts"
 
 const money = (value: number) => formatPEN(value)
 
 export default function Profile() {
-  const {
-    transactions,
-    registerUser,
-    authenticateUser,
-    updateUserProfile,
-  } = useStore()
+  const { transactions, registerUser, authenticateUser, updateUserProfile } =
+    useStore()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
 
@@ -672,7 +664,11 @@ export default function Profile() {
                       to="/terminos"
                       target="_blank"
                       rel="noopener noreferrer"
-                      style={{ color: "#000000", fontWeight: 700, textDecoration: "underline" }}
+                      style={{
+                        color: "#000000",
+                        fontWeight: 700,
+                        textDecoration: "underline",
+                      }}
                     >
                       Términos y Condiciones
                     </Link>{" "}
@@ -681,7 +677,11 @@ export default function Profile() {
                       to="/privacidad"
                       target="_blank"
                       rel="noopener noreferrer"
-                      style={{ color: "#000000", fontWeight: 700, textDecoration: "underline" }}
+                      style={{
+                        color: "#000000",
+                        fontWeight: 700,
+                        textDecoration: "underline",
+                      }}
                     >
                       Política de Privacidad y Tratamiento de Datos Personales
                     </Link>
@@ -1006,7 +1006,8 @@ export default function Profile() {
                   margin: "0.4rem 0 0 0",
                 }}
               >
-                Actualiza tus datos y punto de entrega para agilizar tus futuras compras.
+                Actualiza tus datos y punto de entrega para agilizar tus futuras
+                compras.
               </p>
             </div>
 
@@ -1304,7 +1305,9 @@ export default function Profile() {
                     transition: "opacity 0.2s",
                   }}
                 >
-                  {isUpdatingProfile ? "GUARDANDO CAMBIOS..." : "ACTUALIZAR PERFIL"}
+                  {isUpdatingProfile
+                    ? "GUARDANDO CAMBIOS..."
+                    : "ACTUALIZAR PERFIL"}
                 </button>
               </div>
             </form>

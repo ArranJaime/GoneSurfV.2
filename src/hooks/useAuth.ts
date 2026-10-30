@@ -38,10 +38,11 @@ export function useAuth() {
   }, [syncSession])
 
   const login = useCallback(
-    async (
-      email: string,
-      pass: string,
-    ): Promise<{ ok: boolean; user?: CustomerUser; error?: string }> => {
+    async (email: string, pass: string): Promise<{
+      ok: boolean
+      user?: CustomerUser
+      error?: string
+    }> => {
       // 1. Intentar autenticación con AWS primero
       const customerRes = await api.auth.loginCustomer(email, pass)
       if (customerRes) {
@@ -67,9 +68,11 @@ export function useAuth() {
   )
 
   const register = useCallback(
-    async (
-      newUser: CustomerUser,
-    ): Promise<{ ok: boolean; user?: CustomerUser; error?: string }> => {
+    async (newUser: CustomerUser): Promise<{
+      ok: boolean
+      user?: CustomerUser
+      error?: string
+    }> => {
       const res = await api.auth.registerCustomer(newUser)
       if (!res.ok) {
         return {
@@ -88,9 +91,11 @@ export function useAuth() {
   )
 
   const updateCustomerProfile = useCallback(
-    async (
-      profileData: Partial<CustomerUser>,
-    ): Promise<{ ok: boolean; user?: CustomerUser; error?: string }> => {
+    async (profileData: Partial<CustomerUser>): Promise<{
+      ok: boolean
+      user?: CustomerUser
+      error?: string
+    }> => {
       const res = await updateUserProfile(profileData)
       if (res.ok && res.user) {
         setCurrentUser(res.user)
@@ -120,4 +125,3 @@ export function useAuth() {
 }
 
 export default useAuth
-

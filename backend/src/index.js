@@ -24,20 +24,24 @@ const docClient = DynamoDBDocumentClient.from(ddbClient, {
 const s3Client = new S3Client({ region: REGION })
 
 const PRODUCTS_TABLE = process.env.PRODUCTS_TABLE || "GoneSurfing-Products-prod"
-const COLLECTIONS_TABLE = process.env.COLLECTIONS_TABLE || "GoneSurfing-Collections-prod"
+const COLLECTIONS_TABLE =
+  process.env.COLLECTIONS_TABLE || "GoneSurfing-Collections-prod"
 const ORDERS_TABLE = process.env.ORDERS_TABLE || "GoneSurfing-Orders-prod"
 const USERS_TABLE = process.env.USERS_TABLE || "GoneSurfing-Users-prod"
-const COMPLAINTS_TABLE = process.env.COMPLAINTS_TABLE || "GoneSurfing-Complaints-prod"
+const COMPLAINTS_TABLE =
+  process.env.COMPLAINTS_TABLE || "GoneSurfing-Complaints-prod"
 const MEDIA_BUCKET = process.env.MEDIA_BUCKET || ""
 const CLOUDFRONT_DOMAIN = process.env.CLOUDFRONT_DOMAIN || ""
-const JWT_SECRET = process.env.JWT_SECRET || "gone_surfing_super_secret_jwt_key_2026_sunat"
+const JWT_SECRET =
+  process.env.JWT_SECRET || "gone_surfing_super_secret_jwt_key_2026_sunat"
 const ADMIN_USER_DEFAULT = process.env.ADMIN_USER || "admin"
 const ADMIN_PASSWORD_DEFAULT = process.env.ADMIN_PASSWORD || "admin666"
 
 // CORS headers for all responses
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token",
+  "Access-Control-Allow-Headers":
+    "Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token",
   "Access-Control-Allow-Methods": "OPTIONS,GET,POST,PUT,DELETE",
 }
 
@@ -219,7 +223,7 @@ async function autoSeedDatabase() {
       new GetCommand({
         TableName: USERS_TABLE,
         Key: { email: "admin@gonesurfing.pe" },
-      })
+      }),
     )
     if (!adminCheck.Item) {
       const passwordHash = bcrypt.hashSync(ADMIN_PASSWORD_DEFAULT, 12)
@@ -233,23 +237,31 @@ async function autoSeedDatabase() {
             passwordHash,
             createdAt: new Date().toISOString(),
           },
-        })
+        }),
       )
     }
 
     // 2. Seed Products if empty
-    const prodsScan = await docClient.send(new ScanCommand({ TableName: PRODUCTS_TABLE, Limit: 1 }))
+    const prodsScan = await docClient.send(
+      new ScanCommand({ TableName: PRODUCTS_TABLE, Limit: 1 }),
+    )
     if (!prodsScan.Items || prodsScan.Items.length === 0) {
       for (const p of INITIAL_PRODUCTS) {
-        await docClient.send(new PutCommand({ TableName: PRODUCTS_TABLE, Item: p }))
+        await docClient.send(
+          new PutCommand({ TableName: PRODUCTS_TABLE, Item: p }),
+        )
       }
     }
 
     // 3. Seed Collections if empty
-    const colsScan = await docClient.send(new ScanCommand({ TableName: COLLECTIONS_TABLE, Limit: 1 }))
+    const colsScan = await docClient.send(
+      new ScanCommand({ TableName: COLLECTIONS_TABLE, Limit: 1 }),
+    )
     if (!colsScan.Items || colsScan.Items.length === 0) {
       for (const c of INITIAL_COLLECTIONS) {
-        await docClient.send(new PutCommand({ TableName: COLLECTIONS_TABLE, Item: c }))
+        await docClient.send(
+          new PutCommand({ TableName: COLLECTIONS_TABLE, Item: c }),
+        )
       }
     }
 
@@ -264,8 +276,9 @@ async function autoSeedDatabase() {
 // -----------------------------------------------------------------------------
 export async function handler(event) {
   // Support both REST API v1 and HTTP API v2 payloads
-  const httpMethod = event.httpMethod || event.requestContext?.http?.method || "GET"
-  
+  const httpMethod =
+    event.httpMethod || event.requestContext?.http?.method || "GET"
+
   // Robust path extraction across API Gateway v1 proxy, direct routes, and stages
   let path = "/"
   if (event.pathParameters && event.pathParameters.proxy) {
@@ -310,7 +323,7 @@ export async function handler(event) {
           TableName: USERS_TABLE,
           FilterExpression: "username = :u OR email = :u",
           ExpressionAttributeValues: { ":u": user },
-        })
+        }),
       )
 
       if (userScan.Items && userScan.Items.length > 0) {
@@ -318,18 +331,23 @@ export async function handler(event) {
         if (found.role === "admin" && found.passwordHash) {
           isValid = bcrypt.compareSync(password, found.passwordHash)
         }
-      } else if (user === ADMIN_USER_DEFAULT && password === ADMIN_PASSWORD_DEFAULT) {
+      } else if (
+        user === ADMIN_USER_DEFAULT &&
+        password === ADMIN_PASSWORD_DEFAULT
+      ) {
         isValid = true
       }
 
       if (!isValid) {
-        return response(401, { message: "Credenciales de administrador inválidas." })
+        return response(401, {
+          message: "Credenciales de administrador inválidas.",
+        })
       }
 
       const expiresAt = Date.now() + 4 * 3600 * 1000 // 4 hours
       const token = jwt.sign(
         { user, role: "admin", exp: Math.floor(expiresAt / 1000) },
-        JWT_SECRET
+        JWT_SECRET,
       )
       return response(200, { ok: true, token, expiresAt })
     }
@@ -338,14 +356,18 @@ export async function handler(event) {
       const data = parseBody(event)
       const cleanEmail = (data.email || "").trim().toLowerCase()
       if (!cleanEmail || !data.password) {
-        return response(400, { message: "Correo y contraseña son obligatorios." })
+        return response(400, {
+          message: "Correo y contraseña son obligatorios.",
+        })
       }
 
       const existing = await docClient.send(
-        new GetCommand({ TableName: USERS_TABLE, Key: { email: cleanEmail } })
+        new GetCommand({ TableName: USERS_TABLE, Key: { email: cleanEmail } }),
       )
       if (existing.Item) {
-        return response(400, { message: "Este correo electrónico ya está registrado." })
+        return response(400, {
+          message: "Este correo electrónico ya está registrado.",
+        })
       }
 
       const passwordHash = bcrypt.hashSync(data.password, 12) // salt >= 12
@@ -365,7 +387,9 @@ export async function handler(event) {
         updatedAt: new Date().toISOString(),
       }
 
-      await docClient.send(new PutCommand({ TableName: USERS_TABLE, Item: customerItem }))
+      await docClient.send(
+        new PutCommand({ TableName: USERS_TABLE, Item: customerItem }),
+      )
 
       // Sincronización Automática de Invitado a Registrado en DynamoDB
       try {
@@ -374,10 +398,11 @@ export async function handler(event) {
             TableName: ORDERS_TABLE,
             FilterExpression: "email = :e",
             ExpressionAttributeValues: { ":e": cleanEmail },
-          })
+          }),
         )
 
-        const fullName = `${customerItem.firstName} ${customerItem.lastName}`.trim()
+        const fullName =
+          `${customerItem.firstName} ${customerItem.lastName}`.trim()
 
         if (pastOrdersRes.Items && pastOrdersRes.Items.length > 0) {
           for (const order of pastOrdersRes.Items) {
@@ -392,19 +417,27 @@ export async function handler(event) {
                   ":nameVal": fullName || order.customer,
                   ":phoneVal": customerItem.phone || order.phone,
                   ":docVal": customerItem.document || order.document,
-                  ":docTypeVal": customerItem.documentType || order.documentType || "DNI",
+                  ":docTypeVal":
+                    customerItem.documentType || order.documentType || "DNI",
                   ":refVal": customerItem.reference || "",
                 },
-              })
+              }),
             )
           }
         }
       } catch (syncErr) {
-        console.warn("Aviso: Sincronización automática de pedidos:", syncErr?.message)
+        console.warn(
+          "Aviso: Sincronización automática de pedidos:",
+          syncErr?.message,
+        )
       }
 
       const { passwordHash: _, ...safeUser } = customerItem
-      const token = jwt.sign({ email: cleanEmail, role: "customer" }, JWT_SECRET, { expiresIn: "7d" })
+      const token = jwt.sign(
+        { email: cleanEmail, role: "customer" },
+        JWT_SECRET,
+        { expiresIn: "7d" },
+      )
       return response(201, { ok: true, user: safeUser, token })
     }
 
@@ -416,7 +449,7 @@ export async function handler(event) {
       }
 
       const userRecord = await docClient.send(
-        new GetCommand({ TableName: USERS_TABLE, Key: { email: cleanEmail } })
+        new GetCommand({ TableName: USERS_TABLE, Key: { email: cleanEmail } }),
       )
       if (!userRecord.Item || !userRecord.Item.passwordHash) {
         return response(401, { message: "Correo o contraseña incorrectos." })
@@ -428,16 +461,25 @@ export async function handler(event) {
       }
 
       const { passwordHash: _, ...safeUser } = userRecord.Item
-      const token = jwt.sign({ email: cleanEmail, role: "customer" }, JWT_SECRET, { expiresIn: "7d" })
+      const token = jwt.sign(
+        { email: cleanEmail, role: "customer" },
+        JWT_SECRET,
+        { expiresIn: "7d" },
+      )
       return response(200, { ok: true, user: safeUser, token })
     }
 
-    if (httpMethod === "PUT" && (path === "/users/profile" || path === "/auth/customers/profile")) {
+    if (
+      httpMethod === "PUT" &&
+      (path === "/users/profile" || path === "/auth/customers/profile")
+    ) {
       const payload = parseBody(event)
       const authUser = authenticate(headers, event)
 
       // Extraer email desde claims del token o del cuerpo de la petición
-      let email = (authUser?.email || authUser?.user || payload.email || "").trim().toLowerCase()
+      let email = (authUser?.email || authUser?.user || payload.email || "")
+        .trim()
+        .toLowerCase()
       const authHeader = headers.Authorization || headers.authorization || ""
       const token = authHeader.replace(/^Bearer\s+/i, "").trim()
       if (!email && token) {
@@ -448,29 +490,55 @@ export async function handler(event) {
       }
 
       if (!email) {
-        return response(400, { message: "Se requiere correo electrónico para actualizar el perfil." })
+        return response(400, {
+          message: "Se requiere correo electrónico para actualizar el perfil.",
+        })
       }
 
       // Obtener registro de usuario existente
       const userRes = await docClient.send(
-        new GetCommand({ TableName: USERS_TABLE, Key: { email } })
+        new GetCommand({ TableName: USERS_TABLE, Key: { email } }),
       )
 
       if (!userRes.Item) {
-        return response(404, { message: "Usuario no encontrado en la base de datos." })
+        return response(404, {
+          message: "Usuario no encontrado en la base de datos.",
+        })
       }
 
       const existingUser = userRes.Item
       const updatedUser = {
         ...existingUser,
-        firstName: payload.firstName !== undefined ? String(payload.firstName).trim() : existingUser.firstName,
-        lastName: payload.lastName !== undefined ? String(payload.lastName).trim() : existingUser.lastName,
-        phone: payload.phone !== undefined ? String(payload.phone).trim() : (existingUser.phone || ""),
-        documentType: payload.documentType || existingUser.documentType || "DNI",
-        document: payload.document !== undefined ? String(payload.document).trim() : (existingUser.document || ""),
-        address: payload.address !== undefined ? String(payload.address).trim() : (existingUser.address || ""),
-        reference: payload.reference !== undefined ? String(payload.reference).trim() : (existingUser.reference || ""),
-        district: payload.district !== undefined ? String(payload.district).trim() : (existingUser.district || ""),
+        firstName:
+          payload.firstName !== undefined
+            ? String(payload.firstName).trim()
+            : existingUser.firstName,
+        lastName:
+          payload.lastName !== undefined
+            ? String(payload.lastName).trim()
+            : existingUser.lastName,
+        phone:
+          payload.phone !== undefined
+            ? String(payload.phone).trim()
+            : existingUser.phone || "",
+        documentType:
+          payload.documentType || existingUser.documentType || "DNI",
+        document:
+          payload.document !== undefined
+            ? String(payload.document).trim()
+            : existingUser.document || "",
+        address:
+          payload.address !== undefined
+            ? String(payload.address).trim()
+            : existingUser.address || "",
+        reference:
+          payload.reference !== undefined
+            ? String(payload.reference).trim()
+            : existingUser.reference || "",
+        district:
+          payload.district !== undefined
+            ? String(payload.district).trim()
+            : existingUser.district || "",
         updatedAt: new Date().toISOString(),
       }
 
@@ -478,7 +546,7 @@ export async function handler(event) {
         new PutCommand({
           TableName: USERS_TABLE,
           Item: updatedUser,
-        })
+        }),
       )
 
       const { passwordHash: _, ...safeUser } = updatedUser
@@ -487,10 +555,17 @@ export async function handler(event) {
 
     if (httpMethod === "GET" && path === "/users") {
       const user = authenticate(headers, event)
-      if (!user || user.role !== "admin") return response(403, { message: "Acceso denegado: Requiere rol admin." })
+      if (!user || user.role !== "admin")
+        return response(403, {
+          message: "Acceso denegado: Requiere rol admin.",
+        })
 
-      const usersScan = await docClient.send(new ScanCommand({ TableName: USERS_TABLE }))
-      const safeUsers = (usersScan.Items || []).map(({ passwordHash, ...u }) => u)
+      const usersScan = await docClient.send(
+        new ScanCommand({ TableName: USERS_TABLE }),
+      )
+      const safeUsers = (usersScan.Items || []).map(
+        ({ passwordHash, ...u }) => u,
+      )
       return response(200, safeUsers)
     }
 
@@ -498,7 +573,9 @@ export async function handler(event) {
     // 2. PRODUCTS ROUTES
     // -------------------------------------------------------------------------
     if (httpMethod === "GET" && path === "/products") {
-      const scanResult = await docClient.send(new ScanCommand({ TableName: PRODUCTS_TABLE }))
+      const scanResult = await docClient.send(
+        new ScanCommand({ TableName: PRODUCTS_TABLE }),
+      )
       const MOCK_IDS = new Set(["p1", "p2", "p3", "p4"])
       const MOCK_NAMES = new Set([
         "Stay Real Tee",
@@ -507,7 +584,7 @@ export async function handler(event) {
         "Off Duty Tee",
       ])
       const items = (scanResult.Items || []).filter(
-        (item) => !MOCK_IDS.has(item.id) && !MOCK_NAMES.has(item.name)
+        (item) => !MOCK_IDS.has(item.id) && !MOCK_NAMES.has(item.name),
       )
       return response(200, items)
     }
@@ -517,15 +594,20 @@ export async function handler(event) {
       if (["p1", "p2", "p3", "p4"].includes(id)) {
         return response(404, { message: "Producto no encontrado." })
       }
-      const res = await docClient.send(new GetCommand({ TableName: PRODUCTS_TABLE, Key: { id } }))
-      if (!res.Item) return response(404, { message: "Producto no encontrado." })
+      const res = await docClient.send(
+        new GetCommand({ TableName: PRODUCTS_TABLE, Key: { id } }),
+      )
+      if (!res.Item)
+        return response(404, { message: "Producto no encontrado." })
       return response(200, res.Item)
     }
 
     if (httpMethod === "POST" && path === "/products") {
       const user = authenticate(headers, event)
       if (!user || user.role !== "admin") {
-        return response(403, { message: "Acceso denegado: Requiere rol admin." })
+        return response(403, {
+          message: "Acceso denegado: Requiere rol admin.",
+        })
       }
 
       const data = parseBody(event)
@@ -547,8 +629,8 @@ export async function handler(event) {
                   data.stocks?.["unica"] ??
                   data.stocks?.["UNICA"] ??
                   15,
-                10
-              )
+                10,
+              ),
             ),
           }
         : {
@@ -573,18 +655,28 @@ export async function handler(event) {
 
       // Ejecución explícita y esperada (await) de DynamoDB PutCommand
       try {
-        console.log(`[DynamoDB] Guardando en tabla ${PRODUCTS_TABLE}:`, newProduct.id)
+        console.log(
+          `[DynamoDB] Guardando en tabla ${PRODUCTS_TABLE}:`,
+          newProduct.id,
+        )
         await docClient.send(
           new PutCommand({
             TableName: PRODUCTS_TABLE,
             Item: newProduct,
-          })
+          }),
         )
-        console.log(`[DynamoDB] Guardado confirmado en ${PRODUCTS_TABLE}:`, newProduct.id)
+        console.log(
+          `[DynamoDB] Guardado confirmado en ${PRODUCTS_TABLE}:`,
+          newProduct.id,
+        )
       } catch (dbErr) {
-        console.error(`[DynamoDB] Error crítico al ejecutar PutCommand en ${PRODUCTS_TABLE}:`, dbErr)
+        console.error(
+          `[DynamoDB] Error crítico al ejecutar PutCommand en ${PRODUCTS_TABLE}:`,
+          dbErr,
+        )
         return response(500, {
-          message: "Error al persistir el producto en la base de datos DynamoDB.",
+          message:
+            "Error al persistir el producto en la base de datos DynamoDB.",
           error: dbErr.message,
         })
       }
@@ -594,36 +686,49 @@ export async function handler(event) {
 
     if (httpMethod === "PUT" && path.startsWith("/products/")) {
       const user = authenticate(headers, event)
-      if (!user || user.role !== "admin") return response(403, { message: "Acceso denegado." })
+      if (!user || user.role !== "admin")
+        return response(403, { message: "Acceso denegado." })
 
       const id = path.replace(/^\/products\//, "").replace(/\/.*$/, "")
       const data = parseBody(event)
 
-      const existing = await docClient.send(new GetCommand({ TableName: PRODUCTS_TABLE, Key: { id } }))
-      if (!existing.Item) return response(404, { message: "Producto no encontrado." })
+      const existing = await docClient.send(
+        new GetCommand({ TableName: PRODUCTS_TABLE, Key: { id } }),
+      )
+      if (!existing.Item)
+        return response(404, { message: "Producto no encontrado." })
 
       const finalUpdateImage = (data.imageUrl || data.image || "").trim()
       const updated = {
         ...existing.Item,
         ...(data.name ? { name: data.name.trim() } : {}),
-        ...(data.price !== undefined ? { price: Number(parseFloat(data.price).toFixed(2)) } : {}),
+        ...(data.price !== undefined
+          ? { price: Number(parseFloat(data.price).toFixed(2)) }
+          : {}),
         ...(data.category ? { category: data.category } : {}),
         ...(data.collectionName ? { collectionName: data.collectionName } : {}),
-        ...(finalUpdateImage ? { image: finalUpdateImage, imageUrl: finalUpdateImage } : {}),
+        ...(finalUpdateImage
+          ? { image: finalUpdateImage, imageUrl: finalUpdateImage }
+          : {}),
         ...(data.stocks ? { stocks: data.stocks } : {}),
         updatedAt: new Date().toISOString(),
       }
 
-      await docClient.send(new PutCommand({ TableName: PRODUCTS_TABLE, Item: updated }))
+      await docClient.send(
+        new PutCommand({ TableName: PRODUCTS_TABLE, Item: updated }),
+      )
       return response(200, updated)
     }
 
     if (httpMethod === "DELETE" && path.startsWith("/products/")) {
       const user = authenticate(headers, event)
-      if (!user || user.role !== "admin") return response(403, { message: "Acceso denegado." })
+      if (!user || user.role !== "admin")
+        return response(403, { message: "Acceso denegado." })
 
       const id = path.replace(/^\/products\//, "").replace(/\/.*$/, "")
-      await docClient.send(new DeleteCommand({ TableName: PRODUCTS_TABLE, Key: { id } }))
+      await docClient.send(
+        new DeleteCommand({ TableName: PRODUCTS_TABLE, Key: { id } }),
+      )
       return response(200, { success: true })
     }
 
@@ -631,13 +736,16 @@ export async function handler(event) {
     // 3. COLLECTIONS ROUTES
     // -------------------------------------------------------------------------
     if (httpMethod === "GET" && path === "/collections") {
-      const scanResult = await docClient.send(new ScanCommand({ TableName: COLLECTIONS_TABLE }))
+      const scanResult = await docClient.send(
+        new ScanCommand({ TableName: COLLECTIONS_TABLE }),
+      )
       return response(200, scanResult.Items || [])
     }
 
     if (httpMethod === "POST" && path === "/collections") {
       const user = authenticate(headers, event)
-      if (!user || user.role !== "admin") return response(403, { message: "Acceso denegado." })
+      if (!user || user.role !== "admin")
+        return response(403, { message: "Acceso denegado." })
 
       const data = parseBody(event)
       if (!data.title || !data.image) {
@@ -654,30 +762,41 @@ export async function handler(event) {
         createdAt: new Date().toISOString(),
       }
 
-      await docClient.send(new PutCommand({ TableName: COLLECTIONS_TABLE, Item: newCol }))
+      await docClient.send(
+        new PutCommand({ TableName: COLLECTIONS_TABLE, Item: newCol }),
+      )
       return response(201, newCol)
     }
 
     if (httpMethod === "PATCH" && path.includes("/toggle")) {
       const user = authenticate(headers, event)
-      if (!user || user.role !== "admin") return response(403, { message: "Acceso denegado." })
+      if (!user || user.role !== "admin")
+        return response(403, { message: "Acceso denegado." })
 
       const match = path.match(/\/collections\/([^/]+)\/toggle/)
       const id = match ? match[1] : path.split("/")[2]
-      const current = await docClient.send(new GetCommand({ TableName: COLLECTIONS_TABLE, Key: { id } }))
-      if (!current.Item) return response(404, { message: "Colección no encontrada." })
+      const current = await docClient.send(
+        new GetCommand({ TableName: COLLECTIONS_TABLE, Key: { id } }),
+      )
+      if (!current.Item)
+        return response(404, { message: "Colección no encontrada." })
 
       const updated = { ...current.Item, active: !current.Item.active }
-      await docClient.send(new PutCommand({ TableName: COLLECTIONS_TABLE, Item: updated }))
+      await docClient.send(
+        new PutCommand({ TableName: COLLECTIONS_TABLE, Item: updated }),
+      )
       return response(200, updated)
     }
 
     if (httpMethod === "DELETE" && path.startsWith("/collections/")) {
       const user = authenticate(headers, event)
-      if (!user || user.role !== "admin") return response(403, { message: "Acceso denegado." })
+      if (!user || user.role !== "admin")
+        return response(403, { message: "Acceso denegado." })
 
       const id = path.replace(/^\/collections\//, "").replace(/\/.*$/, "")
-      const colRecord = await docClient.send(new GetCommand({ TableName: COLLECTIONS_TABLE, Key: { id } }))
+      const colRecord = await docClient.send(
+        new GetCommand({ TableName: COLLECTIONS_TABLE, Key: { id } }),
+      )
 
       // Reassign affected products to General Catalog
       if (colRecord.Item && colRecord.Item.title) {
@@ -687,7 +806,7 @@ export async function handler(event) {
             TableName: PRODUCTS_TABLE,
             FilterExpression: "collectionName = :c",
             ExpressionAttributeValues: { ":c": title },
-          })
+          }),
         )
         if (prods.Items) {
           for (const p of prods.Items) {
@@ -697,13 +816,15 @@ export async function handler(event) {
                 Key: { id: p.id },
                 UpdateExpression: "SET collectionName = :cat",
                 ExpressionAttributeValues: { ":cat": "Catálogo General" },
-              })
+              }),
             )
           }
         }
       }
 
-      await docClient.send(new DeleteCommand({ TableName: COLLECTIONS_TABLE, Key: { id } }))
+      await docClient.send(
+        new DeleteCommand({ TableName: COLLECTIONS_TABLE, Key: { id } }),
+      )
       return response(200, { success: true })
     }
 
@@ -712,10 +833,15 @@ export async function handler(event) {
     // -------------------------------------------------------------------------
     if (httpMethod === "GET" && path === "/orders") {
       const user = authenticate(headers, event)
-      if (!user || user.role !== "admin") return response(403, { message: "Acceso denegado." })
+      if (!user || user.role !== "admin")
+        return response(403, { message: "Acceso denegado." })
 
-      const res = await docClient.send(new ScanCommand({ TableName: ORDERS_TABLE }))
-      const sorted = (res.Items || []).sort((a, b) => new Date(b.date) - new Date(a.date))
+      const res = await docClient.send(
+        new ScanCommand({ TableName: ORDERS_TABLE }),
+      )
+      const sorted = (res.Items || []).sort(
+        (a, b) => new Date(b.date) - new Date(a.date),
+      )
       return response(200, sorted)
     }
 
@@ -723,17 +849,24 @@ export async function handler(event) {
       const orderInput = parseBody(event)
       const items = orderInput.items
       if (!Array.isArray(items) || items.length === 0) {
-        return response(400, { message: "El carrito está vacío o el formato es incorrecto." })
+        return response(400, {
+          message: "El carrito está vacío o el formato es incorrecto.",
+        })
       }
 
       // Step 1: Fetch and verify official catalog products
       const catalogProducts = []
       for (const item of items) {
         const prodRes = await docClient.send(
-          new GetCommand({ TableName: PRODUCTS_TABLE, Key: { id: item.productId } })
+          new GetCommand({
+            TableName: PRODUCTS_TABLE,
+            Key: { id: item.productId },
+          }),
         )
         if (!prodRes.Item) {
-          return response(400, { message: `Producto con ID ${item.productId} no encontrado.` })
+          return response(400, {
+            message: `Producto con ID ${item.productId} no encontrado.`,
+          })
         }
         catalogProducts.push(prodRes.Item)
       }
@@ -753,11 +886,14 @@ export async function handler(event) {
       })
 
       try {
-        await docClient.send(new TransactWriteCommand({ TransactItems: transactItems }))
+        await docClient.send(
+          new TransactWriteCommand({ TransactItems: transactItems }),
+        )
       } catch (err) {
         console.error("DynamoDB atomic transaction failed:", err)
         return response(400, {
-          message: "Stock insuficiente para una o más prendas de su pedido. Por favor revise el inventario disponible.",
+          message:
+            "Stock insuficiente para una o más prendas de su pedido. Por favor revise el inventario disponible.",
         })
       }
 
@@ -772,7 +908,8 @@ export async function handler(event) {
       })
 
       // Shipping rules: Express = S/. 30.00 | Standard = S/. 15.00 (Gratis si >= S/. 300.00)
-      const shippingMethod = orderInput.shippingMethod === "express" ? "express" : "standard"
+      const shippingMethod =
+        orderInput.shippingMethod === "express" ? "express" : "standard"
       let shippingCents = 0
       if (shippingMethod === "express") {
         shippingCents = 3000
@@ -782,14 +919,17 @@ export async function handler(event) {
 
       // SUNAT 18% IGV included in retail prices
       const subtotalCents = Math.round(itemsTotalCents / 1.18) // Base Imponible
-      const igvCents = itemsTotalCents - subtotalCents        // IGV
-      const totalCents = itemsTotalCents + shippingCents       // Monto Total
+      const igvCents = itemsTotalCents - subtotalCents // IGV
+      const totalCents = itemsTotalCents + shippingCents // Monto Total
 
       const rawPaymentMethod = orderInput.paymentMethod || "tarjeta"
-      const paymentMethod = ["tarjeta", "yape_plin", "efectivo"].includes(rawPaymentMethod)
+      const paymentMethod = ["tarjeta", "yape_plin", "efectivo"].includes(
+        rawPaymentMethod,
+      )
         ? rawPaymentMethod
         : "tarjeta"
-      const initialStatus = paymentMethod === "yape_plin" ? "Pendiente de Pago" : "Procesando"
+      const initialStatus =
+        paymentMethod === "yape_plin" ? "Pendiente de Pago" : "Procesando"
 
       const orderId = `ORD-${Math.floor(1000 + Math.random() * 9000)}`
       const cleanEmail = (orderInput.email || "").trim().toLowerCase()
@@ -798,7 +938,10 @@ export async function handler(event) {
       if (cleanEmail) {
         try {
           const userRec = await docClient.send(
-            new GetCommand({ TableName: USERS_TABLE, Key: { email: cleanEmail } })
+            new GetCommand({
+              TableName: USERS_TABLE,
+              Key: { email: cleanEmail },
+            }),
           )
           if (userRec.Item) {
             isGuest = false
@@ -836,19 +979,25 @@ export async function handler(event) {
         status: orderInput.status || initialStatus,
       }
 
-      await docClient.send(new PutCommand({ TableName: ORDERS_TABLE, Item: transaction }))
+      await docClient.send(
+        new PutCommand({ TableName: ORDERS_TABLE, Item: transaction }),
+      )
       return response(201, transaction)
     }
 
     if (httpMethod === "PATCH" && path.includes("/status")) {
       const user = authenticate(headers, event)
-      if (!user || user.role !== "admin") return response(403, { message: "Acceso denegado." })
+      if (!user || user.role !== "admin")
+        return response(403, { message: "Acceso denegado." })
 
       const match = path.match(/\/orders\/([^/]+)\/status/)
       const id = match ? match[1] : path.split("/")[2]
       const { status } = parseBody(event)
-      const orderRes = await docClient.send(new GetCommand({ TableName: ORDERS_TABLE, Key: { id } }))
-      if (!orderRes.Item) return response(404, { message: "Orden no encontrada." })
+      const orderRes = await docClient.send(
+        new GetCommand({ TableName: ORDERS_TABLE, Key: { id } }),
+      )
+      if (!orderRes.Item)
+        return response(404, { message: "Orden no encontrada." })
 
       const currentStatus = orderRes.Item.status
       if (currentStatus !== status) {
@@ -862,7 +1011,7 @@ export async function handler(event) {
                 UpdateExpression: "SET stocks.#sz = stocks.#sz + :qty",
                 ExpressionAttributeNames: { "#sz": item.size },
                 ExpressionAttributeValues: { ":qty": item.quantity },
-              })
+              }),
             )
           }
         } else if (currentStatus === "Cancelado" && status !== "Cancelado") {
@@ -875,7 +1024,7 @@ export async function handler(event) {
                 UpdateExpression: "SET stocks.#sz = stocks.#sz - :qty",
                 ExpressionAttributeNames: { "#sz": item.size },
                 ExpressionAttributeValues: { ":qty": item.quantity },
-              })
+              }),
             )
           }
         }
@@ -887,7 +1036,7 @@ export async function handler(event) {
             UpdateExpression: "SET #st = :s",
             ExpressionAttributeNames: { "#st": "status" },
             ExpressionAttributeValues: { ":s": status },
-          })
+          }),
         )
       }
 
@@ -897,17 +1046,30 @@ export async function handler(event) {
     // -------------------------------------------------------------------------
     // 5. S3 PRESIGNED IMAGE UPLOADS
     // -------------------------------------------------------------------------
-    if (httpMethod === "POST" && (path === "/admin/upload-url" || path === "/media/presign")) {
+    if (
+      httpMethod === "POST" &&
+      (path === "/admin/upload-url" || path === "/media/presign")
+    ) {
       const { fileName, contentType } = parseBody(event)
-      const allowedMimes = ["image/jpeg", "image/png", "image/webp", "image/avif", "image/gif"]
+      const allowedMimes = [
+        "image/jpeg",
+        "image/png",
+        "image/webp",
+        "image/avif",
+        "image/gif",
+      ]
 
       if (!contentType || !allowedMimes.includes(contentType.toLowerCase())) {
         return response(400, {
-          message: "Formato no permitido. Solo se aceptan imágenes (JPEG, PNG, WebP, AVIF).",
+          message:
+            "Formato no permitido. Solo se aceptan imágenes (JPEG, PNG, WebP, AVIF).",
         })
       }
 
-      const safeName = (fileName || "upload.webp").replace(/[^a-zA-Z0-9.-]/g, "_")
+      const safeName = (fileName || "upload.webp").replace(
+        /[^a-zA-Z0-9.-]/g,
+        "_",
+      )
       const fileKey = `media/${Date.now()}-${safeName}`
 
       const putCommand = new PutObjectCommand({
@@ -916,7 +1078,9 @@ export async function handler(event) {
         ContentType: contentType,
       })
 
-      const uploadUrl = await getSignedUrl(s3Client, putCommand, { expiresIn: 300 })
+      const uploadUrl = await getSignedUrl(s3Client, putCommand, {
+        expiresIn: 300,
+      })
       const publicUrl = CLOUDFRONT_DOMAIN
         ? `https://${CLOUDFRONT_DOMAIN}/${fileKey}`
         : `https://${MEDIA_BUCKET}.s3.${REGION}.amazonaws.com/${fileKey}`
@@ -947,9 +1111,19 @@ export async function handler(event) {
       const detail = (data.detail || "").trim()
       const consumerRequest = (data.consumerRequest || "").trim()
 
-      if (!consumerName || !documentNumber || !address || !phone || !email || !goodDescription || !detail || !consumerRequest) {
+      if (
+        !consumerName ||
+        !documentNumber ||
+        !address ||
+        !phone ||
+        !email ||
+        !goodDescription ||
+        !detail ||
+        !consumerRequest
+      ) {
         return response(400, {
-          message: "Todos los campos obligatorios del Libro de Reclamaciones deben ser completados.",
+          message:
+            "Todos los campos obligatorios del Libro de Reclamaciones deben ser completados.",
         })
       }
 
@@ -985,34 +1159,43 @@ export async function handler(event) {
         new PutCommand({
           TableName: COMPLAINTS_TABLE,
           Item: complaintRecord,
-        })
+        }),
       )
 
       return response(201, {
         ok: true,
         complaint: complaintRecord,
-        message: "Hoja de reclamación registrada exitosamente. Se responderá dentro del plazo legal de 15 días hábiles.",
+        message:
+          "Hoja de reclamación registrada exitosamente. Se responderá dentro del plazo legal de 15 días hábiles.",
       })
     }
 
     if (httpMethod === "GET" && path === "/complaints") {
       const user = authenticate(headers, event)
       if (!user || user.role !== "admin") {
-        return response(403, { message: "Acceso denegado. Se requieren permisos de administrador." })
+        return response(403, {
+          message: "Acceso denegado. Se requieren permisos de administrador.",
+        })
       }
 
-      const res = await docClient.send(new ScanCommand({ TableName: COMPLAINTS_TABLE }))
+      const res = await docClient.send(
+        new ScanCommand({ TableName: COMPLAINTS_TABLE }),
+      )
       const complaints = (res.Items || []).sort(
-        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
       )
       return response(200, complaints)
     }
 
-    return response(404, { message: `Ruta no encontrada: ${httpMethod} ${path}` })
+    return response(404, {
+      message: `Ruta no encontrada: ${httpMethod} ${path}`,
+    })
   } catch (err) {
     console.error("Unhandled API error:", err)
-    return response(500, { message: "Error interno del servidor", error: err.message })
+    return response(500, {
+      message: "Error interno del servidor",
+      error: err.message,
+    })
   }
 }
-
-

@@ -86,7 +86,8 @@ export default function ManageOrders({
   onStatusChange: propOnStatusChange,
 }: ManageOrdersProps = {}) {
   const { updateOrderStatus } = useStore()
-  const [internalLiveOrders, setInternalLiveOrders] = useState<OrderTransaction[]>([])
+  const [internalLiveOrders, setInternalLiveOrders] =
+    useState<OrderTransaction[]>([])
   const [internalLoading, setInternalLoading] = useState(false)
   const [internalError, setInternalError] = useState<string | null>(null)
   const [statusFilter, setStatusFilter] = useState<string>("Todos los Estados")
@@ -137,7 +138,10 @@ export default function ManageOrders({
         const res = await fetch(`${apiUrl}/orders`, { headers })
         if (!res.ok) {
           const errText = await res.text().catch(() => "")
-          console.error(`[Admin] Error en GET /orders (${res.status}):`, errText)
+          console.error(
+            `[Admin] Error en GET /orders (${res.status}):`,
+            errText,
+          )
           throw new Error(
             `Error HTTP ${res.status} al consultar pedidos del servidor.`,
           )
@@ -160,7 +164,9 @@ export default function ManageOrders({
       } catch {}
     } catch (err: any) {
       console.error("[Admin] Error al obtener órdenes con VITE_API_URL:", err)
-      setInternalError(err?.message || "No se pudo sincronizar pedidos en vivo.")
+      setInternalError(
+        err?.message || "No se pudo sincronizar pedidos en vivo.",
+      )
     } finally {
       setInternalLoading(false)
     }
@@ -216,7 +222,8 @@ export default function ManageOrders({
       >
         <h3>Aún no hay pedidos registrados.</h3>
         <p style={{ color: "#666", fontSize: "0.85rem", marginTop: "0.5rem" }}>
-          Los pedidos realizados por los clientes en la tienda oficial aparecerán aquí automáticamente en tiempo real.
+          Los pedidos realizados por los clientes en la tienda oficial
+          aparecerán aquí automáticamente en tiempo real.
         </p>
         {fetchError && (
           <p
@@ -278,7 +285,8 @@ export default function ManageOrders({
           </h2>
           <span style={{ fontSize: "0.75rem", color: "#666" }}>
             Total registrados: {displayOrders.length} pedido(s)
-            {statusFilter !== "Todos los Estados" && ` (Filtrados: ${filteredOrders.length})`}
+            {statusFilter !== "Todos los Estados" &&
+              ` (Filtrados: ${filteredOrders.length})`}
           </span>
         </div>
         <div
@@ -385,167 +393,173 @@ export default function ManageOrders({
                   No se encontraron pedidos con el estado "{statusFilter}".
                 </td>
               </tr>
-            ) : filteredOrders.map((t: OrderTransaction) => {
-              const status = t.status || "Procesando"
-              const badgeBg =
-                status === "Entregado"
-                  ? "#e8f5e9"
-                  : status === "Enviado"
-                    ? "#e3f2fd"
-                    : status === "Cancelado"
-                      ? "#ffebee"
-                      : status === "Pendiente de Pago"
-                        ? "#fff8e1"
-                        : "#fff3e0"
-              const badgeColor =
-                status === "Entregado"
-                  ? "#2e7d32"
-                  : status === "Enviado"
-                    ? "#0277bd"
-                    : status === "Cancelado"
-                      ? "#c62828"
-                      : status === "Pendiente de Pago"
-                        ? "#b78103"
-                        : "#e65100"
+            ) : (
+              filteredOrders.map((t: OrderTransaction) => {
+                const status = t.status || "Procesando"
+                const badgeBg =
+                  status === "Entregado"
+                    ? "#e8f5e9"
+                    : status === "Enviado"
+                      ? "#e3f2fd"
+                      : status === "Cancelado"
+                        ? "#ffebee"
+                        : status === "Pendiente de Pago"
+                          ? "#fff8e1"
+                          : "#fff3e0"
+                const badgeColor =
+                  status === "Entregado"
+                    ? "#2e7d32"
+                    : status === "Enviado"
+                      ? "#0277bd"
+                      : status === "Cancelado"
+                        ? "#c62828"
+                        : status === "Pendiente de Pago"
+                          ? "#b78103"
+                          : "#e65100"
 
-              return (
-                <tr
-                  key={t.id}
-                  style={{
-                    borderBottom: "1px solid #eee",
-                    opacity: status === "Cancelado" ? 0.65 : 1,
-                  }}
-                >
-                  <td style={{ padding: "1rem" }}>
-                    <strong style={{ display: "block" }}>{t.id}</strong>
-                    <span style={{ color: "#888", fontSize: "0.75rem" }}>
-                      {new Date(t.date).toLocaleDateString("es-PE")}
-                    </span>
-                  </td>
-                  <td style={{ padding: "1rem" }}>
-                    <strong style={{ display: "block" }}>
-                      {t.customer || "Anónimo"}
-                    </strong>
-                    <span style={{ color: "#888", fontSize: "0.75rem" }}>
-                      {t.documentType || "DNI"}: {t.document || "N/A"}
-                    </span>
-                  </td>
-                  <td style={{ padding: "1rem" }}>
-                    <span
-                      style={{
-                        display: "block",
-                        fontWeight: "bold",
-                        fontSize: "0.75rem",
-                        color: "#0277bd",
-                      }}
-                    >
-                      {t.email || "Sin correo"}
-                    </span>
-                    {t.phone && (
+                return (
+                  <tr
+                    key={t.id}
+                    style={{
+                      borderBottom: "1px solid #eee",
+                      opacity: status === "Cancelado" ? 0.65 : 1,
+                    }}
+                  >
+                    <td style={{ padding: "1rem" }}>
+                      <strong style={{ display: "block" }}>{t.id}</strong>
+                      <span style={{ color: "#888", fontSize: "0.75rem" }}>
+                        {new Date(t.date).toLocaleDateString("es-PE")}
+                      </span>
+                    </td>
+                    <td style={{ padding: "1rem" }}>
+                      <strong style={{ display: "block" }}>
+                        {t.customer || "Anónimo"}
+                      </strong>
+                      <span style={{ color: "#888", fontSize: "0.75rem" }}>
+                        {t.documentType || "DNI"}: {t.document || "N/A"}
+                      </span>
+                    </td>
+                    <td style={{ padding: "1rem" }}>
                       <span
                         style={{
                           display: "block",
-                          fontSize: "0.72rem",
-                          color: "#333",
-                          marginTop: "2px",
+                          fontWeight: "bold",
+                          fontSize: "0.75rem",
+                          color: "#0277bd",
                         }}
                       >
-                        Tel: {t.phone}
+                        {t.email || "Sin correo"}
                       </span>
-                    )}
-                    <span
-                      style={{
-                        fontSize: "0.7rem",
-                        color: "#666",
-                        display: "block",
-                        marginTop: "4px",
-                      }}
-                    >
-                      {t.address || "Dirección no registrada"} -{" "}
-                      {t.districtName || ""}
-                    </span>
-                    {t.reference && (
+                      {t.phone && (
+                        <span
+                          style={{
+                            display: "block",
+                            fontSize: "0.72rem",
+                            color: "#333",
+                            marginTop: "2px",
+                          }}
+                        >
+                          Tel: {t.phone}
+                        </span>
+                      )}
                       <span
                         style={{
-                          fontSize: "0.68rem",
+                          fontSize: "0.7rem",
+                          color: "#666",
+                          display: "block",
+                          marginTop: "4px",
+                        }}
+                      >
+                        {t.address || "Dirección no registrada"} -{" "}
+                        {t.districtName || ""}
+                      </span>
+                      {t.reference && (
+                        <span
+                          style={{
+                            fontSize: "0.68rem",
+                            color: "#555",
+                            display: "block",
+                            marginTop: "2px",
+                            fontStyle: "italic",
+                          }}
+                        >
+                          Ref: {t.reference}
+                        </span>
+                      )}
+                      <span
+                        style={{
+                          display: "inline-block",
+                          fontSize: "0.65rem",
+                          background: "#f5f5f5",
+                          padding: "2px 6px",
+                          borderRadius: "3px",
                           color: "#555",
-                          display: "block",
-                          marginTop: "2px",
-                          fontStyle: "italic",
+                          marginTop: "4px",
+                          fontWeight: "bold",
                         }}
                       >
-                        Ref: {t.reference}
+                        {t.shippingMethod === "express"
+                          ? "ENVÍO EXPRESS"
+                          : "ENVÍO ESTÁNDAR"}{" "}
+                        ({t.shipping ? money(t.shipping) : "Gratis"})
                       </span>
-                    )}
-                    <span
-                      style={{
-                        display: "inline-block",
-                        fontSize: "0.65rem",
-                        background: "#f5f5f5",
-                        padding: "2px 6px",
-                        borderRadius: "3px",
-                        color: "#555",
-                        marginTop: "4px",
-                        fontWeight: "bold",
-                      }}
-                    >
-                      {t.shippingMethod === "express"
-                        ? "ENVÍO EXPRESS"
-                        : "ENVÍO ESTÁNDAR"}{" "}
-                      ({t.shipping ? money(t.shipping) : "Gratis"})
-                    </span>
-                  </td>
-                  <td style={{ padding: "1rem", maxWidth: "250px" }}>
-                    <span
-                      style={{
-                        fontSize: "0.8rem",
-                        lineHeight: "1.4",
-                        display: "block",
-                      }}
-                    >
-                      {t.detail}
-                    </span>
-                  </td>
-                  <td style={{ padding: "1rem" }}>
-                    <strong style={{ fontSize: "1.1rem" }}>
-                      {money(t.total)}
-                    </strong>
-                  </td>
-                  <td style={{ padding: "1rem" }}>
-                    {renderPaymentBadge(t.paymentMethod)}
-                  </td>
-                  <td style={{ padding: "1rem" }}>
-                    <select
-                      value={status}
-                      onChange={(e) =>
-                        handleStatusChange(t.id, e.target.value as OrderStatus)
-                      }
-                      style={{
-                        padding: "0.5rem",
-                        borderRadius: "4px",
-                        border: "1px solid #ccc",
-                        fontWeight: "bold",
-                        cursor: "pointer",
-                        background: badgeBg,
-                        color: badgeColor,
-                      }}
-                    >
-                      <option value="Pendiente de Pago">Pendiente de Pago</option>
-                      <option value="Procesando">Procesando</option>
-                      <option value="Enviado">Enviado</option>
-                      <option value="Entregado">Entregado</option>
-                      <option value="Cancelado">
-                        Cancelado (Devuelve Stock)
-                      </option>
-                    </select>
-                  </td>
-                </tr>
-              )
-            })}
+                    </td>
+                    <td style={{ padding: "1rem", maxWidth: "250px" }}>
+                      <span
+                        style={{
+                          fontSize: "0.8rem",
+                          lineHeight: "1.4",
+                          display: "block",
+                        }}
+                      >
+                        {t.detail}
+                      </span>
+                    </td>
+                    <td style={{ padding: "1rem" }}>
+                      <strong style={{ fontSize: "1.1rem" }}>
+                        {money(t.total)}
+                      </strong>
+                    </td>
+                    <td style={{ padding: "1rem" }}>
+                      {renderPaymentBadge(t.paymentMethod)}
+                    </td>
+                    <td style={{ padding: "1rem" }}>
+                      <select
+                        value={status}
+                        onChange={(e) =>
+                          handleStatusChange(
+                            t.id,
+                            e.target.value as OrderStatus,
+                          )
+                        }
+                        style={{
+                          padding: "0.5rem",
+                          borderRadius: "4px",
+                          border: "1px solid #ccc",
+                          fontWeight: "bold",
+                          cursor: "pointer",
+                          background: badgeBg,
+                          color: badgeColor,
+                        }}
+                      >
+                        <option value="Pendiente de Pago">
+                          Pendiente de Pago
+                        </option>
+                        <option value="Procesando">Procesando</option>
+                        <option value="Enviado">Enviado</option>
+                        <option value="Entregado">Entregado</option>
+                        <option value="Cancelado">
+                          Cancelado (Devuelve Stock)
+                        </option>
+                      </select>
+                    </td>
+                  </tr>
+                )
+              })
+            )}
           </tbody>
         </table>
       </div>
     </section>
   )
 }
-

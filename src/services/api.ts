@@ -252,7 +252,10 @@ export const api = {
           }
 
           // Sincronización de pedidos previos de invitado en el estado local
-          const currentOrders = readStorage<OrderTransaction[]>("gone_transactions", [])
+          const currentOrders = readStorage<OrderTransaction[]>(
+            "gone_transactions",
+            [],
+          )
           let ordersChanged = false
           const syncedOrders = currentOrders.map((o) => {
             if ((o.email || "").toLowerCase() === cleanEmail) {
@@ -260,7 +263,9 @@ export const api = {
               return {
                 ...o,
                 isGuest: false,
-                customer: `${customer.firstName} ${customer.lastName}`.trim() || o.customer,
+                customer:
+                  `${customer.firstName} ${customer.lastName}`.trim() ||
+                  o.customer,
                 phone: customer.phone || o.phone,
                 document: customer.document || o.document,
                 reference: o.reference || customer.reference || "",
@@ -310,7 +315,10 @@ export const api = {
       sessionStorage.setItem("gone_current_user", JSON.stringify(normalized))
 
       // Sincronización de pedidos previos de invitado en local
-      const currentOrders = readStorage<OrderTransaction[]>("gone_transactions", [])
+      const currentOrders = readStorage<OrderTransaction[]>(
+        "gone_transactions",
+        [],
+      )
       let ordersChanged = false
       const syncedOrders = currentOrders.map((o) => {
         if ((o.email || "").toLowerCase() === cleanEmail) {
@@ -318,7 +326,9 @@ export const api = {
           return {
             ...o,
             isGuest: false,
-            customer: `${normalized.firstName} ${normalized.lastName}`.trim() || o.customer,
+            customer:
+              `${normalized.firstName} ${normalized.lastName}`.trim() ||
+              o.customer,
             phone: normalized.phone || o.phone,
             document: normalized.document || o.document,
             reference: o.reference || normalized.reference || "",
@@ -412,15 +422,13 @@ export const api = {
       return readStorage<CustomerUser[]>("gone_users", [])
     },
 
-    async updateProfile(
-      profileData: Partial<CustomerUser>,
-    ): Promise<{ ok: boolean; user?: CustomerUser; error?: string }> {
+    async updateProfile(profileData: Partial<CustomerUser>): Promise<{
+      ok: boolean
+      user?: CustomerUser
+      error?: string
+    }> {
       const sessionUser = api.auth.getCurrentCustomer()
-      const email = (
-        profileData.email ||
-        sessionUser?.email ||
-        ""
-      )
+      const email = (profileData.email || sessionUser?.email || "")
         .trim()
         .toLowerCase()
       if (!email) {
@@ -450,7 +458,7 @@ export const api = {
         reference:
           profileData.reference !== undefined
             ? sanitizeString(profileData.reference)
-            : (sessionUser?.reference || ""),
+            : sessionUser?.reference || "",
         district: profileData.district
           ? sanitizeString(profileData.district)
           : sessionUser?.district,
@@ -489,7 +497,9 @@ export const api = {
                 ? { ...u, ...updatedUser }
                 : u,
             )
-            if (!nextUsers.some((u) => (u.email || "").toLowerCase() === email)) {
+            if (
+              !nextUsers.some((u) => (u.email || "").toLowerCase() === email)
+            ) {
               nextUsers.push(updatedUser)
             }
             writeStorage("gone_users", nextUsers)
@@ -519,9 +529,7 @@ export const api = {
         (u) => (u.email || "").toLowerCase() === email,
       )
       const merged: CustomerUser = {
-        ...(existingIndex >= 0
-          ? localUsers[existingIndex]
-          : sessionUser || {}),
+        ...(existingIndex >= 0 ? localUsers[existingIndex] : sessionUser || {}),
         ...payload,
       } as CustomerUser
 
@@ -561,10 +569,7 @@ export const api = {
             return Array.isArray(data) ? data.filter(isClean) : []
           }
         } catch (err) {
-          console.warn(
-            "Fallo al obtener productos de AWS API Gateway:",
-            err,
-          )
+          console.warn("Fallo al obtener productos de AWS API Gateway:", err)
         }
       }
 
@@ -646,8 +651,13 @@ export const api = {
           })
           if (res.ok) {
             const updated = await res.json()
-            const current = readStorage<Product[]>("gone_products", INITIAL_PRODUCTS)
-            const nextList = current.map((p) => (p.id === id ? { ...p, ...updated } : p))
+            const current = readStorage<Product[]>(
+              "gone_products",
+              INITIAL_PRODUCTS,
+            )
+            const nextList = current.map((p) =>
+              p.id === id ? { ...p, ...updated } : p,
+            )
             writeStorage("gone_products", nextList)
             broadcastSyncEvent("products")
             return updated
@@ -763,7 +773,10 @@ export const api = {
             method: "DELETE",
           })
           if (res.ok) {
-            const current = readStorage<Product[]>("gone_products", INITIAL_PRODUCTS)
+            const current = readStorage<Product[]>(
+              "gone_products",
+              INITIAL_PRODUCTS,
+            )
             const filtered = current.filter((p) => p.id !== id)
             writeStorage("gone_products", filtered)
 
@@ -1134,8 +1147,13 @@ export const api = {
           })
           if (res.ok) {
             const updated = await res.json()
-            const orders = readStorage<OrderTransaction[]>("gone_transactions", [])
-            const updatedOrders = orders.map((o) => (o.id === id ? { ...o, status: nextStatus } : o))
+            const orders = readStorage<OrderTransaction[]>(
+              "gone_transactions",
+              [],
+            )
+            const updatedOrders = orders.map((o) =>
+              o.id === id ? { ...o, status: nextStatus } : o,
+            )
             writeStorage("gone_transactions", updatedOrders)
             broadcastSyncEvent("orders")
             broadcastSyncEvent("products")
@@ -1292,7 +1310,10 @@ export const api = {
               "No se pudo registrar la reclamación en el servidor.",
           }
         } catch (err: any) {
-          console.warn("[api.complaints.submit] Error de red, usando fallback:", err)
+          console.warn(
+            "[api.complaints.submit] Error de red, usando fallback:",
+            err,
+          )
         }
       }
 

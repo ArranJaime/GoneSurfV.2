@@ -2,12 +2,7 @@
  * Gone Surfing - Shared Type Definitions
  */
 export type Size = "S" | "M" | "L" | "XL" | "Única"
-export type OrderStatus =
-  | "Pendiente de Pago"
-  | "Procesando"
-  | "Enviado"
-  | "Entregado"
-  | "Cancelado"
+export type OrderStatus = "Pendiente de Pago" | "Procesando" | "Enviado" | "Entregado" | "Cancelado"
 export type OrderPaymentMethod = "tarjeta" | "yape_plin" | "efectivo"
 export type PaymentMethod = OrderPaymentMethod
 
