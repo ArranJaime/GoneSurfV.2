@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { api } from "../services/api"
 import { useStore } from "../store"
 import type { OrderStatus, OrderTransaction } from "../types"
@@ -12,7 +12,15 @@ export function useOrders(initialFilter: string = "Todos los Estados") {
   const [error, setError] = useState<string | null>(null)
   const [statusFilter, setStatusFilter] = useState<string>(initialFilter)
 
-  const fetchOrders = useCallback(async () => {
+  // Bloquear refetch automático tras un PUT para proteger contra la consistencia eventual de DynamoDB
+  const suppressRefetchUntilRef = useRef<number>(0)
+
+  const fetchOrders = useCallback(async (force = false) => {
+    if (!force && Date.now() < suppressRefetchUntilRef.current) {
+      // Ignorar sync o refetch temporal mientras DynamoDB consolida el nuevo estado
+      return
+    }
+
     setIsLoading(true)
     setError(null)
 
@@ -79,23 +87,27 @@ export function useOrders(initialFilter: string = "Todos los Estados") {
 
   const handleStatusChange = useCallback(
     async (id: string, nextStatus: OrderStatus) => {
-      // 1. Actualización optimista inmediata en memoria
+      // 1. Pausar refetch automático por 3 segundos para evitar rebote por consistencia eventual de DynamoDB
+      suppressRefetchUntilRef.current = Date.now() + 3000
+
+      // 2. Actualización optimista inmediata en memoria
       setOrders((prev) =>
         prev.map((o) => (o.id === id ? { ...o, status: nextStatus } : o)),
       )
 
       try {
-        // 2. Guardar permanentemente en DynamoDB a través del API Gateway
+        // 3. Guardar permanentemente en DynamoDB a través del API Gateway
         await api.orders.updateStatus(id, nextStatus)
-        // 3. Sincronizar el store global
+        // 4. Sincronizar el store global
         updateOrderStatus(id, nextStatus)
       } catch (err) {
         console.error(
           "[useOrders] Error actualizando estado de pedido en DynamoDB:",
           err,
         )
-        // Revertir si hubo error de conexión
-        await fetchOrders()
+        // Revertir forzando refetch si hubo error de conexión
+        suppressRefetchUntilRef.current = 0
+        await fetchOrders(true)
         throw err
       }
     },

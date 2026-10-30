@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { api } from "../../services/api"
 import { useStore } from "../../store"
 import type { OrderStatus, OrderTransaction } from "../../types"
@@ -98,9 +98,26 @@ export default function ManageOrders({
     type: "success" | "error"
   } | null>(null)
 
+  // Bloquear refetch o sync con datos viejos de DynamoDB por consistencia eventual
+  const suppressSyncUntilRef = useRef<number>(0)
+
   useEffect(() => {
     if (propOrders) {
-      setOrders(propOrders)
+      if (Date.now() < suppressSyncUntilRef.current) {
+        // Preservar la mutación optimista local reciente frente a datos desactualizados
+        setOrders((current) => {
+          const currentMap = new Map(current.map((o) => [o.id, o]))
+          return propOrders.map((incoming) => {
+            const existing = currentMap.get(incoming.id)
+            if (existing && existing.status !== incoming.status) {
+              return { ...incoming, status: existing.status }
+            }
+            return incoming
+          })
+        })
+      } else {
+        setOrders(propOrders)
+      }
     }
   }, [propOrders])
 
@@ -199,7 +216,17 @@ export default function ManageOrders({
   }, [isControlled, fetchOrdersFromApi])
 
   const handleStatusChange = async (orderId: string, newStatus: OrderStatus) => {
+    // Proteger contra sobreescritura de consistencia eventual por 3 segundos
+    suppressSyncUntilRef.current = Date.now() + 3000
     setUpdatingOrderId(orderId)
+
+    // Actualización optimista estricta en el estado local de la UI
+    setOrders((prevOrders) =>
+      prevOrders.map((order) =>
+        order.id === orderId ? { ...order, status: newStatus } : order,
+      ),
+    )
+
     try {
       if (propOnStatusChange) {
         await propOnStatusChange(orderId, newStatus)
@@ -208,19 +235,13 @@ export default function ManageOrders({
         updateOrderStatus(orderId, newStatus)
       }
 
-      // Actualización reactiva del estado local de pedidos en la UI
-      setOrders((prevOrders) =>
-        prevOrders.map((order) =>
-          order.id === orderId ? { ...order, status: newStatus } : order,
-        ),
-      )
-
       setNotification({
         type: "success",
         message: `✓ Pedido ${orderId} actualizado a "${newStatus}" en DynamoDB`,
       })
     } catch (err: any) {
       console.error("[Admin] Error actualizando estado de pedido:", err)
+      suppressSyncUntilRef.current = 0
       setNotification({
         type: "error",
         message: `⚠️ Error al actualizar el pedido ${orderId}. ${err?.message || "Revisa la conexión con AWS."}`,
@@ -605,7 +626,7 @@ export default function ManageOrders({
                         }}
                       >
                         <select
-                          value={status}
+                          value={t.status || "Procesando"}
                           disabled={updatingOrderId === t.id}
                           onChange={(e) =>
                             handleStatusChange(

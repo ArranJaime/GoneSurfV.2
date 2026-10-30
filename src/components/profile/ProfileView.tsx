@@ -30,7 +30,7 @@ export default function Profile() {
   const [authMode, setAuthMode] = useState<"login" | "register">(
     searchParams.get("mode") === "register" ? "register" : "login",
   )
-  const [error, setError] = useState(false)
+  const [loginErrorMessage, setLoginErrorMessage] = useState("")
   const [registerError, setRegisterError] = useState("")
   const [registerAcceptedTerms, setRegisterAcceptedTerms] = useState(false)
   const [currentTab, setCurrentTab] = useState<"pedidos" | "perfil">("pedidos")
@@ -64,13 +64,14 @@ export default function Profile() {
     const mode = searchParams.get("mode")
     if (mode === "login" || mode === "register") {
       setAuthMode(mode)
-      setError(false)
+      setLoginErrorMessage("")
       setRegisterError("")
     }
   }, [searchParams])
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
+    setLoginErrorMessage("")
     const data = new FormData(e.currentTarget)
     const email = sanitizeString(data.get("email")).toLowerCase()
     const pass = String(data.get("password") || "")
@@ -80,7 +81,7 @@ export default function Profile() {
     if (customerRes) {
       setCurrentUser(customerRes)
       setIsAuth(true)
-      setError(false)
+      setLoginErrorMessage("")
       return
     }
 
@@ -89,9 +90,9 @@ export default function Profile() {
     if (authenticated) {
       setCurrentUser(authenticated)
       setIsAuth(true)
-      setError(false)
+      setLoginErrorMessage("")
     } else {
-      setError(true)
+      setLoginErrorMessage("El correo o la contraseña son incorrectos.")
     }
   }
 
@@ -150,7 +151,7 @@ export default function Profile() {
     registerUser(registeredUser)
     setCurrentUser(registeredUser)
     setIsAuth(true)
-    setError(false)
+    setLoginErrorMessage("")
     setRegisterError("")
   }
 
@@ -228,8 +229,7 @@ export default function Profile() {
   }
 
   const handleLogout = () => {
-    sessionStorage.removeItem("gone_customer")
-    sessionStorage.removeItem("gone_current_user")
+    api.auth.logoutCustomer()
     setCurrentUser(null)
     setIsAuth(false)
     setCurrentTab("pedidos")
@@ -263,7 +263,7 @@ export default function Profile() {
             <button
               onClick={() => {
                 setAuthMode("login")
-                setError(false)
+                setLoginErrorMessage("")
                 setRegisterError("")
               }}
               style={{
@@ -282,7 +282,7 @@ export default function Profile() {
             <button
               onClick={() => {
                 setAuthMode("register")
-                setError(false)
+                setLoginErrorMessage("")
                 setRegisterError("")
               }}
               style={{
@@ -358,10 +358,20 @@ export default function Profile() {
                   }}
                 />
               </div>
-              {error && (
-                <small style={{ color: "#d32f2f", fontWeight: "bold" }}>
-                  El correo o la contraseña son incorrectos.
-                </small>
+              {loginErrorMessage && (
+                <div
+                  style={{
+                    color: "#d32f2f",
+                    fontWeight: "bold",
+                    fontSize: "0.85rem",
+                    background: "#ffebee",
+                    padding: "0.75rem",
+                    borderRadius: "4px",
+                    borderLeft: "4px solid #d32f2f",
+                  }}
+                >
+                  {loginErrorMessage}
+                </div>
               )}
               <button
                 style={{

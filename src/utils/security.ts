@@ -6,6 +6,7 @@
 export interface SessionData {
   user: string
   token: string
+  refreshToken?: string
   role: "admin" | "customer"
   loginTime: number
   expiresAt: number
@@ -157,7 +158,11 @@ export function validateImageFile(
 
 const ADMIN_SESSION_KEY = "gone_admin_session"
 
-export function createAdminSession(user: string, hours = 4): SessionData {
+export function createAdminSession(
+  user: string,
+  hours = 24,
+  refreshToken?: string,
+): SessionData {
   const now = Date.now()
   const expiresAt = now + hours * 3600 * 1000
   const array = new Uint8Array(24)
@@ -171,6 +176,7 @@ export function createAdminSession(user: string, hours = 4): SessionData {
   const session: SessionData = {
     user,
     token,
+    ...(refreshToken ? { refreshToken } : {}),
     role: "admin",
     loginTime: now,
     expiresAt,
@@ -183,8 +189,45 @@ export function createAdminSession(user: string, hours = 4): SessionData {
     localStorage.setItem("gone_admin", "true")
     localStorage.setItem("token", token)
     localStorage.setItem("admin_token", token)
+    if (refreshToken) {
+      localStorage.setItem("refresh_token", refreshToken)
+      localStorage.setItem("admin_refresh_token", refreshToken)
+    }
   }
   return session
+}
+
+export function saveAdminSession(session: SessionData): void {
+  sessionStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify(session))
+  sessionStorage.setItem("gone_admin", "true")
+  if (typeof localStorage !== "undefined") {
+    localStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify(session))
+    localStorage.setItem("gone_admin", "true")
+    if (session.token) {
+      localStorage.setItem("token", session.token)
+      localStorage.setItem("admin_token", session.token)
+    }
+    if (session.refreshToken) {
+      localStorage.setItem("refresh_token", session.refreshToken)
+      localStorage.setItem("admin_refresh_token", session.refreshToken)
+    }
+  }
+}
+
+export function getAdminRefreshToken(): string | null {
+  try {
+    const raw = sessionStorage.getItem(ADMIN_SESSION_KEY) || localStorage.getItem(ADMIN_SESSION_KEY)
+    if (raw) {
+      const parsed = JSON.parse(raw)
+      if (parsed?.refreshToken) return parsed.refreshToken
+    }
+  } catch {}
+  return (
+    localStorage.getItem("admin_refresh_token") ||
+    localStorage.getItem("refresh_token") ||
+    sessionStorage.getItem("admin_refresh_token") ||
+    null
+  )
 }
 
 export function getAdminSession(): SessionData | null {
@@ -241,11 +284,16 @@ export function getAdminToken(): string | null {
 export function clearAdminSession(): void {
   sessionStorage.removeItem(ADMIN_SESSION_KEY)
   sessionStorage.removeItem("gone_admin")
+  sessionStorage.removeItem("token")
+  sessionStorage.removeItem("admin_token")
+  sessionStorage.removeItem("admin_refresh_token")
   if (typeof localStorage !== "undefined") {
     localStorage.removeItem(ADMIN_SESSION_KEY)
     localStorage.removeItem("gone_admin")
     localStorage.removeItem("token")
     localStorage.removeItem("admin_token")
+    localStorage.removeItem("refresh_token")
+    localStorage.removeItem("admin_refresh_token")
   }
 }
 

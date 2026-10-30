@@ -7,8 +7,10 @@
 import {
   type SessionData,
   createAdminSession,
+  saveAdminSession,
   getAdminSession,
   getAdminToken,
+  getAdminRefreshToken,
   clearAdminSession,
   validatePrice,
   validateStock,
@@ -120,12 +122,12 @@ function writeStorage<T>(key: string, data: T): void {
   }
 }
 
-// Helper to execute AWS REST fetch with Bearer token
+// Helper to execute AWS REST fetch with Bearer token and automatic 401 token refresh
 async function fetchWithAuth(
   endpoint: string,
   options: RequestInit = {},
 ): Promise<Response> {
-  const token = getAdminToken() || getAdminSession()?.token || "dev-admin-token"
+  let token = getAdminToken() || getAdminSession()?.token || "dev-admin-token"
   const headers = new Headers(options.headers || {})
   headers.set("Content-Type", "application/json")
   if (token) {
@@ -135,7 +137,50 @@ async function fetchWithAuth(
   headers.set("X-Dev-Mode", "admin")
 
   const url = `${API_GATEWAY_URL.replace(/\/$/, "")}/${endpoint.replace(/^\//, "")}`
-  return fetch(url, { ...options, headers })
+  let res = await fetch(url, { ...options, headers })
+
+  // Interceptar 401 Unauthorized y renovar sesión con Refresh Token automáticamente
+  if (res.status === 401) {
+    const refreshToken = getAdminRefreshToken()
+    if (refreshToken && API_GATEWAY_URL) {
+      try {
+        const refreshRes = await fetch(`${API_GATEWAY_URL.replace(/\/$/, "")}/auth/refresh`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ refreshToken }),
+        })
+
+        if (refreshRes.ok) {
+          const refreshData = await refreshRes.json()
+          if (refreshData.token) {
+            token = refreshData.token
+            const existingSession = getAdminSession()
+            const updatedSession: SessionData = {
+              user: existingSession?.user || "admin",
+              token: refreshData.token,
+              refreshToken: refreshData.refreshToken || refreshToken,
+              role: "admin",
+              loginTime: existingSession?.loginTime || Date.now(),
+              expiresAt: refreshData.expiresAt || (Date.now() + 24 * 3600 * 1000),
+            }
+            saveAdminSession(updatedSession)
+
+            // Reintentar la petición original con el nuevo token obtenido
+            const retryHeaders = new Headers(options.headers || {})
+            retryHeaders.set("Content-Type", "application/json")
+            retryHeaders.set("Authorization", `Bearer ${token}`)
+            retryHeaders.set("x-dev-mode", "admin")
+            retryHeaders.set("X-Dev-Mode", "admin")
+            res = await fetch(url, { ...options, headers: retryHeaders })
+          }
+        }
+      } catch (refreshErr) {
+        console.warn("Fallo en la renovación automática del token de sesión:", refreshErr)
+      }
+    }
+  }
+
+  return res
 }
 
 // =============================================================================
@@ -176,21 +221,13 @@ export const api = {
           const session: SessionData = {
             user: cleanUser,
             token: data.token || data.idToken,
+            ...(data.refreshToken ? { refreshToken: data.refreshToken } : {}),
             role: "admin",
             loginTime: Date.now(),
             expiresAt:
-              data.expiresAt || Date.now() + ADMIN_SESSION_HOURS * 3600 * 1000,
+              data.expiresAt || Date.now() + Math.max(ADMIN_SESSION_HOURS, 24) * 3600 * 1000,
           }
-          sessionStorage.setItem("gone_admin_session", JSON.stringify(session))
-          sessionStorage.setItem("gone_admin", "true")
-          if (typeof localStorage !== "undefined") {
-            localStorage.setItem("gone_admin_session", JSON.stringify(session))
-            localStorage.setItem("gone_admin", "true")
-            if (session.token) {
-              localStorage.setItem("token", session.token)
-              localStorage.setItem("admin_token", session.token)
-            }
-          }
+          saveAdminSession(session)
           return { ok: true, session }
         } catch (err) {
           console.error("AWS Cognito/API Gateway login error:", err)
@@ -257,6 +294,10 @@ export const api = {
           sessionStorage.setItem("gone_current_user", JSON.stringify(customer))
           if (saved.token) {
             sessionStorage.setItem("customer_token", saved.token)
+            localStorage.setItem("customer_token", saved.token)
+          }
+          if (saved.refreshToken) {
+            localStorage.setItem("customer_refresh_token", saved.refreshToken)
           }
 
           // Sincronización de pedidos previos de invitado en el estado local
@@ -372,6 +413,10 @@ export const api = {
           sessionStorage.setItem("gone_current_user", JSON.stringify(customer))
           if (data.token) {
             sessionStorage.setItem("customer_token", data.token)
+            localStorage.setItem("customer_token", data.token)
+          }
+          if (data.refreshToken) {
+            localStorage.setItem("customer_refresh_token", data.refreshToken)
           }
           broadcastSyncEvent("users")
           return customer
@@ -396,6 +441,9 @@ export const api = {
     async logoutCustomer(): Promise<void> {
       sessionStorage.removeItem("gone_customer")
       sessionStorage.removeItem("gone_current_user")
+      sessionStorage.removeItem("customer_token")
+      localStorage.removeItem("customer_token")
+      localStorage.removeItem("customer_refresh_token")
       broadcastSyncEvent("users")
     },
 

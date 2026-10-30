@@ -344,12 +344,53 @@ export async function handler(event) {
         })
       }
 
-      const expiresAt = Date.now() + 4 * 3600 * 1000 // 4 hours
+      // Sesión de 24 horas y Refresh Token de 30 días para evitar expiración a la hora
+      const expiresAt = Date.now() + 24 * 3600 * 1000 // 24 hours
       const token = jwt.sign(
         { user, role: "admin", exp: Math.floor(expiresAt / 1000) },
         JWT_SECRET,
       )
-      return response(200, { ok: true, token, expiresAt })
+      const refreshToken = jwt.sign(
+        { user, role: "admin", type: "refresh" },
+        JWT_SECRET,
+        { expiresIn: "30d" },
+      )
+      return response(200, { ok: true, token, refreshToken, expiresAt })
+    }
+
+    // Endpoint de refresco de tokens automático para sesiones largas (> 1h)
+    if (httpMethod === "POST" && (path === "/auth/refresh" || path === "/auth/admin/refresh")) {
+      const { refreshToken } = parseBody(event)
+      if (!refreshToken) {
+        return response(400, { message: "Token de refresco requerido." })
+      }
+      try {
+        const verified = jwt.verify(refreshToken, JWT_SECRET)
+        if (!verified || typeof verified !== "object") {
+          return response(401, { message: "Token de refresco inválido o expirado." })
+        }
+
+        const user = verified.user || verified.email || "admin"
+        const role = verified.role || "admin"
+        const expiresAt = Date.now() + 24 * 3600 * 1000
+        const newToken = jwt.sign(
+          { user, role, exp: Math.floor(expiresAt / 1000) },
+          JWT_SECRET,
+        )
+        const newRefreshToken = jwt.sign(
+          { user, role, type: "refresh" },
+          JWT_SECRET,
+          { expiresIn: "30d" },
+        )
+        return response(200, {
+          ok: true,
+          token: newToken,
+          refreshToken: newRefreshToken,
+          expiresAt,
+        })
+      } catch (err) {
+        return response(401, { message: "Sesión expirada. Inicie sesión nuevamente." })
+      }
     }
 
     if (httpMethod === "POST" && path === "/auth/customers/register") {
@@ -438,7 +479,12 @@ export async function handler(event) {
         JWT_SECRET,
         { expiresIn: "7d" },
       )
-      return response(201, { ok: true, user: safeUser, token })
+      const refreshToken = jwt.sign(
+        { email: cleanEmail, role: "customer", type: "refresh" },
+        JWT_SECRET,
+        { expiresIn: "30d" },
+      )
+      return response(201, { ok: true, user: safeUser, token, refreshToken, status: "CONFIRMED" })
     }
 
     if (httpMethod === "POST" && path === "/auth/customers/login") {
@@ -466,7 +512,12 @@ export async function handler(event) {
         JWT_SECRET,
         { expiresIn: "7d" },
       )
-      return response(200, { ok: true, user: safeUser, token })
+      const refreshToken = jwt.sign(
+        { email: cleanEmail, role: "customer", type: "refresh" },
+        JWT_SECRET,
+        { expiresIn: "30d" },
+      )
+      return response(200, { ok: true, user: safeUser, token, refreshToken, status: "CONFIRMED" })
     }
 
     if (

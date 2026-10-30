@@ -109,6 +109,8 @@ export function useAuth() {
     sessionStorage.removeItem("gone_customer")
     sessionStorage.removeItem("gone_current_user")
     sessionStorage.removeItem("customer_token")
+    localStorage.removeItem("customer_token")
+    localStorage.removeItem("customer_refresh_token")
     setCurrentUser(null)
     setIsAuth(false)
   }, [])
