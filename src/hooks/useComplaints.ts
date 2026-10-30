@@ -51,7 +51,7 @@ export function useComplaints() {
     async (
       id: string,
       nextStatus: ComplaintStatus,
-      options?: { resolution?: string adminNotes?: string },
+      options?: { resolution?: string; adminNotes?: string },
     ) => {
       // Optimistic update
       setComplaints((prev) =>

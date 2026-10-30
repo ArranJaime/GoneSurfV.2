@@ -1368,8 +1368,8 @@ export const api = {
     async updateStatus(
       id: string,
       status: ComplaintStatus,
-      options?: { resolution?: string adminNotes?: string },
-    ): Promise<{ ok: boolean complaint?: ComplaintRecord error?: string }> {
+      options?: { resolution?: string; adminNotes?: string },
+    ): Promise<{ ok: boolean; complaint?: ComplaintRecord; error?: string }> {
       if (API_GATEWAY_URL) {
         try {
           const token = getAdminToken() || "dev-admin-token"

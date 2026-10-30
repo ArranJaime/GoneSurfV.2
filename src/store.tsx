@@ -45,6 +45,12 @@ export interface RegisterResult {
   error?: string
 }
 
+export interface UpdateProfileResult {
+  ok: boolean
+  user?: CustomerUser
+  error?: string
+}
+
 export interface Store {
   products: Product[]
   collections: CollectionData[]
@@ -74,7 +80,7 @@ export interface Store {
   updateOrderStatus: (id: string, status: OrderStatus) => void
   updateUserProfile: (
     profileData: Partial<CustomerUser>,
-  ) => Promise<{ ok: boolean user?: CustomerUser error?: string }>
+  ) => Promise<UpdateProfileResult>
   registerUser: (newUser: CustomerUser) => RegisterResult
   authenticateUser: (email: string, password: string) => CustomerUser | null
   deleteUser: (email: string) => void
@@ -765,11 +771,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   )
 
   const updateUserProfile = useCallback(
-    async (profileData: Partial<CustomerUser>): Promise<{
-      ok: boolean
-      user?: CustomerUser
-      error?: string
-    }> => {
+    async (
+      profileData: Partial<CustomerUser>,
+    ): Promise<UpdateProfileResult> => {
       const res = await api.users.updateProfile(profileData)
       if (res.ok && res.user) {
         const updated = res.user
