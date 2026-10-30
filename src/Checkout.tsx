@@ -1811,8 +1811,8 @@ export default function Checkout() {
             />
             <span>
               He leído y acepto los{" "}
-              <Link
-                to="/terminos"
+              <a
+                href="/terminos"
                 target="_blank"
                 rel="noopener noreferrer"
                 style={{
@@ -1822,10 +1822,10 @@ export default function Checkout() {
                 }}
               >
                 Términos y Condiciones
-              </Link>{" "}
+              </a>{" "}
               y la{" "}
-              <Link
-                to="/privacidad"
+              <a
+                href="/privacidad"
                 target="_blank"
                 rel="noopener noreferrer"
                 style={{
@@ -1835,7 +1835,7 @@ export default function Checkout() {
                 }}
               >
                 Política de Privacidad y Tratamiento de Datos Personales
-              </Link>
+              </a>
               .
             </span>
           </label>

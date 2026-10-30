@@ -138,7 +138,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }),
   )
 
-  const [products, setProducts] = useState<Product[]>([])
+  const [products, setProducts] = useState<Product[]>(() =>
+    safeReadStorage("gone_products", INITIAL_PRODUCTS, (parsed) =>
+      Array.isArray(parsed) ? (parsed as Product[]) : INITIAL_PRODUCTS,
+    ),
+  )
   const [isLoadingProducts, setIsLoadingProducts] = useState(true)
 
   const [cart, setCart] = useState<CartItem[]>(() =>
@@ -356,17 +360,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     safeWriteStorage("gone_users", users)
   }, [users])
 
-  // Ensure cart quantities never exceed live inventory (only after initial load finishes)
+  // Ensure cart quantities never exceed live inventory (only after initial load finishes and products exist)
   useEffect(() => {
-    if (isLoadingProducts) return
+    if (isLoadingProducts || products.length === 0) return
     setCart((prevCart) => {
       let changed = false
       const nextCart = prevCart
         .map((item) => {
           const prod = products.find((p) => p.id === item.productId)
           if (!prod) {
-            changed = true
-            return null
+            // No vaciar el carrito si el producto aún no se empareja
+            return item
           }
           const available = prod.stocks[item.size] ?? 0
           if (item.quantity > available) {
