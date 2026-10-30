@@ -70,6 +70,9 @@ export interface Store {
   deleteCollection: (id: string) => void
   deleteProduct: (id: string) => void
   updateOrderStatus: (id: string, status: OrderStatus) => void
+  updateUserProfile: (
+    profileData: Partial<CustomerUser>,
+  ) => Promise<{ ok: boolean; user?: CustomerUser; error?: string }>
   registerUser: (newUser: CustomerUser) => RegisterResult
   authenticateUser: (email: string, password: string) => CustomerUser | null
   deleteUser: (email: string) => void
@@ -499,6 +502,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
       const newTransaction: OrderTransaction = createdTransaction || {
         ...details,
+        reference: details.reference || "",
         paymentMethod: details.paymentMethod || "tarjeta",
         items: validCartItems,
         id,
@@ -715,7 +719,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      const normalizedUser: CustomerUser = { ...newUser, email: cleanEmail }
+      const normalizedUser: CustomerUser = {
+        ...newUser,
+        email: cleanEmail,
+        isGuest: false,
+      }
       const updatedUsers = [...users, normalizedUser]
       setUsers(updatedUsers)
       safeWriteStorage("gone_users", updatedUsers)
@@ -724,10 +732,64 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         "gone_current_user",
         JSON.stringify(normalizedUser),
       )
+
+      // Sincronización automática de órdenes previas de invitado con este correo
+      const fullName = `${normalizedUser.firstName} ${normalizedUser.lastName}`.trim()
+      setTransactions((prevTx) => {
+        let changed = false
+        const nextTx = prevTx.map((t) => {
+          if ((t.email || "").toLowerCase() === cleanEmail) {
+            changed = true
+            return {
+              ...t,
+              isGuest: false,
+              customer: fullName || t.customer,
+              phone: normalizedUser.phone || t.phone,
+              document: normalizedUser.document || t.document,
+              reference: t.reference || normalizedUser.reference || "",
+            }
+          }
+          return t
+        })
+        if (changed) {
+          safeWriteStorage("gone_transactions", nextTx)
+          broadcastSyncEvent("orders")
+        }
+        return nextTx
+      })
+
       broadcastSyncEvent("users")
       return { ok: true }
     },
     [users],
+  )
+
+  const updateUserProfile = useCallback(
+    async (
+      profileData: Partial<CustomerUser>,
+    ): Promise<{ ok: boolean; user?: CustomerUser; error?: string }> => {
+      const res = await api.users.updateProfile(profileData)
+      if (res.ok && res.user) {
+        const updated = res.user
+        const email = (updated.email || "").toLowerCase()
+        setUsers((prev) => {
+          const exists = prev.some(
+            (u) => (u.email || "").toLowerCase() === email,
+          )
+          const next = exists
+            ? prev.map((u) =>
+                (u.email || "").toLowerCase() === email
+                  ? { ...u, ...updated }
+                  : u,
+              )
+            : [...prev, updated]
+          safeWriteStorage("gone_users", next)
+          return next
+        })
+      }
+      return res
+    },
+    [],
   )
 
   const authenticateUser = useCallback(
@@ -808,6 +870,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       deleteCollection,
       deleteProduct,
       updateOrderStatus,
+      updateUserProfile,
       registerUser,
       authenticateUser,
       deleteUser,
@@ -835,6 +898,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       deleteCollection,
       deleteProduct,
       updateOrderStatus,
+      updateUserProfile,
       registerUser,
       authenticateUser,
       deleteUser,

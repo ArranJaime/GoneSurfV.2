@@ -140,6 +140,7 @@ export default function Checkout() {
   const [lastName, setLastName] = useState("")
   const [phone, setPhone] = useState("")
   const [address, setAddress] = useState("")
+  const [reference, setReference] = useState("")
   const [documentNumber, setDocumentNumber] = useState("")
 
   useEffect(() => {
@@ -152,6 +153,7 @@ export default function Checkout() {
           setEmail(storedUser.email || "")
           setPhone(storedUser.phone || "")
           setAddress(storedUser.address || "")
+          setReference(storedUser.reference || "")
           setDocumentNumber(storedUser.document || "")
           if (
             storedUser.documentType === "DNI" ||
@@ -343,6 +345,7 @@ export default function Checkout() {
       const cleanFirst = sanitizeString(firstName)
       const cleanLast = sanitizeString(lastName)
       const cleanAddr = sanitizeString(address)
+      const cleanRef = sanitizeString(reference)
       if (!cleanFirst || !cleanLast || !cleanAddr) {
         setValidationError(
           "Por favor completa tu nombre, apellidos y dirección de entrega.",
@@ -403,6 +406,8 @@ export default function Checkout() {
         districtX: districtObj.x,
         districtY: districtObj.y,
         address: cleanAddr,
+        reference: cleanRef,
+        isGuest: !isAuth,
         shippingMethod,
         paymentMethod,
         shipping: accounting.shipping,
@@ -1544,9 +1549,34 @@ export default function Checkout() {
               <input
                 name="address"
                 required
-                placeholder="Calle, número, departamento o referencia"
+                placeholder="Calle, número, departamento"
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
+                style={{
+                  width: "100%",
+                  padding: "1rem",
+                  border: "1px solid #ddd",
+                  borderRadius: "4px",
+                  fontSize: "0.9rem",
+                }}
+              />
+            </div>
+            <div style={{ marginBottom: "1rem" }}>
+              <label
+                style={{
+                  display: "block",
+                  fontSize: "0.75rem",
+                  color: "#666",
+                  marginBottom: "0.5rem",
+                }}
+              >
+                Punto de Referencia (ej. Frente al parque, portón azul)
+              </label>
+              <input
+                name="reference"
+                placeholder="Punto de Referencia (ej. Frente al parque)"
+                value={reference}
+                onChange={(e) => setReference(e.target.value)}
                 style={{
                   width: "100%",
                   padding: "1rem",

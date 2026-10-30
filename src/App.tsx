@@ -1238,7 +1238,12 @@ function Cart() {
 }
 
 function Profile() {
-  const { transactions, registerUser, authenticateUser } = useStore()
+  const {
+    transactions,
+    registerUser,
+    authenticateUser,
+    updateUserProfile,
+  } = useStore()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
 
@@ -1257,6 +1262,31 @@ function Profile() {
   const [registerError, setRegisterError] = useState("")
   const [currentTab, setCurrentTab] = useState<"pedidos" | "perfil">("pedidos")
 
+  // Estados interactivos para edición de perfil
+  const [profileFirstName, setProfileFirstName] = useState("")
+  const [profileLastName, setProfileLastName] = useState("")
+  const [profilePhone, setProfilePhone] = useState("")
+  const [profileDocument, setProfileDocument] = useState("")
+  const [profileAddress, setProfileAddress] = useState("")
+  const [profileReference, setProfileReference] = useState("")
+  const [profileDistrict, setProfileDistrict] = useState("Lima")
+  const [profileSuccessMsg, setProfileSuccessMsg] = useState("")
+  const [profileErrorMsg, setProfileErrorMsg] = useState("")
+  const [isUpdatingProfile, setIsUpdatingProfile] = useState(false)
+
+  // Sincronizar campos del formulario con el usuario en sesión
+  useEffect(() => {
+    if (currentUser) {
+      setProfileFirstName(currentUser.firstName || "")
+      setProfileLastName(currentUser.lastName || "")
+      setProfilePhone(currentUser.phone || "")
+      setProfileDocument(currentUser.document || "")
+      setProfileAddress(currentUser.address || "")
+      setProfileReference(currentUser.reference || "")
+      setProfileDistrict(currentUser.district || "Lima")
+    }
+  }, [currentUser])
+
   useEffect(() => {
     const mode = searchParams.get("mode")
     if (mode === "login" || mode === "register") {
@@ -1266,12 +1296,22 @@ function Profile() {
     }
   }, [searchParams])
 
-  const handleLogin = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     const data = new FormData(e.currentTarget)
     const email = sanitizeString(data.get("email")).toLowerCase()
     const pass = String(data.get("password") || "")
 
+    // Intentar autenticación con AWS primero
+    const customerRes = await api.auth.loginCustomer(email, pass)
+    if (customerRes) {
+      setCurrentUser(customerRes)
+      setIsAuth(true)
+      setError(false)
+      return
+    }
+
+    // Fallback a autenticación local
     const authenticated = authenticateUser(email, pass)
     if (authenticated) {
       setCurrentUser(authenticated)
@@ -1282,7 +1322,7 @@ function Profile() {
     }
   }
 
-  const handleRegister = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleRegister = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     const data = new FormData(e.currentTarget)
 
@@ -1312,21 +1352,98 @@ function Profile() {
       document: rawDoc,
       phone: rawPhone,
       address: sanitizeString(data.get("address")),
+      reference: sanitizeString(data.get("reference")),
       district: sanitizeString(data.get("district")),
       email: rawEmail,
       password: String(data.get("password") || ""),
     }
 
-    const result = registerUser(newUser)
-    if (!result.ok) {
-      setRegisterError(result.error || "No se pudo completar el registro.")
+    // Registro en AWS o almacenamiento local con sincronización de pedidos de invitado
+    const res = await api.auth.registerCustomer(newUser)
+    if (!res.ok) {
+      setRegisterError(res.error || "No se pudo completar el registro.")
       return
     }
 
-    setCurrentUser(newUser)
+    const registeredUser = res.user || newUser
+    registerUser(registeredUser)
+    setCurrentUser(registeredUser)
     setIsAuth(true)
     setError(false)
     setRegisterError("")
+  }
+
+  const handleUpdateProfile = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    setProfileSuccessMsg("")
+    setProfileErrorMsg("")
+    setIsUpdatingProfile(true)
+
+    try {
+      if (!currentUser?.email) {
+        setProfileErrorMsg(
+          "Sesión no identificada. Por favor vuelve a iniciar sesión.",
+        )
+        setIsUpdatingProfile(false)
+        return
+      }
+
+      const cleanFirst = sanitizeString(profileFirstName)
+      const cleanLast = sanitizeString(profileLastName)
+      const cleanPhone = sanitizeString(profilePhone)
+      const cleanDoc = sanitizeString(profileDocument)
+      const cleanAddr = sanitizeString(profileAddress)
+      const cleanRef = sanitizeString(profileReference)
+      const cleanDist = sanitizeString(profileDistrict)
+
+      if (!cleanFirst || !cleanLast) {
+        setProfileErrorMsg("El nombre y los apellidos son obligatorios.")
+        setIsUpdatingProfile(false)
+        return
+      }
+
+      if (cleanDoc) {
+        const docCheck = validateDocument("DNI", cleanDoc)
+        if (!docCheck.valid) {
+          setProfileErrorMsg(
+            docCheck.error || "DNI no válido (debe contener 8 dígitos).",
+          )
+          setIsUpdatingProfile(false)
+          return
+        }
+      }
+
+      if (cleanPhone && !validatePhone(cleanPhone)) {
+        setProfileErrorMsg("Número de teléfono no válido.")
+        setIsUpdatingProfile(false)
+        return
+      }
+
+      const res = await updateUserProfile({
+        email: currentUser.email,
+        firstName: cleanFirst,
+        lastName: cleanLast,
+        phone: cleanPhone,
+        document: cleanDoc,
+        documentType: "DNI",
+        address: cleanAddr,
+        reference: cleanRef,
+        district: cleanDist,
+      })
+
+      if (res.ok && res.user) {
+        setCurrentUser(res.user)
+        setProfileSuccessMsg(
+          "¡Tus datos y dirección de entrega han sido actualizados con éxito!",
+        )
+      } else {
+        setProfileErrorMsg(res.error || "No se pudo actualizar el perfil.")
+      }
+    } catch {
+      setProfileErrorMsg("Error de conexión al actualizar el perfil.")
+    } finally {
+      setIsUpdatingProfile(false)
+    }
   }
 
   const handleLogout = () => {
@@ -1607,6 +1724,29 @@ function Profile() {
                   name="address"
                   required
                   placeholder="Calle, número, departamento"
+                  style={{
+                    width: "100%",
+                    padding: "1rem",
+                    border: "1px solid #ddd",
+                    borderRadius: "4px",
+                  }}
+                />
+              </div>
+              <div>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: "0.75rem",
+                    fontWeight: "bold",
+                    marginBottom: "0.5rem",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  Punto de Referencia (Opcional)
+                </label>
+                <input
+                  name="reference"
+                  placeholder="ej. Frente al parque, reja negra"
                   style={{
                     width: "100%",
                     padding: "1rem",
@@ -1994,222 +2134,331 @@ function Profile() {
         )}
         {currentTab === "perfil" && (
           <div style={{ animation: "fadeIn 0.3s ease" }}>
-            <h2
+            <div
               style={{
-                fontSize: "1.5rem",
-                textTransform: "uppercase",
                 marginBottom: "2rem",
                 borderBottom: "1px solid #eee",
                 paddingBottom: "1rem",
               }}
             >
-              Detalles de Contacto
-            </h2>
-            <div
+              <h2
+                style={{
+                  fontSize: "1.5rem",
+                  textTransform: "uppercase",
+                  margin: 0,
+                }}
+              >
+                Mi Perfil y Dirección de Entrega
+              </h2>
+              <p
+                style={{
+                  color: "#666",
+                  fontSize: "0.85rem",
+                  margin: "0.4rem 0 0 0",
+                }}
+              >
+                Actualiza tus datos y punto de entrega para agilizar tus futuras compras.
+              </p>
+            </div>
+
+            {profileSuccessMsg && (
+              <div
+                style={{
+                  background: "#e8f5e9",
+                  color: "#2e7d32",
+                  padding: "1rem 1.5rem",
+                  borderRadius: "4px",
+                  fontWeight: "bold",
+                  fontSize: "0.85rem",
+                  marginBottom: "1.5rem",
+                  border: "1px solid #a5d6a7",
+                }}
+              >
+                ✓ {profileSuccessMsg}
+              </div>
+            )}
+
+            {profileErrorMsg && (
+              <div
+                style={{
+                  background: "#ffebee",
+                  color: "#c62828",
+                  padding: "1rem 1.5rem",
+                  borderRadius: "4px",
+                  fontWeight: "bold",
+                  fontSize: "0.85rem",
+                  marginBottom: "1.5rem",
+                  border: "1px solid #ef9a9a",
+                }}
+              >
+                ⚠ {profileErrorMsg}
+              </div>
+            )}
+
+            <form
+              onSubmit={handleUpdateProfile}
               style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
-                gap: "3rem",
+                background: "#fff",
+                border: "1px solid #eee",
+                borderRadius: "8px",
+                padding: "2rem",
+                display: "flex",
+                flexDirection: "column",
+                gap: "1.5rem",
               }}
             >
               <div>
-                <h3
+                <label
                   style={{
-                    fontSize: "0.85rem",
+                    display: "block",
+                    fontSize: "0.75rem",
+                    fontWeight: "bold",
+                    marginBottom: "0.5rem",
                     textTransform: "uppercase",
-                    marginBottom: "1.5rem",
-                    color: "#000",
-                    letterSpacing: "1px",
+                    color: "#888",
                   }}
                 >
-                  Información Personal
-                </h3>
-                <div
+                  Correo Electrónico (Identificador de Cuenta)
+                </label>
+                <input
+                  type="email"
+                  value={currentUser.email}
+                  disabled
                   style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: "1.2rem",
+                    width: "100%",
+                    padding: "0.9rem 1rem",
+                    border: "1px solid #eee",
+                    borderRadius: "4px",
+                    backgroundColor: "#f5f5f5",
+                    color: "#777",
+                    cursor: "not-allowed",
+                    fontSize: "0.9rem",
                   }}
-                >
-                  <div>
-                    <label
-                      style={{
-                        fontSize: "0.7rem",
-                        color: "#888",
-                        textTransform: "uppercase",
-                        letterSpacing: "1px",
-                      }}
-                    >
-                      Nombres
-                    </label>
-                    <p
-                      style={{
-                        margin: "0.2rem 0 0 0",
-                        fontWeight: "500",
-                        fontSize: "0.9rem",
-                      }}
-                    >
-                      {currentUser.firstName}
-                    </p>
-                  </div>
-                  <div>
-                    <label
-                      style={{
-                        fontSize: "0.7rem",
-                        color: "#888",
-                        textTransform: "uppercase",
-                        letterSpacing: "1px",
-                      }}
-                    >
-                      Apellidos
-                    </label>
-                    <p
-                      style={{
-                        margin: "0.2rem 0 0 0",
-                        fontWeight: "500",
-                        fontSize: "0.9rem",
-                      }}
-                    >
-                      {currentUser.lastName}
-                    </p>
-                  </div>
-                  {currentUser.document && (
-                    <div>
-                      <label
-                        style={{
-                          fontSize: "0.7rem",
-                          color: "#888",
-                          textTransform: "uppercase",
-                          letterSpacing: "1px",
-                        }}
-                      >
-                        DNI
-                      </label>
-                      <p
-                        style={{
-                          margin: "0.2rem 0 0 0",
-                          fontWeight: "500",
-                          fontSize: "0.9rem",
-                        }}
-                      >
-                        {currentUser.document}
-                      </p>
-                    </div>
-                  )}
-                  <div>
-                    <label
-                      style={{
-                        fontSize: "0.7rem",
-                        color: "#888",
-                        textTransform: "uppercase",
-                        letterSpacing: "1px",
-                      }}
-                    >
-                      Correo Electrónico
-                    </label>
-                    <p
-                      style={{
-                        margin: "0.2rem 0 0 0",
-                        fontWeight: "500",
-                        fontSize: "0.9rem",
-                      }}
-                    >
-                      {currentUser.email}
-                    </p>
-                  </div>
-                  {currentUser.phone && (
-                    <div>
-                      <label
-                        style={{
-                          fontSize: "0.7rem",
-                          color: "#888",
-                          textTransform: "uppercase",
-                          letterSpacing: "1px",
-                        }}
-                      >
-                        Teléfono
-                      </label>
-                      <p
-                        style={{
-                          margin: "0.2rem 0 0 0",
-                          fontWeight: "500",
-                          fontSize: "0.9rem",
-                        }}
-                      >
-                        {currentUser.phone}
-                      </p>
-                    </div>
-                  )}
+                />
+              </div>
+
+              <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
+                <div style={{ flex: "1 1 200px" }}>
+                  <label
+                    style={{
+                      display: "block",
+                      fontSize: "0.75rem",
+                      fontWeight: "bold",
+                      marginBottom: "0.5rem",
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    Nombres *
+                  </label>
+                  <input
+                    name="firstName"
+                    required
+                    value={profileFirstName}
+                    onChange={(e) => setProfileFirstName(e.target.value)}
+                    style={{
+                      width: "100%",
+                      padding: "0.9rem 1rem",
+                      border: "1px solid #ddd",
+                      borderRadius: "4px",
+                      fontSize: "0.9rem",
+                    }}
+                  />
+                </div>
+                <div style={{ flex: "1 1 200px" }}>
+                  <label
+                    style={{
+                      display: "block",
+                      fontSize: "0.75rem",
+                      fontWeight: "bold",
+                      marginBottom: "0.5rem",
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    Apellidos *
+                  </label>
+                  <input
+                    name="lastName"
+                    required
+                    value={profileLastName}
+                    onChange={(e) => setProfileLastName(e.target.value)}
+                    style={{
+                      width: "100%",
+                      padding: "0.9rem 1rem",
+                      border: "1px solid #ddd",
+                      borderRadius: "4px",
+                      fontSize: "0.9rem",
+                    }}
+                  />
                 </div>
               </div>
+
+              <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
+                <div style={{ flex: "1 1 200px" }}>
+                  <label
+                    style={{
+                      display: "block",
+                      fontSize: "0.75rem",
+                      fontWeight: "bold",
+                      marginBottom: "0.5rem",
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    Documento de Identidad (DNI)
+                  </label>
+                  <input
+                    name="document"
+                    maxLength={8}
+                    placeholder="8 dígitos"
+                    value={profileDocument}
+                    onChange={(e) => setProfileDocument(e.target.value)}
+                    style={{
+                      width: "100%",
+                      padding: "0.9rem 1rem",
+                      border: "1px solid #ddd",
+                      borderRadius: "4px",
+                      fontSize: "0.9rem",
+                    }}
+                  />
+                </div>
+                <div style={{ flex: "1 1 200px" }}>
+                  <label
+                    style={{
+                      display: "block",
+                      fontSize: "0.75rem",
+                      fontWeight: "bold",
+                      marginBottom: "0.5rem",
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    Teléfono de Contacto
+                  </label>
+                  <input
+                    name="phone"
+                    type="tel"
+                    placeholder="ej. 987654321"
+                    value={profilePhone}
+                    onChange={(e) => setProfilePhone(e.target.value)}
+                    style={{
+                      width: "100%",
+                      padding: "0.9rem 1rem",
+                      border: "1px solid #ddd",
+                      borderRadius: "4px",
+                      fontSize: "0.9rem",
+                    }}
+                  />
+                </div>
+              </div>
+
               <div>
-                <h3
+                <label
                   style={{
-                    fontSize: "0.85rem",
+                    display: "block",
+                    fontSize: "0.75rem",
+                    fontWeight: "bold",
+                    marginBottom: "0.5rem",
                     textTransform: "uppercase",
-                    marginBottom: "1.5rem",
-                    color: "#000",
-                    letterSpacing: "1px",
                   }}
                 >
-                  Dirección Predeterminada
-                </h3>
-                <div
+                  Dirección de Entrega
+                </label>
+                <input
+                  name="address"
+                  placeholder="Calle, jirón, avenida, número y dpto"
+                  value={profileAddress}
+                  onChange={(e) => setProfileAddress(e.target.value)}
                   style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: "1.2rem",
+                    width: "100%",
+                    padding: "0.9rem 1rem",
+                    border: "1px solid #ddd",
+                    borderRadius: "4px",
+                    fontSize: "0.9rem",
+                  }}
+                />
+              </div>
+
+              <div>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: "0.75rem",
+                    fontWeight: "bold",
+                    marginBottom: "0.5rem",
+                    textTransform: "uppercase",
                   }}
                 >
-                  {currentUser.address && (
-                    <div>
-                      <label
-                        style={{
-                          fontSize: "0.7rem",
-                          color: "#888",
-                          textTransform: "uppercase",
-                          letterSpacing: "1px",
-                        }}
-                      >
-                        Dirección Completa
-                      </label>
-                      <p
-                        style={{
-                          margin: "0.2rem 0 0 0",
-                          fontWeight: "500",
-                          fontSize: "0.9rem",
-                        }}
-                      >
-                        {currentUser.address}
-                      </p>
-                    </div>
-                  )}
-                  {currentUser.district && (
-                    <div>
-                      <label
-                        style={{
-                          fontSize: "0.7rem",
-                          color: "#888",
-                          textTransform: "uppercase",
-                          letterSpacing: "1px",
-                        }}
-                      >
-                        Distrito
-                      </label>
-                      <p
-                        style={{
-                          margin: "0.2rem 0 0 0",
-                          fontWeight: "500",
-                          fontSize: "0.9rem",
-                        }}
-                      >
-                        {currentUser.district}
-                      </p>
-                    </div>
-                  )}
-                </div>
+                  Punto de Referencia (Punto de entrega)
+                </label>
+                <input
+                  name="reference"
+                  placeholder="ej. Frente al parque, casa blanca con rejas negras"
+                  value={profileReference}
+                  onChange={(e) => setProfileReference(e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: "0.9rem 1rem",
+                    border: "1px solid #ddd",
+                    borderRadius: "4px",
+                    fontSize: "0.9rem",
+                  }}
+                />
               </div>
-            </div>
+
+              <div>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: "0.75rem",
+                    fontWeight: "bold",
+                    marginBottom: "0.5rem",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  Distrito Predeterminado
+                </label>
+                <select
+                  name="district"
+                  value={profileDistrict}
+                  onChange={(e) => setProfileDistrict(e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: "0.9rem 1rem",
+                    border: "1px solid #ddd",
+                    borderRadius: "4px",
+                    backgroundColor: "#fff",
+                    fontSize: "0.9rem",
+                  }}
+                >
+                  {LIMA_DISTRICTS.map((d) => (
+                    <option key={d.code} value={d.name}>
+                      {d.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div style={{ marginTop: "1rem" }}>
+                <button
+                  type="submit"
+                  disabled={isUpdatingProfile}
+                  style={{
+                    background: "#000",
+                    color: "#fff",
+                    border: "none",
+                    padding: "1rem 2.5rem",
+                    fontWeight: "bold",
+                    fontSize: "0.85rem",
+                    letterSpacing: "1px",
+                    textTransform: "uppercase",
+                    cursor: isUpdatingProfile ? "not-allowed" : "pointer",
+                    borderRadius: "4px",
+                    opacity: isUpdatingProfile ? 0.7 : 1,
+                    transition: "opacity 0.2s",
+                  }}
+                >
+                  {isUpdatingProfile ? "GUARDANDO CAMBIOS..." : "ACTUALIZAR PERFIL"}
+                </button>
+              </div>
+            </form>
           </div>
         )}
       </section>

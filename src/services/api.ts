@@ -243,6 +243,32 @@ export const api = {
           const customer = saved.user || saved
           sessionStorage.setItem("gone_customer", "true")
           sessionStorage.setItem("gone_current_user", JSON.stringify(customer))
+          if (saved.token) {
+            sessionStorage.setItem("customer_token", saved.token)
+          }
+
+          // Sincronización de pedidos previos de invitado en el estado local
+          const currentOrders = readStorage<OrderTransaction[]>("gone_transactions", [])
+          let ordersChanged = false
+          const syncedOrders = currentOrders.map((o) => {
+            if ((o.email || "").toLowerCase() === cleanEmail) {
+              ordersChanged = true
+              return {
+                ...o,
+                isGuest: false,
+                customer: `${customer.firstName} ${customer.lastName}`.trim() || o.customer,
+                phone: customer.phone || o.phone,
+                document: customer.document || o.document,
+                reference: o.reference || customer.reference || "",
+              }
+            }
+            return o
+          })
+          if (ordersChanged) {
+            writeStorage("gone_transactions", syncedOrders)
+            broadcastSyncEvent("orders")
+          }
+
           broadcastSyncEvent("users")
           return { ok: true, user: customer }
         } catch {
@@ -269,12 +295,38 @@ export const api = {
         document: sanitizeString(newUser.document || ""),
         phone: sanitizeString(newUser.phone || ""),
         address: sanitizeString(newUser.address || ""),
+        reference: sanitizeString(newUser.reference || ""),
+        district: sanitizeString(newUser.district || ""),
+        isGuest: false,
       }
 
       users.push(normalized)
       writeStorage("gone_users", users)
       sessionStorage.setItem("gone_customer", "true")
       sessionStorage.setItem("gone_current_user", JSON.stringify(normalized))
+
+      // Sincronización de pedidos previos de invitado en local
+      const currentOrders = readStorage<OrderTransaction[]>("gone_transactions", [])
+      let ordersChanged = false
+      const syncedOrders = currentOrders.map((o) => {
+        if ((o.email || "").toLowerCase() === cleanEmail) {
+          ordersChanged = true
+          return {
+            ...o,
+            isGuest: false,
+            customer: `${normalized.firstName} ${normalized.lastName}`.trim() || o.customer,
+            phone: normalized.phone || o.phone,
+            document: normalized.document || o.document,
+            reference: o.reference || normalized.reference || "",
+          }
+        }
+        return o
+      })
+      if (ordersChanged) {
+        writeStorage("gone_transactions", syncedOrders)
+        broadcastSyncEvent("orders")
+      }
+
       broadcastSyncEvent("users")
       return { ok: true, user: normalized }
     },
@@ -334,6 +386,151 @@ export const api = {
       } catch {
         return null
       }
+    },
+  },
+
+  // ---------------------------------------------------------------------------
+  // USERS SERVICE
+  // ---------------------------------------------------------------------------
+  users: {
+    async getAll(): Promise<CustomerUser[]> {
+      if (STORAGE_MODE === "aws" && API_GATEWAY_URL) {
+        try {
+          const res = await fetchWithAuth("/users")
+          if (res.ok) {
+            const data = await res.json()
+            return Array.isArray(data) ? data : []
+          }
+        } catch (err) {
+          console.warn("Fallo al obtener usuarios de AWS:", err)
+        }
+      }
+      return readStorage<CustomerUser[]>("gone_users", [])
+    },
+
+    async updateProfile(
+      profileData: Partial<CustomerUser>,
+    ): Promise<{ ok: boolean; user?: CustomerUser; error?: string }> {
+      const sessionUser = api.auth.getCurrentCustomer()
+      const email = (
+        profileData.email ||
+        sessionUser?.email ||
+        ""
+      )
+        .trim()
+        .toLowerCase()
+      if (!email) {
+        return { ok: false, error: "No se identificó el correo del usuario." }
+      }
+
+      const payload: Partial<CustomerUser> = {
+        ...profileData,
+        email,
+        firstName: profileData.firstName
+          ? sanitizeString(profileData.firstName)
+          : sessionUser?.firstName,
+        lastName: profileData.lastName
+          ? sanitizeString(profileData.lastName)
+          : sessionUser?.lastName,
+        phone: profileData.phone
+          ? sanitizeString(profileData.phone)
+          : sessionUser?.phone,
+        document: profileData.document
+          ? sanitizeString(profileData.document)
+          : sessionUser?.document,
+        documentType:
+          profileData.documentType || sessionUser?.documentType || "DNI",
+        address: profileData.address
+          ? sanitizeString(profileData.address)
+          : sessionUser?.address,
+        reference:
+          profileData.reference !== undefined
+            ? sanitizeString(profileData.reference)
+            : (sessionUser?.reference || ""),
+        district: profileData.district
+          ? sanitizeString(profileData.district)
+          : sessionUser?.district,
+      }
+
+      if (STORAGE_MODE === "aws" && API_GATEWAY_URL) {
+        try {
+          const token =
+            sessionStorage.getItem("customer_token") ||
+            localStorage.getItem("gone_token") ||
+            ""
+          const res = await fetch(`${API_GATEWAY_URL}/users/profile`, {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+            body: JSON.stringify(payload),
+          })
+
+          if (res.ok) {
+            const data = await res.json()
+            const updatedUser: CustomerUser = data.user || data
+
+            // Actualizar sesión activa
+            sessionStorage.setItem("gone_customer", "true")
+            sessionStorage.setItem(
+              "gone_current_user",
+              JSON.stringify(updatedUser),
+            )
+
+            // Actualizar almacenamiento local
+            const localUsers = readStorage<CustomerUser[]>("gone_users", [])
+            const nextUsers = localUsers.map((u) =>
+              (u.email || "").toLowerCase() === email
+                ? { ...u, ...updatedUser }
+                : u,
+            )
+            if (!nextUsers.some((u) => (u.email || "").toLowerCase() === email)) {
+              nextUsers.push(updatedUser)
+            }
+            writeStorage("gone_users", nextUsers)
+            broadcastSyncEvent("users")
+            return { ok: true, user: updatedUser }
+          } else {
+            const errData = await res.json().catch(() => ({}))
+            return {
+              ok: false,
+              error:
+                errData.message ||
+                `Error al actualizar perfil (HTTP ${res.status})`,
+            }
+          }
+        } catch (err) {
+          console.error("Fallo de red al actualizar perfil en AWS:", err)
+          return {
+            ok: false,
+            error: "Error de conexión con la base de datos AWS.",
+          }
+        }
+      }
+
+      // Modo local
+      const localUsers = readStorage<CustomerUser[]>("gone_users", [])
+      const existingIndex = localUsers.findIndex(
+        (u) => (u.email || "").toLowerCase() === email,
+      )
+      const merged: CustomerUser = {
+        ...(existingIndex >= 0
+          ? localUsers[existingIndex]
+          : sessionUser || {}),
+        ...payload,
+      } as CustomerUser
+
+      if (existingIndex >= 0) {
+        localUsers[existingIndex] = merged
+      } else {
+        localUsers.push(merged)
+      }
+      writeStorage("gone_users", localUsers)
+      sessionStorage.setItem("gone_customer", "true")
+      sessionStorage.setItem("gone_current_user", JSON.stringify(merged))
+      broadcastSyncEvent("users")
+      return { ok: true, user: merged }
     },
   },
 
@@ -830,6 +1027,8 @@ export const api = {
         email: sanitizeString(orderInput.email).toLowerCase(),
         phone: sanitizeString(orderInput.phone),
         address: sanitizeString(orderInput.address),
+        reference: sanitizeString(orderInput.reference || ""),
+        isGuest: orderInput.isGuest,
         districtName: sanitizeString(orderInput.districtName),
         paymentMethod: orderInput.paymentMethod || "tarjeta",
         items: validCartItems,

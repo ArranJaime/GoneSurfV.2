@@ -356,15 +356,55 @@ export async function handler(event) {
         document: (data.document || "").trim(),
         phone: (data.phone || "").trim(),
         address: (data.address || "").trim(),
+        reference: (data.reference || "").trim(),
         district: (data.district || "").trim(),
         role: "customer",
         passwordHash,
         createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
       }
 
       await docClient.send(new PutCommand({ TableName: USERS_TABLE, Item: customerItem }))
+
+      // Sincronización Automática de Invitado a Registrado en DynamoDB
+      try {
+        const pastOrdersRes = await docClient.send(
+          new ScanCommand({
+            TableName: ORDERS_TABLE,
+            FilterExpression: "email = :e",
+            ExpressionAttributeValues: { ":e": cleanEmail },
+          })
+        )
+
+        const fullName = `${customerItem.firstName} ${customerItem.lastName}`.trim()
+
+        if (pastOrdersRes.Items && pastOrdersRes.Items.length > 0) {
+          for (const order of pastOrdersRes.Items) {
+            await docClient.send(
+              new UpdateCommand({
+                TableName: ORDERS_TABLE,
+                Key: { id: order.id },
+                UpdateExpression:
+                  "SET isGuest = :falseVal, customer = :nameVal, phone = :phoneVal, document = :docVal, documentType = :docTypeVal, reference = if_not_exists(reference, :refVal)",
+                ExpressionAttributeValues: {
+                  ":falseVal": false,
+                  ":nameVal": fullName || order.customer,
+                  ":phoneVal": customerItem.phone || order.phone,
+                  ":docVal": customerItem.document || order.document,
+                  ":docTypeVal": customerItem.documentType || order.documentType || "DNI",
+                  ":refVal": customerItem.reference || "",
+                },
+              })
+            )
+          }
+        }
+      } catch (syncErr) {
+        console.warn("Aviso: Sincronización automática de pedidos:", syncErr?.message)
+      }
+
       const { passwordHash: _, ...safeUser } = customerItem
-      return response(201, safeUser)
+      const token = jwt.sign({ email: cleanEmail, role: "customer" }, JWT_SECRET, { expiresIn: "7d" })
+      return response(201, { ok: true, user: safeUser, token })
     }
 
     if (httpMethod === "POST" && path === "/auth/customers/login") {
@@ -389,6 +429,68 @@ export async function handler(event) {
       const { passwordHash: _, ...safeUser } = userRecord.Item
       const token = jwt.sign({ email: cleanEmail, role: "customer" }, JWT_SECRET, { expiresIn: "7d" })
       return response(200, { ok: true, user: safeUser, token })
+    }
+
+    if (httpMethod === "PUT" && (path === "/users/profile" || path === "/auth/customers/profile")) {
+      const payload = parseBody(event)
+      const authUser = authenticate(headers, event)
+
+      // Extraer email desde claims del token o del cuerpo de la petición
+      let email = (authUser?.email || authUser?.user || payload.email || "").trim().toLowerCase()
+      const authHeader = headers.Authorization || headers.authorization || ""
+      const token = authHeader.replace(/^Bearer\s+/i, "").trim()
+      if (!email && token) {
+        try {
+          const decoded = jwt.decode(token)
+          if (decoded?.email) email = decoded.email.trim().toLowerCase()
+        } catch {}
+      }
+
+      if (!email) {
+        return response(400, { message: "Se requiere correo electrónico para actualizar el perfil." })
+      }
+
+      // Obtener registro de usuario existente
+      const userRes = await docClient.send(
+        new GetCommand({ TableName: USERS_TABLE, Key: { email } })
+      )
+
+      if (!userRes.Item) {
+        return response(404, { message: "Usuario no encontrado en la base de datos." })
+      }
+
+      const existingUser = userRes.Item
+      const updatedUser = {
+        ...existingUser,
+        firstName: payload.firstName !== undefined ? String(payload.firstName).trim() : existingUser.firstName,
+        lastName: payload.lastName !== undefined ? String(payload.lastName).trim() : existingUser.lastName,
+        phone: payload.phone !== undefined ? String(payload.phone).trim() : (existingUser.phone || ""),
+        documentType: payload.documentType || existingUser.documentType || "DNI",
+        document: payload.document !== undefined ? String(payload.document).trim() : (existingUser.document || ""),
+        address: payload.address !== undefined ? String(payload.address).trim() : (existingUser.address || ""),
+        reference: payload.reference !== undefined ? String(payload.reference).trim() : (existingUser.reference || ""),
+        district: payload.district !== undefined ? String(payload.district).trim() : (existingUser.district || ""),
+        updatedAt: new Date().toISOString(),
+      }
+
+      await docClient.send(
+        new PutCommand({
+          TableName: USERS_TABLE,
+          Item: updatedUser,
+        })
+      )
+
+      const { passwordHash: _, ...safeUser } = updatedUser
+      return response(200, { ok: true, user: safeUser })
+    }
+
+    if (httpMethod === "GET" && path === "/users") {
+      const user = authenticate(headers, event)
+      if (!user || user.role !== "admin") return response(403, { message: "Acceso denegado: Requiere rol admin." })
+
+      const usersScan = await docClient.send(new ScanCommand({ TableName: USERS_TABLE }))
+      const safeUsers = (usersScan.Items || []).map(({ passwordHash, ...u }) => u)
+      return response(200, safeUsers)
     }
 
     // -------------------------------------------------------------------------
@@ -689,18 +791,37 @@ export async function handler(event) {
       const initialStatus = paymentMethod === "yape_plin" ? "Pendiente de Pago" : "Procesando"
 
       const orderId = `ORD-${Math.floor(1000 + Math.random() * 9000)}`
+      const cleanEmail = (orderInput.email || "").trim().toLowerCase()
+
+      let isGuest = true
+      if (cleanEmail) {
+        try {
+          const userRec = await docClient.send(
+            new GetCommand({ TableName: USERS_TABLE, Key: { email: cleanEmail } })
+          )
+          if (userRec.Item) {
+            isGuest = false
+          }
+        } catch {}
+      }
+      if (orderInput.isGuest !== undefined) {
+        isGuest = Boolean(orderInput.isGuest)
+      }
+
       const transaction = {
         id: orderId,
         customer: (orderInput.customer || "Cliente Invitado").trim(),
         documentType: orderInput.documentType || "DNI",
         document: (orderInput.document || "").trim(),
-        email: (orderInput.email || "").trim().toLowerCase(),
+        email: cleanEmail,
         phone: (orderInput.phone || "").trim(),
         districtCode: orderInput.districtCode || "LIM",
         districtName: orderInput.districtName || "Lima",
         districtX: orderInput.districtX || 260,
         districtY: orderInput.districtY || 55,
         address: (orderInput.address || "").trim(),
+        reference: (orderInput.reference || "").trim(),
+        isGuest,
         shippingMethod,
         paymentMethod,
         shipping: Number((shippingCents / 100).toFixed(2)),

@@ -46,9 +46,16 @@ export interface CustomerUser {
   document?: string
   phone?: string
   address?: string
+  reference?: string
   district?: string
   password?: string
+  createdAt?: string
+  updatedAt?: string
+  isGuest?: boolean
 }
+
+export type User = CustomerUser
+export type UserProfile = CustomerUser
 
 export interface OrderDetailsInput {
   customer: string
@@ -61,12 +68,14 @@ export interface OrderDetailsInput {
   districtX: number
   districtY: number
   address: string
+  reference?: string
   shippingMethod?: "standard" | "express"
   shipping: number
   paymentMethod: OrderPaymentMethod
   total?: number
   subtotal?: number
   items: CartItem[]
+  isGuest?: boolean
 }
 
 export interface OrderTransaction extends OrderDetailsInput {
@@ -78,6 +87,8 @@ export interface OrderTransaction extends OrderDetailsInput {
   detail: string
   status: OrderStatus
   paymentMethod: OrderPaymentMethod
+  reference?: string
+  isGuest?: boolean
 }
 
 export type Order = OrderTransaction

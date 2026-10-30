@@ -2691,6 +2691,19 @@ function ManageOrders({
                       {t.address || "Dirección no registrada"} -{" "}
                       {t.districtName || ""}
                     </span>
+                    {t.reference && (
+                      <span
+                        style={{
+                          fontSize: "0.68rem",
+                          color: "#555",
+                          display: "block",
+                          marginTop: "2px",
+                          fontStyle: "italic",
+                        }}
+                      >
+                        Ref: {t.reference}
+                      </span>
+                    )}
                     <span
                       style={{
                         display: "inline-block",
@@ -2770,6 +2783,7 @@ interface DirectoryCustomerRow {
   document: string
   phone: string
   address: string
+  reference?: string
   district: string
   isRegistered: boolean
   ordersCount: number
@@ -2793,6 +2807,7 @@ function ManageCustomers({ orders }: { orders?: OrderTransaction[] } = {}) {
         document: u.document || "N/A",
         phone: u.phone || "N/A",
         address: u.address || "N/A",
+        reference: u.reference || "",
         district: u.district || "N/A",
         isRegistered: true,
         ordersCount: 0,
@@ -2809,6 +2824,15 @@ function ManageCustomers({ orders }: { orders?: OrderTransaction[] } = {}) {
       if (existing) {
         existing.ordersCount += 1
         if (!isCancelled) existing.totalSpent += t.total || 0
+        if (!existing.reference && t.reference) {
+          existing.reference = t.reference
+        }
+        if ((existing.address === "N/A" || !existing.address) && t.address) {
+          existing.address = t.address
+        }
+        if ((existing.phone === "N/A" || !existing.phone) && t.phone) {
+          existing.phone = t.phone
+        }
       } else {
         const parts = (t.customer || "Cliente Invitado").trim().split(" ")
         map.set(key, {
@@ -2818,6 +2842,7 @@ function ManageCustomers({ orders }: { orders?: OrderTransaction[] } = {}) {
           document: t.document || "N/A",
           phone: t.phone || "N/A",
           address: t.address || "N/A",
+          reference: t.reference || "",
           district: t.districtName || "N/A",
           isRegistered: false,
           ordersCount: 1,
@@ -2927,6 +2952,19 @@ function ManageCustomers({ orders }: { orders?: OrderTransaction[] } = {}) {
                 </td>
                 <td style={{ padding: "1rem", maxWidth: "250px" }}>
                   <span style={{ display: "block" }}>{u.address || "N/A"}</span>
+                  {u.reference && (
+                    <span
+                      style={{
+                        display: "block",
+                        fontSize: "0.72rem",
+                        color: "#555",
+                        fontStyle: "italic",
+                        marginTop: "2px",
+                      }}
+                    >
+                      Ref: {u.reference}
+                    </span>
+                  )}
                   <span style={{ color: "#888", fontSize: "0.75rem" }}>
                     {u.district || "N/A"}
                   </span>
