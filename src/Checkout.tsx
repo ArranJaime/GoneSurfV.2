@@ -1014,7 +1014,15 @@ export default function Checkout() {
                   value="standard"
                   checked={shippingMethod === "standard"}
                   onChange={() => setShippingMethod("standard")}
-                  style={{ accentColor: "#000" }}
+                  className="w-5 h-5 !w-5 !h-5 flex-shrink-0 shrink-0 accent-black cursor-pointer"
+                  style={{
+                    width: "1.25rem",
+                    height: "1.25rem",
+                    minWidth: "1.25rem",
+                    maxWidth: "1.25rem",
+                    flexShrink: 0,
+                    accentColor: "#000",
+                  }}
                 />
                 <div>
                   <strong style={{ display: "block", fontSize: "0.9rem" }}>
@@ -1054,7 +1062,15 @@ export default function Checkout() {
                   value="express"
                   checked={shippingMethod === "express"}
                   onChange={() => setShippingMethod("express")}
-                  style={{ accentColor: "#000" }}
+                  className="w-5 h-5 !w-5 !h-5 flex-shrink-0 shrink-0 accent-black cursor-pointer"
+                  style={{
+                    width: "1.25rem",
+                    height: "1.25rem",
+                    minWidth: "1.25rem",
+                    maxWidth: "1.25rem",
+                    flexShrink: 0,
+                    accentColor: "#000",
+                  }}
                 />
                 <div>
                   <strong style={{ display: "block", fontSize: "0.9rem" }}>
@@ -1084,7 +1100,9 @@ export default function Checkout() {
             </h2>
 
             <div
+              className="w-full flex flex-col gap-3 mb-6"
               style={{
+                width: "100%",
                 display: "flex",
                 flexDirection: "column",
                 gap: "0.75rem",
@@ -1093,57 +1111,48 @@ export default function Checkout() {
             >
               {/* Opción 1: Tarjeta */}
               <label
-                className="flex items-start md:items-center justify-start md:justify-between gap-3 p-4 md:px-5 md:py-4 border rounded cursor-pointer transition-all"
+                className="flex flex-row items-start justify-start p-4 w-full h-auto border rounded cursor-pointer transition-all md:items-center md:justify-between md:px-5 md:py-4"
                 style={{
                   borderColor: paymentMethod === "tarjeta" ? "#000" : "#ddd",
                   backgroundColor:
                     paymentMethod === "tarjeta" ? "#fbfbfb" : "#fff",
                 }}
               >
-                <div className="flex items-start md:items-center gap-3 flex-1 min-w-0">
+                <div className="flex flex-row items-start md:items-center flex-1 min-w-0 w-full">
                   <input
                     type="radio"
                     name="paymentMethod"
                     value="tarjeta"
                     checked={paymentMethod === "tarjeta"}
                     onChange={() => setPaymentMethod("tarjeta")}
-                    className="mt-1 md:mt-0 shrink-0"
-                    style={{ accentColor: "#000" }}
+                    className="w-5 h-5 !w-5 !h-5 flex-shrink-0 shrink-0 mt-1 md:mt-0 mr-4 cursor-pointer accent-black"
+                    style={{
+                      width: "1.25rem",
+                      height: "1.25rem",
+                      minWidth: "1.25rem",
+                      maxWidth: "1.25rem",
+                      flexShrink: 0,
+                      accentColor: "#000",
+                    }}
                   />
-                  <div className="flex-1 min-w-0">
-                    <strong style={{ display: "block", fontSize: "0.9rem" }}>
+                  <div className="flex-1 min-w-0 flex flex-col justify-start items-start">
+                    <strong className="block text-sm font-bold text-gray-900 leading-snug">
                       Tarjeta de Crédito / Débito (Pasarela Segura)
                     </strong>
-                    <div className="flex md:hidden flex-wrap gap-1 mt-1 mb-1">
-                      <span
-                        style={{
-                          fontSize: "0.65rem",
-                          background: "#eee",
-                          padding: "2px 6px",
-                          borderRadius: "3px",
-                          fontWeight: "bold",
-                        }}
-                      >
+                    <div className="flex md:hidden flex-wrap gap-1 mt-2">
+                      <span className="text-[10px] px-1.5 py-0.5 font-bold uppercase rounded bg-gray-200 text-gray-800">
                         VISA
                       </span>
-                      <span
-                        style={{
-                          fontSize: "0.65rem",
-                          background: "#eee",
-                          padding: "2px 6px",
-                          borderRadius: "3px",
-                          fontWeight: "bold",
-                        }}
-                      >
+                      <span className="text-[10px] px-1.5 py-0.5 font-bold uppercase rounded bg-gray-200 text-gray-800">
                         MC
                       </span>
                     </div>
-                    <span style={{ fontSize: "0.75rem", color: "#666" }}>
+                    <span className="text-xs text-gray-500 mt-1">
                       Visa, Mastercard, American Express
                     </span>
                   </div>
                 </div>
-                <div className="hidden md:flex gap-1.5 shrink-0">
+                <div className="hidden md:flex gap-1.5 shrink-0 ml-4">
                   <span
                     style={{
                       fontSize: "0.65rem",
@@ -1171,59 +1180,48 @@ export default function Checkout() {
 
               {/* Opción 2: Yape / Plin */}
               <label
-                className="flex items-start md:items-center justify-start md:justify-between gap-3 p-4 md:px-5 md:py-4 border rounded cursor-pointer transition-all"
+                className="flex flex-row items-start justify-start p-4 w-full h-auto border rounded cursor-pointer transition-all md:items-center md:justify-between md:px-5 md:py-4"
                 style={{
                   borderColor: paymentMethod === "yape_plin" ? "#000" : "#ddd",
                   backgroundColor:
                     paymentMethod === "yape_plin" ? "#fbfbfb" : "#fff",
                 }}
               >
-                <div className="flex items-start md:items-center gap-3 flex-1 min-w-0">
+                <div className="flex flex-row items-start md:items-center flex-1 min-w-0 w-full">
                   <input
                     type="radio"
                     name="paymentMethod"
                     value="yape_plin"
                     checked={paymentMethod === "yape_plin"}
                     onChange={() => setPaymentMethod("yape_plin")}
-                    className="mt-1 md:mt-0 shrink-0"
-                    style={{ accentColor: "#000" }}
+                    className="w-5 h-5 !w-5 !h-5 flex-shrink-0 shrink-0 mt-1 md:mt-0 mr-4 cursor-pointer accent-black"
+                    style={{
+                      width: "1.25rem",
+                      height: "1.25rem",
+                      minWidth: "1.25rem",
+                      maxWidth: "1.25rem",
+                      flexShrink: 0,
+                      accentColor: "#000",
+                    }}
                   />
-                  <div className="flex-1 min-w-0">
-                    <strong style={{ display: "block", fontSize: "0.9rem" }}>
+                  <div className="flex-1 min-w-0 flex flex-col justify-start items-start">
+                    <strong className="block text-sm font-bold text-gray-900 leading-snug">
                       Yape / Plin (QR o transferencia)
                     </strong>
-                    <div className="flex md:hidden flex-wrap gap-1 mt-1 mb-1">
-                      <span
-                        style={{
-                          fontSize: "0.65rem",
-                          background: "#742284",
-                          color: "#fff",
-                          padding: "2px 6px",
-                          borderRadius: "3px",
-                          fontWeight: "bold",
-                        }}
-                      >
+                    <div className="flex md:hidden flex-wrap gap-1 mt-2">
+                      <span className="text-[10px] px-1.5 py-0.5 font-bold uppercase rounded bg-[#742284] text-white">
                         YAPE
                       </span>
-                      <span
-                        style={{
-                          fontSize: "0.65rem",
-                          background: "#00a1df",
-                          color: "#fff",
-                          padding: "2px 6px",
-                          borderRadius: "3px",
-                          fontWeight: "bold",
-                        }}
-                      >
+                      <span className="text-[10px] px-1.5 py-0.5 font-bold uppercase rounded bg-[#00a1df] text-white">
                         PLIN
                       </span>
                     </div>
-                    <span style={{ fontSize: "0.75rem", color: "#666" }}>
+                    <span className="text-xs text-gray-500 mt-1">
                       Pago móvil instantáneo sin comisiones
                     </span>
                   </div>
                 </div>
-                <div className="hidden md:flex gap-1.5 shrink-0">
+                <div className="hidden md:flex gap-1.5 shrink-0 ml-4">
                   <span
                     style={{
                       fontSize: "0.65rem",
@@ -1253,48 +1251,46 @@ export default function Checkout() {
 
               {/* Opción 3: Pago contra entrega */}
               <label
-                className="flex items-start md:items-center justify-start md:justify-between gap-3 p-4 md:px-5 md:py-4 border rounded cursor-pointer transition-all"
+                className="flex flex-row items-start justify-start p-4 w-full h-auto border rounded cursor-pointer transition-all md:items-center md:justify-between md:px-5 md:py-4"
                 style={{
                   borderColor: paymentMethod === "efectivo" ? "#000" : "#ddd",
                   backgroundColor:
                     paymentMethod === "efectivo" ? "#fbfbfb" : "#fff",
                 }}
               >
-                <div className="flex items-start md:items-center gap-3 flex-1 min-w-0">
+                <div className="flex flex-row items-start md:items-center flex-1 min-w-0 w-full">
                   <input
                     type="radio"
                     name="paymentMethod"
                     value="efectivo"
                     checked={paymentMethod === "efectivo"}
                     onChange={() => setPaymentMethod("efectivo")}
-                    className="mt-1 md:mt-0 shrink-0"
-                    style={{ accentColor: "#000" }}
+                    className="w-5 h-5 !w-5 !h-5 flex-shrink-0 shrink-0 mt-1 md:mt-0 mr-4 cursor-pointer accent-black"
+                    style={{
+                      width: "1.25rem",
+                      height: "1.25rem",
+                      minWidth: "1.25rem",
+                      maxWidth: "1.25rem",
+                      flexShrink: 0,
+                      accentColor: "#000",
+                    }}
                   />
-                  <div className="flex-1 min-w-0">
-                    <strong style={{ display: "block", fontSize: "0.9rem" }}>
+                  <div className="flex-1 min-w-0 flex flex-col justify-start items-start">
+                    <strong className="block text-sm font-bold text-gray-900 leading-snug">
                       Pago contra entrega (Efectivo)
                     </strong>
-                    <div className="flex md:hidden flex-wrap gap-1 mt-1 mb-1">
-                      <span
-                        style={{
-                          fontSize: "0.65rem",
-                          background: "#e8f5e9",
-                          color: "#2e7d32",
-                          padding: "2px 6px",
-                          borderRadius: "3px",
-                          fontWeight: "bold",
-                        }}
-                      >
+                    <div className="flex md:hidden flex-wrap gap-1 mt-2">
+                      <span className="text-[10px] px-1.5 py-0.5 font-bold uppercase rounded bg-[#e8f5e9] text-[#2e7d32]">
                         EFECTIVO
                       </span>
                     </div>
-                    <span style={{ fontSize: "0.75rem", color: "#666" }}>
+                    <span className="text-xs text-gray-500 mt-1">
                       Paga al recibir en tu domicilio
                     </span>
                   </div>
                 </div>
                 <span
-                  className="hidden md:inline-block shrink-0"
+                  className="hidden md:inline-block shrink-0 ml-4"
                   style={{
                     fontSize: "0.65rem",
                     background: "#e8f5e9",

@@ -353,12 +353,19 @@ td small { display: block; margin-top: 4px; color: #777; }
   }
 
   #checkout-form,
-  #checkout-form input,
+  #checkout-form input:not([type="radio"]):not([type="checkbox"]),
   #checkout-form select,
   #checkout-form label {
     width: 100% !important;
     max-width: 100% !important;
     box-sizing: border-box !important;
+  }
+
+  #checkout-form input[type="radio"],
+  #checkout-form input[type="checkbox"] {
+    width: auto !important;
+    max-width: none !important;
+    flex-shrink: 0 !important;
   }
 
   /* Modal Yape / Plin */
