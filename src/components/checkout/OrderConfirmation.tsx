@@ -406,46 +406,67 @@ export default function OrderConfirmation({
             </div>
           </div>
 
-          <div style={{ marginTop: "1.5rem" }}>
+          <div style={{ marginTop: "1.75rem" }}>
             {order.paymentMethod === "yape_plin" && (
               <div
                 style={{
-                  backgroundColor: "rgba(255, 255, 255, 0.08)",
-                  border: "1px solid rgba(255, 255, 255, 0.2)",
-                  borderRadius: "8px",
-                  padding: "1.5rem",
+                  borderTop: "1px solid #262626",
+                  paddingTop: "1.75rem",
                   textAlign: "center",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
                 }}
+                className="border-t border-gray-800 pt-7 text-center flex flex-col items-center"
               >
-                <p
+                <h4
                   style={{
-                    fontSize: "0.75rem",
+                    fontSize: "0.85rem",
                     textTransform: "uppercase",
-                    letterSpacing: "1px",
+                    letterSpacing: "1.5px",
                     color: "#ffffff",
-                    margin: "0 0 0.8rem 0",
-                    fontWeight: "bold",
+                    margin: "0 0 0.6rem 0",
+                    fontWeight: 700,
+                    fontFamily: '"Barlow Condensed", sans-serif',
                   }}
+                  className="text-sm uppercase font-bold text-white tracking-wider mb-2"
                 >
-                  PAGO PENDIENTE CON YAPE / PLIN
-                </p>
+                  ¿AÚN NO REALIZASTE EL PAGO?
+                </h4>
                 <p
                   style={{
                     fontSize: "0.85rem",
-                    color: "#ddd",
-                    margin: "0 0 1rem 0",
+                    color: "#d1d5db",
+                    margin: "0 0 0.4rem 0",
+                    lineHeight: 1.5,
+                    maxWidth: "460px",
                   }}
+                  className="text-sm text-gray-300 mb-1 leading-relaxed"
                 >
-                  Escanea el siguiente código QR o transfiere al número{" "}
-                  <strong>999 888 777</strong> (Gone Surfing Perú)
+                  En caso de haberte saltado el paso anterior, escanea el código QR o transfiere al número{" "}
+                  <strong style={{ color: "#ffffff" }}>999 888 777</strong> (Titular: Gone Surfing Perú S.A.C.).
+                </p>
+                <p
+                  style={{
+                    fontSize: "0.75rem",
+                    color: "#9ca3af",
+                    fontStyle: "italic",
+                    margin: "0.4rem 0 1.25rem 0",
+                    lineHeight: 1.4,
+                    maxWidth: "460px",
+                  }}
+                  className="text-xs text-gray-400 italic mt-2 mb-4"
+                >
+                  Nota: Si ya realizaste el pago y enviaste tu comprobante, por favor ignora este código QR.
                 </p>
                 <div
                   style={{
                     display: "inline-block",
-                    background: "#fff",
-                    padding: "12px",
+                    background: "#ffffff",
+                    padding: "10px",
                     borderRadius: "8px",
                     marginBottom: "0.8rem",
+                    boxShadow: "0 4px 12px rgba(0, 0, 0, 0.4)",
                   }}
                 >
                   <img
@@ -461,13 +482,13 @@ export default function OrderConfirmation({
                 </div>
                 <p
                   style={{
-                    fontSize: "0.75rem",
-                    color: "#aaa",
-                    margin: 0,
+                    fontSize: "0.8rem",
+                    color: "#9ca3af",
+                    margin: "0 0 1rem 0",
                   }}
                 >
                   Monto total:{" "}
-                  <strong style={{ color: "#fff" }}>
+                  <strong style={{ color: "#ffffff", fontSize: "1rem" }}>
                     {money(order.total)}
                   </strong>
                 </p>
@@ -484,7 +505,7 @@ export default function OrderConfirmation({
                     gap: "8px",
                     background: "#ffffff",
                     color: "#0a0a0a",
-                    padding: "10px 18px",
+                    padding: "11px 20px",
                     borderRadius: "3px",
                     textDecoration: "none",
                     fontWeight: 800,
@@ -492,7 +513,6 @@ export default function OrderConfirmation({
                     fontFamily: '"Barlow Condensed", sans-serif',
                     textTransform: "uppercase",
                     letterSpacing: "1px",
-                    marginTop: "12px",
                     transition: "all 0.2s ease",
                   }}
                   onMouseOver={(e) => {
@@ -502,7 +522,7 @@ export default function OrderConfirmation({
                     e.currentTarget.style.backgroundColor = "#ffffff"
                   }}
                 >
-                  Enviar comprobante por WhatsApp
+                  ENVIAR COMPROBANTE POR WHATSAPP
                 </a>
               </div>
             )}

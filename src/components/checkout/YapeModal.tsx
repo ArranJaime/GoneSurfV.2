@@ -54,45 +54,17 @@ export default function YapeModal({
           position: "relative",
         }}
       >
-        {/* Header del modal con badges Yape / Plin y Orden */}
+        {/* Header del modal con Orden */}
         <div
           style={{
             display: "flex",
-            justifyContent: "space-between",
+            justifyContent: "center",
             alignItems: "center",
             marginBottom: "1.25rem",
             paddingBottom: "0.75rem",
             borderBottom: "1px solid #1a1e26",
           }}
         >
-          <div style={{ display: "flex", gap: "6px" }}>
-            <span
-              style={{
-                fontSize: "0.65rem",
-                background: "#742284",
-                color: "#ffffff",
-                padding: "3px 8px",
-                borderRadius: "2px",
-                fontWeight: 700,
-                letterSpacing: "0.5px",
-              }}
-            >
-              YAPE
-            </span>
-            <span
-              style={{
-                fontSize: "0.65rem",
-                background: "#00a1df",
-                color: "#ffffff",
-                padding: "3px 8px",
-                borderRadius: "2px",
-                fontWeight: 700,
-                letterSpacing: "0.5px",
-              }}
-            >
-              PLIN
-            </span>
-          </div>
           <span
             style={{
               fontSize: "0.75rem",
@@ -101,7 +73,7 @@ export default function YapeModal({
               fontFamily: '"Barlow Condensed", sans-serif',
               letterSpacing: "1px",
               background: "#161920",
-              padding: "2px 8px",
+              padding: "3px 10px",
               borderRadius: "2px",
               border: "1px solid #282d38",
             }}
@@ -109,20 +81,6 @@ export default function YapeModal({
             ORDEN #{order.id}
           </span>
         </div>
-
-        {/* Mensaje con tipografía estilizada branding Gone Surfing */}
-        <span
-          style={{
-            fontFamily: "serif",
-            fontStyle: "italic",
-            fontSize: "1.25rem",
-            color: "#ffffff",
-            display: "block",
-            marginBottom: "0.2rem",
-          }}
-        >
-          ¡Buenas olas!
-        </span>
 
         <h3
           style={{
