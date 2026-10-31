@@ -83,6 +83,7 @@ export default function Footer({ openChat }: FooterProps) {
         >
           <Link
             to="/terminos"
+            className="text-xs text-gray-400 hover:text-white transition-colors"
             style={{
               fontSize: "11px",
               color: "#9ca3af",
@@ -100,6 +101,7 @@ export default function Footer({ openChat }: FooterProps) {
 
           <Link
             to="/privacidad"
+            className="text-xs text-gray-400 hover:text-white transition-colors"
             style={{
               fontSize: "11px",
               color: "#9ca3af",
@@ -115,51 +117,21 @@ export default function Footer({ openChat }: FooterProps) {
 
           <span style={{ color: "#374151", fontSize: "10px" }}>•</span>
 
-          {/* Libro de Reclamaciones con Destaque Visual Indecopi */}
           <Link
             to="/libro-reclamaciones"
+            className="text-xs text-gray-400 hover:text-white transition-colors"
             style={{
               fontSize: "11px",
-              color: "#e2e8f0",
+              color: "#9ca3af",
               textDecoration: "none",
               letterSpacing: "0.5px",
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "6px",
-              backgroundColor: "#16181d",
-              border: "1px solid #282f3a",
-              padding: "3px 9px",
-              borderRadius: "3px",
-              fontWeight: 600,
-              transition: "all 0.2s ease",
+              transition: "color 0.2s ease",
             }}
-            onMouseOver={(e) => {
-              e.currentTarget.style.borderColor = "#64748b"
-              e.currentTarget.style.color = "#ffffff"
-              e.currentTarget.style.backgroundColor = "#1e2229"
-            }}
-            onMouseOut={(e) => {
-              e.currentTarget.style.borderColor = "#282f3a"
-              e.currentTarget.style.color = "#e2e8f0"
-              e.currentTarget.style.backgroundColor = "#16181d"
-            }}
+            onMouseOver={(e) => (e.currentTarget.style.color = "#ffffff")}
+            onMouseOut={(e) => (e.currentTarget.style.color = "#9ca3af")}
             title="Libro de Reclamaciones Virtual conforme a Indecopi"
           >
-            <svg
-              width="13"
-              height="13"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="#38bdf8"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z" />
-              <path d="M6 2v20" />
-            </svg>
-            <span>Libro de Reclamaciones</span>
+            Libro de Reclamaciones
           </Link>
         </div>
       </div>

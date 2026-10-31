@@ -22,6 +22,8 @@ export interface Product {
   imageUrl?: string
   stocks: Record<string, number>
   salesCount?: number
+  createdAt?: string
+  updatedAt?: string
 }
 
 export interface CollectionData {

@@ -938,7 +938,17 @@ function Shop() {
   const rawCategory = sanitizeUrlParam(params.get("category")).toUpperCase()
   const isBestSellers =
     filterParam === "bestsellers" || rawCategory === "BEST SELLERS"
-  const category = isBestSellers ? "BEST SELLERS" : rawCategory
+  const isNewArrivals =
+    rawCategory === "NEW ARRIVALS" ||
+    rawCategory === "NEW-ARRIVALS" ||
+    rawCategory === "NEWARRIVALS" ||
+    filterParam === "newarrivals" ||
+    filterParam === "new-arrivals"
+  const category = isBestSellers
+    ? "BEST SELLERS"
+    : isNewArrivals
+      ? "NEW ARRIVALS"
+      : rawCategory
   const collectionParam = sanitizeUrlParam(params.get("collection"))
   const searchParam = sanitizeUrlParam(params.get("search")).toLowerCase()
   const navigate = useNavigate()
@@ -952,9 +962,9 @@ function Shop() {
         )
       if (collectionParam) return p.collectionName === collectionParam
       if (isBestSellers) return true
+      if (isNewArrivals) return true
       if (!category || category === "ALL PRODUCTS") return true
       const prodCat = p.category.toUpperCase().trim()
-      if (category === "NEW ARRIVALS") return prodCat === "NEW ARRIVALS"
       if (category === "ACCESORIOS") return prodCat === "ACCESORIOS"
       if (category === "MERCH") return prodCat === "MERCH"
       return prodCat === category
@@ -980,6 +990,20 @@ function Shop() {
       })
     }
 
+    if (isNewArrivals) {
+      return [...filtered]
+        .sort((a, b) => {
+          const timeA = a.createdAt
+            ? new Date(a.createdAt).getTime()
+            : parseInt((a.id || "").replace(/\D/g, ""), 10) || 0
+          const timeB = b.createdAt
+            ? new Date(b.createdAt).getTime()
+            : parseInt((b.id || "").replace(/\D/g, ""), 10) || 0
+          return timeB - timeA
+        })
+        .slice(0, 12)
+    }
+
     return filtered
   }, [
     products,
@@ -987,6 +1011,7 @@ function Shop() {
     collectionParam,
     category,
     isBestSellers,
+    isNewArrivals,
     transactions,
   ])
 
@@ -1007,8 +1032,8 @@ function Shop() {
 
   return (
     <main
-      className="page shop-page"
-      style={{ padding: "2rem 5%", minHeight: "80vh" }}
+      className="page shop-page flex-1 flex flex-col"
+      style={{ padding: "2rem 5%", minHeight: "80vh", flex: "1 0 auto" }}
     >
       <div className="page-title" style={{ marginBottom: "1.5rem" }}>
         <p
@@ -1127,26 +1152,12 @@ function Shop() {
               textTransform: "uppercase",
               letterSpacing: "-0.5px",
               color: "#111",
-              margin: "0 0 1rem 0",
+              margin: "0 0 2rem 0",
               lineHeight: 1.1,
             }}
           >
-            {category === "BEST SELLERS"
-              ? "Nuevos ingresos próximamente..."
-              : "El catálogo se está actualizando. Vuelve pronto."}
+            EL CATÁLOGO SE ESTÁ ACTUALIZANDO. VUELVE PRONTO.
           </h2>
-          <p
-            style={{
-              color: "#666",
-              maxWidth: "480px",
-              fontSize: "0.95rem",
-              lineHeight: 1.6,
-              margin: "0 0 2rem 0",
-            }}
-          >
-            Estamos preparando nuestra colección con lo mejor de la cultura de
-            surf de Lima. Mantente atento a las próximas olas.
-          </p>
           <button
             onClick={() => navigate("/")}
             className="black-button"
@@ -1318,33 +1329,50 @@ function AppContent() {
   }, [location.pathname])
 
   return (
-    <>
+    <div
+      className="flex flex-col min-h-screen"
+      style={{
+        minHeight: "100vh",
+        display: "flex",
+        flexDirection: "column",
+        backgroundColor: "#fff",
+      }}
+    >
       <Header />
-      <Routes>
-        <Route path="/" element={<Home openPanel={setPanel} />} />
-        <Route path="/shop" element={<Shop />} />
-        <Route path="/collections" element={<Collections />} />
-        <Route path="/cart" element={<Cart />} />
-        <Route path="/checkout" element={<Checkout />} />
-        <Route path="/profile" element={<Profile />} />
-        <Route path="/login" element={<LoginRedirect />} />
-        <Route path="/register" element={<RegisterRedirect />} />
-        <Route
-          path="/about"
-          element={
-            <main className="page">
-              <div className="page-title">
-                <h1>STAY REAL</h1>
-              </div>
-              <p>SURF CULTURE FROM LIMA, PERÚ.</p>
-            </main>
-          }
-        />
-        <Route path="/terminos" element={<Terms />} />
-        <Route path="/privacidad" element={<PrivacyPolicy />} />
-        <Route path="/libro-reclamaciones" element={<ComplaintsBook />} />
-        <Route path="/admin" element={<Admin />} />
-      </Routes>
+      <div
+        className="flex-1 flex flex-col"
+        style={{
+          flex: "1 0 auto",
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
+        <Routes>
+          <Route path="/" element={<Home openPanel={setPanel} />} />
+          <Route path="/shop" element={<Shop />} />
+          <Route path="/collections" element={<Collections />} />
+          <Route path="/cart" element={<Cart />} />
+          <Route path="/checkout" element={<Checkout />} />
+          <Route path="/profile" element={<Profile />} />
+          <Route path="/login" element={<LoginRedirect />} />
+          <Route path="/register" element={<RegisterRedirect />} />
+          <Route
+            path="/about"
+            element={
+              <main className="page">
+                <div className="page-title">
+                  <h1>STAY REAL</h1>
+                </div>
+                <p>SURF CULTURE FROM LIMA, PERÚ.</p>
+              </main>
+            }
+          />
+          <Route path="/terminos" element={<Terms />} />
+          <Route path="/privacidad" element={<PrivacyPolicy />} />
+          <Route path="/libro-reclamaciones" element={<ComplaintsBook />} />
+          <Route path="/admin" element={<Admin />} />
+        </Routes>
+      </div>
       <Footer openChat={() => setPanel("chat")} />
       <dialog
         ref={dialog}
@@ -1393,7 +1421,7 @@ function AppContent() {
           <p>Contenido pendiente de proporcionar.</p>
         </div>
       </dialog>
-    </>
+    </div>
   )
 }
 

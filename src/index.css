@@ -3,7 +3,8 @@
 
 :root { color: #141519; background: #fff; font-family: "Inter", sans-serif; font-synthesis: none; }
 * { box-sizing: border-box; }
-html, body { margin: 0; min-width: 320px; overflow-x: hidden; }
+html, body { margin: 0; min-width: 320px; overflow-x: hidden; min-height: 100%; }
+#root { min-height: 100vh; display: flex; flex-direction: column; }
 button, input { font: inherit; }
 button { color: inherit; cursor: pointer; }
 button:disabled { cursor: not-allowed; opacity: .45; }
@@ -44,7 +45,7 @@ button:disabled { cursor: not-allowed; opacity: .45; }
 footer { min-height: 79px; padding: 18px 25px; background: #0a0a0a; border-top: 1px solid #1a1a1a; color: white; display: flex; align-items: center; justify-content: space-between; }
 footer p { font: 500 10px "Barlow Condensed"; letter-spacing: 1.4px; opacity: .6; }
 footer button { align-self: stretch; min-width: 106px; margin: -10px -19px -10px 0; border: 1px solid #22262a; background: #101214; color: white; }
-.page { min-height: calc(100vh - 131px); padding: 55px clamp(22px, 5vw, 72px) 90px; }
+.page { min-height: calc(100vh - 131px); padding: 55px clamp(22px, 5vw, 72px) 90px; flex: 1 0 auto; display: flex; flex-direction: column; }
 .page-title { position: relative; margin-bottom: 42px; border-bottom: 1px solid #111; padding-bottom: 22px; }
 .page-title p, .admin-heading p, .login-page p { margin: 0 0 7px; font: 600 10px "Barlow Condensed"; letter-spacing: 1.6px; }
 h1 { margin: 0; font: 700 clamp(40px, 6vw, 70px)/.9 "Barlow Condensed"; letter-spacing: -.02em; }
