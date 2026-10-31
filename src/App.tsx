@@ -1060,22 +1060,10 @@ function Shop() {
       </div>
       {!searchParam && (
         <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            borderBottom: "1px solid #e5e5e5",
-            paddingBottom: "1rem",
-            marginBottom: "2.5rem",
-          }}
+          className="flex flex-col items-start gap-3 md:flex-row md:items-center md:justify-between border-b border-[#e5e5e5] pb-4 mb-10 w-full"
         >
           <nav
-            style={{
-              display: "flex",
-              gap: "1.5rem",
-              flexWrap: "wrap",
-              alignItems: "center",
-            }}
+            className="flex flex-wrap items-center gap-x-4 gap-y-2 md:gap-6 w-full md:w-auto"
           >
             {shopCategories.map((cat) => {
               const isActive =
@@ -1113,6 +1101,7 @@ function Shop() {
             })}
           </nav>
           <span
+            className="self-end md:self-auto whitespace-nowrap"
             style={{ fontSize: "0.85rem", fontWeight: "bold", color: "#666" }}
           >
             {visibleProducts.length} ITEMS

@@ -1093,45 +1093,57 @@ export default function Checkout() {
             >
               {/* Opción 1: Tarjeta */}
               <label
+                className="flex items-start md:items-center justify-start md:justify-between gap-3 p-4 md:px-5 md:py-4 border rounded cursor-pointer transition-all"
                 style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  padding: "1rem 1.25rem",
-                  border: "1px solid",
                   borderColor: paymentMethod === "tarjeta" ? "#000" : "#ddd",
-                  borderRadius: "4px",
-                  cursor: "pointer",
                   backgroundColor:
                     paymentMethod === "tarjeta" ? "#fbfbfb" : "#fff",
-                  transition: "all 0.2s ease",
                 }}
               >
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "0.75rem",
-                  }}
-                >
+                <div className="flex items-start md:items-center gap-3 flex-1 min-w-0">
                   <input
                     type="radio"
                     name="paymentMethod"
                     value="tarjeta"
                     checked={paymentMethod === "tarjeta"}
                     onChange={() => setPaymentMethod("tarjeta")}
+                    className="mt-1 md:mt-0 shrink-0"
                     style={{ accentColor: "#000" }}
                   />
-                  <div>
+                  <div className="flex-1 min-w-0">
                     <strong style={{ display: "block", fontSize: "0.9rem" }}>
                       Tarjeta de Crédito / Débito (Pasarela Segura)
                     </strong>
+                    <div className="flex md:hidden flex-wrap gap-1 mt-1 mb-1">
+                      <span
+                        style={{
+                          fontSize: "0.65rem",
+                          background: "#eee",
+                          padding: "2px 6px",
+                          borderRadius: "3px",
+                          fontWeight: "bold",
+                        }}
+                      >
+                        VISA
+                      </span>
+                      <span
+                        style={{
+                          fontSize: "0.65rem",
+                          background: "#eee",
+                          padding: "2px 6px",
+                          borderRadius: "3px",
+                          fontWeight: "bold",
+                        }}
+                      >
+                        MC
+                      </span>
+                    </div>
                     <span style={{ fontSize: "0.75rem", color: "#666" }}>
                       Visa, Mastercard, American Express
                     </span>
                   </div>
                 </div>
-                <div style={{ display: "flex", gap: "6px" }}>
+                <div className="hidden md:flex gap-1.5 shrink-0">
                   <span
                     style={{
                       fontSize: "0.65rem",
@@ -1159,45 +1171,59 @@ export default function Checkout() {
 
               {/* Opción 2: Yape / Plin */}
               <label
+                className="flex items-start md:items-center justify-start md:justify-between gap-3 p-4 md:px-5 md:py-4 border rounded cursor-pointer transition-all"
                 style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  padding: "1rem 1.25rem",
-                  border: "1px solid",
                   borderColor: paymentMethod === "yape_plin" ? "#000" : "#ddd",
-                  borderRadius: "4px",
-                  cursor: "pointer",
                   backgroundColor:
                     paymentMethod === "yape_plin" ? "#fbfbfb" : "#fff",
-                  transition: "all 0.2s ease",
                 }}
               >
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "0.75rem",
-                  }}
-                >
+                <div className="flex items-start md:items-center gap-3 flex-1 min-w-0">
                   <input
                     type="radio"
                     name="paymentMethod"
                     value="yape_plin"
                     checked={paymentMethod === "yape_plin"}
                     onChange={() => setPaymentMethod("yape_plin")}
+                    className="mt-1 md:mt-0 shrink-0"
                     style={{ accentColor: "#000" }}
                   />
-                  <div>
+                  <div className="flex-1 min-w-0">
                     <strong style={{ display: "block", fontSize: "0.9rem" }}>
                       Yape / Plin (QR o transferencia)
                     </strong>
+                    <div className="flex md:hidden flex-wrap gap-1 mt-1 mb-1">
+                      <span
+                        style={{
+                          fontSize: "0.65rem",
+                          background: "#742284",
+                          color: "#fff",
+                          padding: "2px 6px",
+                          borderRadius: "3px",
+                          fontWeight: "bold",
+                        }}
+                      >
+                        YAPE
+                      </span>
+                      <span
+                        style={{
+                          fontSize: "0.65rem",
+                          background: "#00a1df",
+                          color: "#fff",
+                          padding: "2px 6px",
+                          borderRadius: "3px",
+                          fontWeight: "bold",
+                        }}
+                      >
+                        PLIN
+                      </span>
+                    </div>
                     <span style={{ fontSize: "0.75rem", color: "#666" }}>
                       Pago móvil instantáneo sin comisiones
                     </span>
                   </div>
                 </div>
-                <div style={{ display: "flex", gap: "6px" }}>
+                <div className="hidden md:flex gap-1.5 shrink-0">
                   <span
                     style={{
                       fontSize: "0.65rem",
@@ -1227,45 +1253,48 @@ export default function Checkout() {
 
               {/* Opción 3: Pago contra entrega */}
               <label
+                className="flex items-start md:items-center justify-start md:justify-between gap-3 p-4 md:px-5 md:py-4 border rounded cursor-pointer transition-all"
                 style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  padding: "1rem 1.25rem",
-                  border: "1px solid",
                   borderColor: paymentMethod === "efectivo" ? "#000" : "#ddd",
-                  borderRadius: "4px",
-                  cursor: "pointer",
                   backgroundColor:
                     paymentMethod === "efectivo" ? "#fbfbfb" : "#fff",
-                  transition: "all 0.2s ease",
                 }}
               >
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "0.75rem",
-                  }}
-                >
+                <div className="flex items-start md:items-center gap-3 flex-1 min-w-0">
                   <input
                     type="radio"
                     name="paymentMethod"
                     value="efectivo"
                     checked={paymentMethod === "efectivo"}
                     onChange={() => setPaymentMethod("efectivo")}
+                    className="mt-1 md:mt-0 shrink-0"
                     style={{ accentColor: "#000" }}
                   />
-                  <div>
+                  <div className="flex-1 min-w-0">
                     <strong style={{ display: "block", fontSize: "0.9rem" }}>
                       Pago contra entrega (Efectivo)
                     </strong>
+                    <div className="flex md:hidden flex-wrap gap-1 mt-1 mb-1">
+                      <span
+                        style={{
+                          fontSize: "0.65rem",
+                          background: "#e8f5e9",
+                          color: "#2e7d32",
+                          padding: "2px 6px",
+                          borderRadius: "3px",
+                          fontWeight: "bold",
+                        }}
+                      >
+                        EFECTIVO
+                      </span>
+                    </div>
                     <span style={{ fontSize: "0.75rem", color: "#666" }}>
                       Paga al recibir en tu domicilio
                     </span>
                   </div>
                 </div>
                 <span
+                  className="hidden md:inline-block shrink-0"
                   style={{
                     fontSize: "0.65rem",
                     background: "#e8f5e9",
