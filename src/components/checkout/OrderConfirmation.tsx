@@ -1,4 +1,4 @@
-import React from "react"
+import React, { useState } from "react"
 import { Link } from "react-router-dom"
 import type { CartItem, Product, Size } from "../../types"
 import { formatPEN } from "../../utils/accounting"
@@ -38,6 +38,7 @@ export default function OrderConfirmation({
 }: OrderConfirmationProps) {
   const { currentUser, isAuth } = useAuth()
   const isGuest = !isAuth || !currentUser || Boolean(currentUser.isGuest)
+  const [showPaymentBackup, setShowPaymentBackup] = useState(false)
 
   const dest = {
     name: order.districtName,
@@ -406,124 +407,158 @@ export default function OrderConfirmation({
             </div>
           </div>
 
-          <div style={{ marginTop: "1.75rem" }}>
+          <div style={{ marginTop: "1.75rem" }} className="w-full">
             {order.paymentMethod === "yape_plin" && (
               <div
                 style={{
                   borderTop: "1px solid #262626",
-                  paddingTop: "1.75rem",
-                  textAlign: "center",
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
+                  paddingTop: "1.5rem",
+                  width: "100%",
                 }}
-                className="border-t border-gray-800 pt-7 text-center flex flex-col items-center"
+                className="w-full border-t border-gray-800 pt-6"
               >
-                <h4
+                <button
+                  type="button"
+                  onClick={() => setShowPaymentBackup(!showPaymentBackup)}
+                  className="border border-gray-800 bg-neutral-900/50 hover:bg-neutral-800/70 transition-all rounded px-4 py-3 w-full flex justify-between items-center text-sm text-gray-300 cursor-pointer"
                   style={{
-                    fontSize: "0.85rem",
-                    textTransform: "uppercase",
-                    letterSpacing: "1.5px",
-                    color: "#ffffff",
-                    margin: "0 0 0.6rem 0",
-                    fontWeight: 700,
-                    fontFamily: '"Barlow Condensed", sans-serif',
-                  }}
-                  className="text-sm uppercase font-bold text-white tracking-wider mb-2"
-                >
-                  ¿AÚN NO REALIZASTE EL PAGO?
-                </h4>
-                <p
-                  style={{
-                    fontSize: "0.85rem",
-                    color: "#d1d5db",
-                    margin: "0 0 0.4rem 0",
-                    lineHeight: 1.5,
-                    maxWidth: "460px",
-                  }}
-                  className="text-sm text-gray-300 mb-1 leading-relaxed"
-                >
-                  En caso de haberte saltado el paso anterior, escanea el código QR o transfiere al número{" "}
-                  <strong style={{ color: "#ffffff" }}>999 888 777</strong> (Titular: Gone Surfing Perú S.A.C.).
-                </p>
-                <p
-                  style={{
-                    fontSize: "0.75rem",
-                    color: "#9ca3af",
-                    fontStyle: "italic",
-                    margin: "0.4rem 0 1.25rem 0",
-                    lineHeight: 1.4,
-                    maxWidth: "460px",
-                  }}
-                  className="text-xs text-gray-400 italic mt-2 mb-4"
-                >
-                  Nota: Si ya realizaste el pago y enviaste tu comprobante, por favor ignora este código QR.
-                </p>
-                <div
-                  style={{
-                    display: "inline-block",
-                    background: "#ffffff",
-                    padding: "10px",
-                    borderRadius: "8px",
-                    marginBottom: "0.8rem",
-                    boxShadow: "0 4px 12px rgba(0, 0, 0, 0.4)",
-                  }}
-                >
-                  <img
-                    src="/qr-yape.png"
-                    alt="QR Yape / Plin"
-                    style={{
-                      width: "130px",
-                      height: "130px",
-                      objectFit: "contain",
-                      display: "block",
-                    }}
-                  />
-                </div>
-                <p
-                  style={{
-                    fontSize: "0.8rem",
-                    color: "#9ca3af",
-                    margin: "0 0 1rem 0",
-                  }}
-                >
-                  Monto total:{" "}
-                  <strong style={{ color: "#ffffff", fontSize: "1rem" }}>
-                    {money(order.total)}
-                  </strong>
-                </p>
-                <a
-                  href={`https://wa.me/${storePhone}?text=${encodeURIComponent(
-                    `Hola, adjunto comprobante de mi pago por Yape/Plin del pedido #${order.id} por el monto de S/. ${order.total.toFixed(2)}.`,
-                  )}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{
-                    display: "inline-flex",
+                    backgroundColor: "rgba(23, 23, 23, 0.5)",
+                    border: "1px solid #262626",
+                    borderRadius: "4px",
+                    padding: "0.75rem 1rem",
+                    width: "100%",
+                    display: "flex",
+                    justifyContent: "space-between",
                     alignItems: "center",
-                    justifyContent: "center",
-                    gap: "8px",
-                    background: "#ffffff",
-                    color: "#0a0a0a",
-                    padding: "11px 20px",
-                    borderRadius: "3px",
-                    textDecoration: "none",
-                    fontWeight: 800,
+                    cursor: "pointer",
+                    color: "#d1d5db",
                     fontSize: "0.85rem",
-                    fontFamily: '"Barlow Condensed", sans-serif',
-                    textTransform: "uppercase",
-                    letterSpacing: "1px",
                     transition: "all 0.2s ease",
                   }}
-                  onMouseOver={(e) => {
-                    e.currentTarget.style.backgroundColor = "#e0e0e0"
-                  }}
-                  onMouseOut={(e) => {
-                    e.currentTarget.style.backgroundColor = "#ffffff"
-                  }}
                 >
-                  ENVIAR COMPROBANTE POR WHATSAPP
-                </a>
+                  <span style={{ fontWeight: 500, textAlign: "left" }}>
+                    ¿Te saltaste el paso anterior o aún no realizaste el pago?
+                  </span>
+                  <span
+                    style={{
+                      transform: showPaymentBackup ? "rotate(180deg)" : "rotate(0deg)",
+                      transition: "transform 0.2s ease",
+                      fontSize: "0.7rem",
+                      marginLeft: "10px",
+                      display: "inline-block",
+                      color: "#9ca3af",
+                    }}
+                    className={`transform transition-transform duration-200 text-xs ml-2 text-gray-400 ${showPaymentBackup ? "rotate-180" : ""}`}
+                  >
+                    ▼
+                  </span>
+                </button>
+
+                {showPaymentBackup && (
+                  <div
+                    style={{
+                      paddingTop: "1.5rem",
+                      textAlign: "center",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      width: "100%",
+                    }}
+                    className="pt-6 text-center flex flex-col items-center w-full transition-all duration-300"
+                  >
+                    <p
+                      style={{
+                        fontSize: "0.85rem",
+                        color: "#d1d5db",
+                        margin: "0 0 0.4rem 0",
+                        lineHeight: 1.5,
+                        maxWidth: "460px",
+                      }}
+                      className="text-sm text-gray-300 mb-1 leading-relaxed"
+                    >
+                      Escanea el código QR o transfiere al número{" "}
+                      <strong style={{ color: "#ffffff" }}>999 888 777</strong> (Titular: Gone Surfing Perú S.A.C.).
+                    </p>
+                    <p
+                      style={{
+                        fontSize: "0.75rem",
+                        color: "#9ca3af",
+                        fontStyle: "italic",
+                        margin: "0.4rem 0 1.25rem 0",
+                        lineHeight: 1.4,
+                        maxWidth: "460px",
+                      }}
+                      className="text-xs text-gray-400 italic mt-2 mb-4"
+                    >
+                      Nota: Si ya realizaste el pago y enviaste tu comprobante, por favor ignora este código QR.
+                    </p>
+                    <div
+                      style={{
+                        display: "inline-block",
+                        background: "#ffffff",
+                        padding: "10px",
+                        borderRadius: "8px",
+                        marginBottom: "0.8rem",
+                        boxShadow: "0 4px 12px rgba(0, 0, 0, 0.4)",
+                      }}
+                    >
+                      <img
+                        src="/qr-yape.png"
+                        alt="QR Yape / Plin"
+                        style={{
+                          width: "130px",
+                          height: "130px",
+                          objectFit: "contain",
+                          display: "block",
+                        }}
+                      />
+                    </div>
+                    <p
+                      style={{
+                        fontSize: "0.8rem",
+                        color: "#9ca3af",
+                        margin: "0 0 1rem 0",
+                      }}
+                    >
+                      Monto total:{" "}
+                      <strong style={{ color: "#ffffff", fontSize: "1rem" }}>
+                        {money(order.total)}
+                      </strong>
+                    </p>
+                    <a
+                      href={`https://wa.me/${storePhone}?text=${encodeURIComponent(
+                        `Hola, adjunto comprobante de mi pago por Yape/Plin del pedido #${order.id} por el monto de S/. ${order.total.toFixed(2)}.`,
+                      )}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: "8px",
+                        background: "#ffffff",
+                        color: "#0a0a0a",
+                        padding: "11px 20px",
+                        borderRadius: "3px",
+                        textDecoration: "none",
+                        fontWeight: 800,
+                        fontSize: "0.85rem",
+                        fontFamily: '"Barlow Condensed", sans-serif',
+                        textTransform: "uppercase",
+                        letterSpacing: "1px",
+                        transition: "all 0.2s ease",
+                      }}
+                      onMouseOver={(e) => {
+                        e.currentTarget.style.backgroundColor = "#e0e0e0"
+                      }}
+                      onMouseOut={(e) => {
+                        e.currentTarget.style.backgroundColor = "#ffffff"
+                      }}
+                    >
+                      ENVIAR COMPROBANTE POR WHATSAPP
+                    </a>
+                  </div>
+                )}
               </div>
             )}
             {order.paymentMethod === "efectivo" && (
