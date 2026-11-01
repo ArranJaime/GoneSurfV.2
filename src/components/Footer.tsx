@@ -9,6 +9,7 @@ export default function Footer({ openChat }: FooterProps = {}) {
   const navigate = useNavigate()
   const location = useLocation()
   const [email, setEmail] = useState("")
+  const [newsletterConsent, setNewsletterConsent] = useState(false)
   const [subscribed, setSubscribed] = useState(false)
 
   if (location.pathname === "/admin" || location.pathname === "/checkout") {
@@ -17,6 +18,7 @@ export default function Footer({ openChat }: FooterProps = {}) {
 
   const handleSubscribe = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
+    if (!newsletterConsent) return
     const cleanEmail = email.trim().toLowerCase()
     if (!cleanEmail || !cleanEmail.includes("@")) return
 
@@ -34,6 +36,7 @@ export default function Footer({ openChat }: FooterProps = {}) {
 
     setSubscribed(true)
     setEmail("")
+    setNewsletterConsent(false)
     setTimeout(() => {
       setSubscribed(false)
     }, 5000)
@@ -63,16 +66,17 @@ export default function Footer({ openChat }: FooterProps = {}) {
         className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6 w-full"
       >
         {/* ================================================================= */}
-        {/* BLOQUE IZQUIERDA: Logo "GONE SURFING" en blanco                   */}
+        {/* BLOQUE IZQUIERDA: Logo "GONE SURFING" + Identidad Fiscal          */}
         {/* ================================================================= */}
         <div
           style={{
             display: "flex",
-            alignItems: "center",
-            justifyContent: "flex-start",
+            flexDirection: "column",
+            alignItems: "flex-start",
+            justifyContent: "center",
             minWidth: "180px",
           }}
-          className="flex items-center justify-center md:justify-start w-full md:w-auto"
+          className="flex flex-col items-center md:items-start justify-center w-full md:w-auto"
         >
           <button
             onClick={() => navigate("/")}
@@ -92,6 +96,20 @@ export default function Footer({ openChat }: FooterProps = {}) {
               className="brand-logo"
             />
           </button>
+          <div
+            style={{
+              marginTop: "6px",
+              fontSize: "10px",
+              color: "#6b7280",
+              letterSpacing: "0.5px",
+              lineHeight: 1.4,
+            }}
+            className="text-[10px] text-gray-500 tracking-wide mt-1.5 text-center md:text-left"
+          >
+            <span>Gone Surfing Perú S.A.C.</span>
+            <span style={{ margin: "0 4px" }}>•</span>
+            <span>RUC: 20000000000</span>
+          </div>
         </div>
 
         {/* ================================================================= */}
@@ -130,56 +148,98 @@ export default function Footer({ openChat }: FooterProps = {}) {
             style={{
               position: "relative",
               display: "flex",
+              flexDirection: "column",
               alignItems: "center",
               width: "100%",
               maxWidth: "380px",
             }}
-            className="w-full max-w-sm relative flex items-center"
+            className="w-full max-w-sm relative flex flex-col items-center"
           >
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="Tu correo electrónico"
-              required
+            <div style={{ position: "relative", width: "100%" }} className="w-full relative">
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Tu correo electrónico"
+                required
+                style={{
+                  width: "100%",
+                  backgroundColor: "rgba(255, 255, 255, 0.02)",
+                  border: "1px solid #374151",
+                  borderRadius: "2px",
+                  color: "#ffffff",
+                  fontSize: "12px",
+                  padding: "9px 38px 9px 14px",
+                  outline: "none",
+                  transition: "border-color 0.2s ease",
+                }}
+                className="w-full bg-transparent border border-gray-700 text-white text-xs px-3.5 py-2 pr-10 rounded-sm focus:outline-none focus:border-white transition-colors placeholder-gray-500"
+              />
+              <button
+                type="submit"
+                style={{
+                  position: "absolute",
+                  right: "4px",
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  background: "transparent",
+                  border: 0,
+                  color: "#ffffff",
+                  cursor: "pointer",
+                  padding: "6px 10px",
+                  fontSize: "15px",
+                  lineHeight: 1,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  transition: "color 0.2s ease, transform 0.2s ease",
+                }}
+                className="absolute right-1 text-white hover:text-gray-400 bg-transparent border-0 cursor-pointer transition-colors text-base"
+                aria-label="Suscribirse a la comunidad"
+                title="Suscribirse"
+              >
+                →
+              </button>
+            </div>
+
+            <label
               style={{
-                width: "100%",
-                backgroundColor: "rgba(255, 255, 255, 0.02)",
-                border: "1px solid #374151",
-                borderRadius: "2px",
-                color: "#ffffff",
-                fontSize: "12px",
-                padding: "9px 38px 9px 14px",
-                outline: "none",
-                transition: "border-color 0.2s ease",
-              }}
-              className="w-full bg-transparent border border-gray-700 text-white text-xs px-3.5 py-2 pr-10 rounded-sm focus:outline-none focus:border-white transition-colors placeholder-gray-500"
-            />
-            <button
-              type="submit"
-              style={{
-                position: "absolute",
-                right: "4px",
-                top: "50%",
-                transform: "translateY(-50%)",
-                background: "transparent",
-                border: 0,
-                color: "#ffffff",
-                cursor: "pointer",
-                padding: "6px 10px",
-                fontSize: "15px",
-                lineHeight: 1,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                transition: "color 0.2s ease, transform 0.2s ease",
+                gap: "6px",
+                marginTop: "8px",
+                fontSize: "11px",
+                color: "#9ca3af",
+                cursor: "pointer",
+                userSelect: "none",
               }}
-              className="absolute right-1 text-white hover:text-gray-400 bg-transparent border-0 cursor-pointer transition-colors text-base"
-              aria-label="Suscribirse a la comunidad"
-              title="Suscribirse"
+              className="flex items-center justify-center gap-1.5 mt-2 text-[11px] text-gray-400 cursor-pointer"
             >
-              →
-            </button>
+              <input
+                type="checkbox"
+                required
+                checked={newsletterConsent}
+                onChange={(e) => setNewsletterConsent(e.target.checked)}
+                style={{
+                  width: "13px",
+                  height: "13px",
+                  accentColor: "#000",
+                  cursor: "pointer",
+                }}
+                className="rounded text-black cursor-pointer"
+              />
+              <span>
+                Acepto las{" "}
+                <Link
+                  to="/privacidad"
+                  style={{ color: "#d1d5db", textDecoration: "underline" }}
+                  className="hover:text-white"
+                >
+                  Políticas de Privacidad
+                </Link>
+              </span>
+            </label>
           </form>
 
           {subscribed && (
@@ -246,6 +306,29 @@ export default function Footer({ openChat }: FooterProps = {}) {
               onMouseOut={(e) => (e.currentTarget.style.color = "#6b7280")}
             >
               Políticas de Privacidad
+            </Link>
+
+            <span
+              style={{ color: "#4b5563", fontSize: "10px" }}
+              className="text-gray-600 text-[10px]"
+            >
+              •
+            </span>
+
+            <Link
+              to="/cambios-devoluciones"
+              className="text-xs text-gray-500 hover:text-gray-300 transition-colors"
+              style={{
+                fontSize: "11px",
+                color: "#6b7280",
+                textDecoration: "none",
+                letterSpacing: "0.4px",
+                transition: "color 0.2s ease",
+              }}
+              onMouseOver={(e) => (e.currentTarget.style.color = "#d1d5db")}
+              onMouseOut={(e) => (e.currentTarget.style.color = "#6b7280")}
+            >
+              Cambios y Devoluciones
             </Link>
 
             <span

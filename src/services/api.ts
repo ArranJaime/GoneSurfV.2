@@ -1465,6 +1465,7 @@ export const api = {
   complaints: {
     async submit(data: ComplaintInput): Promise<{
       ok: boolean
+      complaintCode?: string
       complaint?: ComplaintRecord
       error?: string
     }> {
@@ -1476,13 +1477,22 @@ export const api = {
             body: JSON.stringify(data),
           })
           const body = await res.json().catch(() => ({}))
-          if (res.ok && body.complaint) {
+          if (res.ok && (body.complaint || body.complaintCode)) {
+            const complaintObj = body.complaint || {
+              ...data,
+              id: body.complaintCode,
+              createdAt: new Date().toISOString(),
+            }
             // Guardar copia local de respaldo
             try {
               const prev = readStorage<ComplaintRecord[]>("gone_complaints", [])
-              writeStorage("gone_complaints", [body.complaint, ...prev])
+              writeStorage("gone_complaints", [complaintObj, ...prev])
             } catch {}
-            return { ok: true, complaint: body.complaint }
+            return {
+              ok: true,
+              complaintCode: body.complaintCode || complaintObj.id,
+              complaint: complaintObj,
+            }
           }
           return {
             ok: false,
@@ -1514,7 +1524,11 @@ export const api = {
         writeStorage("gone_complaints", [fallbackRecord, ...prev])
       } catch {}
 
-      return { ok: true, complaint: fallbackRecord }
+      return {
+        ok: true,
+        complaintCode: fallbackId,
+        complaint: fallbackRecord,
+      }
     },
 
     async getAll(): Promise<ComplaintRecord[]> {

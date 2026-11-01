@@ -224,18 +224,21 @@ export default function ComplaintsBook() {
             style={{
               backgroundColor: "rgba(56, 189, 248, 0.08)",
               border: "1px solid rgba(56, 189, 248, 0.2)",
-              padding: "1rem",
+              padding: "1.25rem",
               borderRadius: "4px",
               marginBottom: "2rem",
               fontSize: "0.85rem",
               color: "#bae6fd",
             }}
           >
-            ✓ <strong>Hoja registrada con éxito.</strong> Conforme a la{" "}
-            <strong>Ley N° 31435</strong>, el proveedor deberá dar respuesta al
-            reclamo o queja en un plazo no mayor a{" "}
-            <strong>15 días hábiles</strong> improrrogables. Se ha remitido una
-            copia a tu correo electrónico registrado.
+            <p style={{ margin: "0 0 0.5rem 0", fontSize: "0.95rem", color: "#38bdf8", fontWeight: "bold" }}>
+              ✓ Tu reclamo ha sido registrado exitosamente. Tu código de seguimiento es: {confirmedComplaint.id}
+            </p>
+            <p style={{ margin: 0, fontSize: "0.8rem", color: "#94a3b8", lineHeight: 1.5 }}>
+              Conforme a la <strong>Ley N° 31435</strong>, el proveedor deberá dar respuesta al
+              reclamo o queja en un plazo no mayor a <strong>15 días hábiles</strong> improrrogables. Se ha remitido una
+              copia de respaldo a tu correo electrónico registrado.
+            </p>
           </div>
 
           {/* Resumen 1: Consumidor */}

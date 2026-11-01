@@ -1358,6 +1358,7 @@ function AppContent() {
           />
           <Route path="/terminos" element={<Terms />} />
           <Route path="/privacidad" element={<PrivacyPolicy />} />
+          <Route path="/cambios-devoluciones" element={<Terms />} />
           <Route path="/libro-reclamaciones" element={<ComplaintsBook />} />
           <Route path="/admin" element={<Admin />} />
         </Routes>

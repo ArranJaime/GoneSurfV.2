@@ -1362,6 +1362,7 @@ export async function handler(event) {
                   TableName: PRODUCTS_TABLE,
                   Key: { id: item.productId },
                   UpdateExpression: "SET stocks.#sz = stocks.#sz - :qty",
+                  ConditionExpression: "attribute_exists(id) AND stocks.#sz >= :qty",
                   ExpressionAttributeNames: { "#sz": item.size },
                   ExpressionAttributeValues: { ":qty": item.quantity },
                 }),
@@ -1521,6 +1522,8 @@ export async function handler(event) {
 
       return response(201, {
         ok: true,
+        success: true,
+        complaintCode: complaintId,
         complaint: complaintRecord,
         message:
           "Hoja de reclamación registrada exitosamente. Se responderá dentro del plazo legal de 15 días hábiles.",
