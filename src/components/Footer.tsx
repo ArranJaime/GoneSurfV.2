@@ -1,4 +1,4 @@
-import React, { useState } from "react"
+import React from "react"
 import { useNavigate, useLocation, Link } from "react-router-dom"
 
 export interface FooterProps {
@@ -8,367 +8,33 @@ export interface FooterProps {
 export default function Footer({ openChat }: FooterProps = {}) {
   const navigate = useNavigate()
   const location = useLocation()
-  const [email, setEmail] = useState("")
-  const [newsletterConsent, setNewsletterConsent] = useState(false)
-  const [subscribed, setSubscribed] = useState(false)
 
   if (location.pathname === "/admin" || location.pathname === "/checkout") {
     return null
   }
 
-  const handleSubscribe = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    if (!newsletterConsent) return
-    const cleanEmail = email.trim().toLowerCase()
-    if (!cleanEmail || !cleanEmail.includes("@")) return
-
-    try {
-      const prev = JSON.parse(
-        localStorage.getItem("gone_newsletter_subscribers") || "[]",
-      )
-      if (Array.isArray(prev) && !prev.includes(cleanEmail)) {
-        localStorage.setItem(
-          "gone_newsletter_subscribers",
-          JSON.stringify([...prev, cleanEmail]),
-        )
-      }
-    } catch {}
-
-    setSubscribed(true)
-    setEmail("")
-    setNewsletterConsent(false)
-    setTimeout(() => {
-      setSubscribed(false)
-    }, 5000)
-  }
-
   return (
-    <footer
-      style={{
-        backgroundColor: "#0a0a0a",
-        borderTop: "1px solid #1a1a1a",
-        color: "#ffffff",
-        padding: "36px 24px 28px",
-        width: "100%",
-      }}
-      className="bg-[#0a0a0a] border-t border-[#1a1a1a] text-white px-6 py-9 w-full"
-    >
-      <div
-        style={{
-          maxWidth: "1280px",
-          margin: "0 auto",
-          display: "flex",
-          flexWrap: "wrap",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: "24px",
-        }}
-        className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6 w-full"
-      >
+    <footer className="w-full bg-[#0a0a0a] border-t border-[#1a1a1a] text-white py-8 px-4 flex flex-col items-center justify-center">
+      <div className="flex flex-col items-center justify-center text-center gap-4 w-full max-w-4xl mx-auto">
         {/* ================================================================= */}
-        {/* BLOQUE IZQUIERDA: Logo "GONE SURFING" + Identidad Fiscal          */}
+        {/* FILA 1: Logo Centrado                                             */}
         {/* ================================================================= */}
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "flex-start",
-            justifyContent: "center",
-            minWidth: "180px",
-          }}
-          className="flex flex-col items-center md:items-start justify-center w-full md:w-auto"
+        <button
+          onClick={() => navigate("/")}
+          className="bg-transparent border-0 p-0 flex items-center justify-center cursor-pointer transition-opacity hover:opacity-80"
+          aria-label="Gone Surfing Home"
         >
-          <button
-            onClick={() => navigate("/")}
-            style={{
-              background: "transparent",
-              border: 0,
-              padding: 0,
-              display: "flex",
-              alignItems: "center",
-              cursor: "pointer",
-            }}
-            aria-label="Gone Surfing Home"
-          >
-            <img
-              src="/logo-gone-surfing.png"
-              alt="Gone Surfing Logo"
-              className="brand-logo"
-            />
-          </button>
-          <div
-            style={{
-              marginTop: "6px",
-              fontSize: "10px",
-              color: "#6b7280",
-              letterSpacing: "0.5px",
-              lineHeight: 1.4,
-            }}
-            className="text-[10px] text-gray-500 tracking-wide mt-1.5 text-center md:text-left"
-          >
-            <span>Gone Surfing Perú S.A.C.</span>
-            <span style={{ margin: "0 4px" }}>•</span>
-            <span>RUC: 20000000000</span>
-          </div>
-        </div>
+          <img
+            src="/logo-gone-surfing.png"
+            alt="Gone Surfing Logo"
+            className="h-8 md:h-9 w-auto object-contain brand-logo"
+          />
+        </button>
 
         {/* ================================================================= */}
-        {/* BLOQUE CENTRO: Suscripción a la Comunidad + Enlaces Legales       */}
+        {/* FILA 2: Redes Sociales Centradas                                  */}
         {/* ================================================================= */}
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            textAlign: "center",
-            width: "100%",
-            maxWidth: "460px",
-            margin: "0 auto",
-          }}
-          className="flex flex-col items-center justify-center text-center w-full max-w-md mx-auto"
-        >
-          <p
-            style={{
-              margin: "0 0 10px 0",
-              fontSize: "11px",
-              fontWeight: 600,
-              letterSpacing: "2.5px",
-              textTransform: "uppercase",
-              color: "#ffffff",
-              fontFamily: '"Barlow Condensed", sans-serif',
-            }}
-            className="text-xs uppercase tracking-[0.2em] font-medium text-white mb-2.5"
-          >
-            SUSCRÍBETE A LA COMUNIDAD
-          </p>
-
-          <form
-            onSubmit={handleSubscribe}
-            style={{
-              position: "relative",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              width: "100%",
-              maxWidth: "380px",
-            }}
-            className="w-full max-w-sm relative flex flex-col items-center"
-          >
-            <div style={{ position: "relative", width: "100%" }} className="w-full relative">
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="Tu correo electrónico"
-                required
-                style={{
-                  width: "100%",
-                  backgroundColor: "rgba(255, 255, 255, 0.02)",
-                  border: "1px solid #374151",
-                  borderRadius: "2px",
-                  color: "#ffffff",
-                  fontSize: "12px",
-                  padding: "9px 38px 9px 14px",
-                  outline: "none",
-                  transition: "border-color 0.2s ease",
-                }}
-                className="w-full bg-transparent border border-gray-700 text-white text-xs px-3.5 py-2 pr-10 rounded-sm focus:outline-none focus:border-white transition-colors placeholder-gray-500"
-              />
-              <button
-                type="submit"
-                style={{
-                  position: "absolute",
-                  right: "4px",
-                  top: "50%",
-                  transform: "translateY(-50%)",
-                  background: "transparent",
-                  border: 0,
-                  color: "#ffffff",
-                  cursor: "pointer",
-                  padding: "6px 10px",
-                  fontSize: "15px",
-                  lineHeight: 1,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  transition: "color 0.2s ease, transform 0.2s ease",
-                }}
-                className="absolute right-1 text-white hover:text-gray-400 bg-transparent border-0 cursor-pointer transition-colors text-base"
-                aria-label="Suscribirse a la comunidad"
-                title="Suscribirse"
-              >
-                →
-              </button>
-            </div>
-
-            <label
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: "6px",
-                marginTop: "8px",
-                fontSize: "11px",
-                color: "#9ca3af",
-                cursor: "pointer",
-                userSelect: "none",
-              }}
-              className="flex items-center justify-center gap-1.5 mt-2 text-[11px] text-gray-400 cursor-pointer"
-            >
-              <input
-                type="checkbox"
-                required
-                checked={newsletterConsent}
-                onChange={(e) => setNewsletterConsent(e.target.checked)}
-                style={{
-                  width: "13px",
-                  height: "13px",
-                  accentColor: "#000",
-                  cursor: "pointer",
-                }}
-                className="rounded text-black cursor-pointer"
-              />
-              <span>
-                Acepto las{" "}
-                <Link
-                  to="/privacidad"
-                  style={{ color: "#d1d5db", textDecoration: "underline" }}
-                  className="hover:text-white"
-                >
-                  Políticas de Privacidad
-                </Link>
-              </span>
-            </label>
-          </form>
-
-          {subscribed && (
-            <p
-              style={{
-                margin: "8px 0 0 0",
-                fontSize: "11px",
-                color: "#4ade80",
-                fontWeight: 600,
-                letterSpacing: "0.5px",
-              }}
-              className="text-xs text-green-400 mt-2 font-medium"
-            >
-              ¡Gracias por unirte a la comunidad!
-            </p>
-          )}
-
-          {/* Fila Inferior de Enlaces Legales Unificados */}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: "12px",
-              flexWrap: "wrap",
-              marginTop: "16px",
-            }}
-            className="flex items-center justify-center gap-3 mt-4 flex-wrap"
-          >
-            <Link
-              to="/terminos"
-              className="text-xs text-gray-500 hover:text-gray-300 transition-colors"
-              style={{
-                fontSize: "11px",
-                color: "#6b7280",
-                textDecoration: "none",
-                letterSpacing: "0.4px",
-                transition: "color 0.2s ease",
-              }}
-              onMouseOver={(e) => (e.currentTarget.style.color = "#d1d5db")}
-              onMouseOut={(e) => (e.currentTarget.style.color = "#6b7280")}
-            >
-              Términos y Condiciones
-            </Link>
-
-            <span
-              style={{ color: "#4b5563", fontSize: "10px" }}
-              className="text-gray-600 text-[10px]"
-            >
-              •
-            </span>
-
-            <Link
-              to="/privacidad"
-              className="text-xs text-gray-500 hover:text-gray-300 transition-colors"
-              style={{
-                fontSize: "11px",
-                color: "#6b7280",
-                textDecoration: "none",
-                letterSpacing: "0.4px",
-                transition: "color 0.2s ease",
-              }}
-              onMouseOver={(e) => (e.currentTarget.style.color = "#d1d5db")}
-              onMouseOut={(e) => (e.currentTarget.style.color = "#6b7280")}
-            >
-              Políticas de Privacidad
-            </Link>
-
-            <span
-              style={{ color: "#4b5563", fontSize: "10px" }}
-              className="text-gray-600 text-[10px]"
-            >
-              •
-            </span>
-
-            <Link
-              to="/cambios-devoluciones"
-              className="text-xs text-gray-500 hover:text-gray-300 transition-colors"
-              style={{
-                fontSize: "11px",
-                color: "#6b7280",
-                textDecoration: "none",
-                letterSpacing: "0.4px",
-                transition: "color 0.2s ease",
-              }}
-              onMouseOver={(e) => (e.currentTarget.style.color = "#d1d5db")}
-              onMouseOut={(e) => (e.currentTarget.style.color = "#6b7280")}
-            >
-              Cambios y Devoluciones
-            </Link>
-
-            <span
-              style={{ color: "#4b5563", fontSize: "10px" }}
-              className="text-gray-600 text-[10px]"
-            >
-              •
-            </span>
-
-            <Link
-              to="/libro-reclamaciones"
-              className="text-xs text-gray-500 hover:text-gray-300 transition-colors"
-              style={{
-                fontSize: "11px",
-                color: "#6b7280",
-                textDecoration: "none",
-                letterSpacing: "0.4px",
-                transition: "color 0.2s ease",
-              }}
-              onMouseOver={(e) => (e.currentTarget.style.color = "#d1d5db")}
-              onMouseOut={(e) => (e.currentTarget.style.color = "#6b7280")}
-            >
-              Libro de Reclamaciones
-            </Link>
-          </div>
-        </div>
-
-        {/* ================================================================= */}
-        {/* BLOQUE DERECHA: Redes Sociales Minimalistas                       */}
-        {/* ================================================================= */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "flex-end",
-            gap: "18px",
-            minWidth: "180px",
-          }}
-          className="flex items-center justify-center md:justify-end gap-4 w-full md:w-auto"
-        >
+        <div className="flex items-center justify-center gap-5 text-white">
           {/* Instagram */}
           <a
             href="https://instagram.com"
@@ -376,16 +42,7 @@ export default function Footer({ openChat }: FooterProps = {}) {
             rel="noopener noreferrer"
             aria-label="Instagram"
             title="Instagram"
-            style={{
-              color: "#ffffff",
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              transition: "color 0.2s ease",
-            }}
-            className="text-white hover:text-gray-400 transition-colors"
-            onMouseOver={(e) => (e.currentTarget.style.color = "#9ca3af")}
-            onMouseOut={(e) => (e.currentTarget.style.color = "#ffffff")}
+            className="text-white hover:text-gray-400 transition-colors inline-flex items-center justify-center"
           >
             <svg
               width="18"
@@ -411,16 +68,7 @@ export default function Footer({ openChat }: FooterProps = {}) {
             rel="noopener noreferrer"
             aria-label="TikTok"
             title="TikTok"
-            style={{
-              color: "#ffffff",
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              transition: "color 0.2s ease",
-            }}
-            className="text-white hover:text-gray-400 transition-colors"
-            onMouseOver={(e) => (e.currentTarget.style.color = "#9ca3af")}
-            onMouseOut={(e) => (e.currentTarget.style.color = "#ffffff")}
+            className="text-white hover:text-gray-400 transition-colors inline-flex items-center justify-center"
           >
             <svg
               width="17"
@@ -429,7 +77,7 @@ export default function Footer({ openChat }: FooterProps = {}) {
               fill="currentColor"
               aria-hidden="true"
             >
-              <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64c.29 0 .58.04.86.11V9.42a6.34 6.34 0 0 0-.86-.06 6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.34-6.34V8.75a8.16 8.16 0 0 0 4.77 1.52V6.82a4.84 4.84 0 0 1-1-.13z" />
+              <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64c.29 0 .58.04.86.11V9.42a6.34 6.34 0 0 0-.86-.06 6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34-6.34V8.75a8.16 8.16 0 0 0 4.77 1.52V6.82a4.84 4.84 0 0 1-1-.13z" />
             </svg>
           </a>
 
@@ -440,16 +88,7 @@ export default function Footer({ openChat }: FooterProps = {}) {
             rel="noopener noreferrer"
             aria-label="YouTube"
             title="YouTube"
-            style={{
-              color: "#ffffff",
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              transition: "color 0.2s ease",
-            }}
-            className="text-white hover:text-gray-400 transition-colors"
-            onMouseOver={(e) => (e.currentTarget.style.color = "#9ca3af")}
-            onMouseOut={(e) => (e.currentTarget.style.color = "#ffffff")}
+            className="text-white hover:text-gray-400 transition-colors inline-flex items-center justify-center"
           >
             <svg
               width="19"
@@ -469,16 +108,7 @@ export default function Footer({ openChat }: FooterProps = {}) {
             rel="noopener noreferrer"
             aria-label="X (Twitter)"
             title="X (Twitter)"
-            style={{
-              color: "#ffffff",
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              transition: "color 0.2s ease",
-            }}
-            className="text-white hover:text-gray-400 transition-colors"
-            onMouseOver={(e) => (e.currentTarget.style.color = "#9ca3af")}
-            onMouseOut={(e) => (e.currentTarget.style.color = "#ffffff")}
+            className="text-white hover:text-gray-400 transition-colors inline-flex items-center justify-center"
           >
             <svg
               width="16"
@@ -490,6 +120,52 @@ export default function Footer({ openChat }: FooterProps = {}) {
               <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
             </svg>
           </a>
+        </div>
+
+        {/* ================================================================= */}
+        {/* FILA 3: Enlaces Legales en una sola línea en Desktop              */}
+        {/* ================================================================= */}
+        <div className="flex flex-wrap md:flex-nowrap items-center justify-center gap-x-3 gap-y-1 text-xs text-gray-400 md:whitespace-nowrap">
+          <Link
+            to="/terminos"
+            className="hover:text-white transition-colors"
+          >
+            Términos y Condiciones
+          </Link>
+
+          <span className="text-gray-600 select-none">•</span>
+
+          <Link
+            to="/privacidad"
+            className="hover:text-white transition-colors"
+          >
+            Políticas de Privacidad
+          </Link>
+
+          <span className="text-gray-600 select-none">•</span>
+
+          <Link
+            to="/cambios-devoluciones"
+            className="hover:text-white transition-colors"
+          >
+            Cambios y Devoluciones
+          </Link>
+
+          <span className="text-gray-600 select-none">•</span>
+
+          <Link
+            to="/libro-reclamaciones"
+            className="hover:text-white transition-colors"
+          >
+            Libro de Reclamaciones
+          </Link>
+        </div>
+
+        {/* ================================================================= */}
+        {/* FILA 4: Identidad Fiscal                                          */}
+        {/* ================================================================= */}
+        <div className="text-[11px] text-gray-500 tracking-wide">
+          <span>© 2026 Gone Surfing Perú S.A.C. • RUC: 20000000000</span>
         </div>
       </div>
     </footer>
