@@ -1,4 +1,4 @@
-import { DynamoDBClient } from "@aws-sdk/client-dynamodb"
+import { DynamoDBClient, UpdateItemCommand } from "@aws-sdk/client-dynamodb"
 import {
   DynamoDBDocumentClient,
   GetCommand,
@@ -51,7 +51,7 @@ const ADMIN_PASSWORD_DEFAULT = process.env.ADMIN_PASSWORD || "admin666"
 /**
  * Envía correo transaccional de confirmación / recibo de orden vía Amazon SES
  */
-async function sendOrderReceiptEmail(order) {
+export async function sendOrderReceiptEmail(order) {
   const senderEmail = process.env.SENDER_EMAIL || SENDER_EMAIL
   if (!order || !order.email || !senderEmail) return
 
@@ -99,7 +99,7 @@ Gone Surfing Perú`
   `
 
   const command = new SendEmailCommand({
-    Source: process.env.SENDER_EMAIL,
+    Source: process.env.SENDER_EMAIL || senderEmail,
     Destination: {
       ToAddresses: [order.email],
     },
@@ -126,11 +126,13 @@ Gone Surfing Perú`
     console.log(
       `[SES] Recibo enviado para orden ${order.id} a ${order.email}. MessageId: ${sesRes.MessageId}`,
     )
+    return sesRes
   } catch (sesErr) {
     console.error(
       `[SES] Error enviando correo de confirmación para orden ${order.id}:`,
       sesErr,
     )
+    throw sesErr
   }
 }
 
@@ -367,6 +369,344 @@ async function autoSeedDatabase() {
     console.warn("Auto-seed notice (may already exist):", err.message)
   }
 }
+
+// -----------------------------------------------------------------------------
+// Orders and Complaints Controller Handlers
+// -----------------------------------------------------------------------------
+
+/**
+ * 1. Prevención de Concurrencia de Stock (Race Conditions)
+ *    DynamoDB UpdateItemCommand con ConditionExpression: "stock >= :requestedQuantity"
+ * 2. Envío de Correo Transaccional (Amazon SES) con process.env.SENDER_EMAIL
+ */
+export async function createOrder(eventOrData) {
+  const orderInput =
+    eventOrData && eventOrData.body ? parseBody(eventOrData) : eventOrData || {}
+  const items = orderInput.items
+  if (!Array.isArray(items) || items.length === 0) {
+    return response(400, {
+      message: "El carrito está vacío o el formato es incorrecto.",
+    })
+  }
+
+  // Step 1: Obtener y verificar productos del catálogo
+  const catalogProducts = []
+  for (const item of items) {
+    const productId = item.productId || item.id
+    const prodRes = await docClient.send(
+      new GetCommand({
+        TableName: PRODUCTS_TABLE,
+        Key: { id: productId },
+      }),
+    )
+    if (!prodRes.Item) {
+      return response(400, {
+        message: `Producto con ID ${productId} no encontrado.`,
+      })
+    }
+    catalogProducts.push(prodRes.Item)
+  }
+
+  // Step 2: Descuento atómico de stock con UpdateItemCommand y ConditionExpression: "stock >= :requestedQuantity"
+  const deductedItems = []
+  try {
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i]
+      const productId = item.productId || item.id
+      const requestedQuantity = Number(
+        item.quantity ?? item.requestedQuantity ?? 1,
+      )
+      const catalogProduct = catalogProducts[i]
+
+      const sizeKey = item.size ? String(item.size).trim() : null
+      let updateExpr = "SET stock = stock - :requestedQuantity"
+      const exprValues = {
+        ":requestedQuantity": { N: String(requestedQuantity) },
+      }
+      const exprNames = {}
+
+      if (
+        catalogProduct &&
+        catalogProduct.stocks &&
+        sizeKey &&
+        catalogProduct.stocks[sizeKey] !== undefined
+      ) {
+        updateExpr += ", stocks.#sz = stocks.#sz - :requestedQuantity"
+        exprNames["#sz"] = sizeKey
+      }
+
+      const updateStockCommand = new UpdateItemCommand({
+        TableName: PRODUCTS_TABLE,
+        Key: { id: { S: productId } },
+        UpdateExpression: updateExpr,
+        ConditionExpression: "stock >= :requestedQuantity",
+        ExpressionAttributeValues: exprValues,
+        ...(Object.keys(exprNames).length > 0
+          ? { ExpressionAttributeNames: exprNames }
+          : {}),
+      })
+
+      await ddbClient.send(updateStockCommand)
+      deductedItems.push({
+        productId,
+        requestedQuantity,
+        sizeKey,
+        hasSize: Boolean(
+          catalogProduct?.stocks &&
+            sizeKey &&
+            catalogProduct.stocks[sizeKey] !== undefined,
+        ),
+      })
+    }
+  } catch (err) {
+    console.error("[CreateOrder] Error en condición o descuento de stock:", err)
+
+    // Revertir items previamente descontados en caso de fallo parcial
+    for (const deducted of deductedItems) {
+      try {
+        let rollbackExpr = "SET stock = stock + :requestedQuantity"
+        const rbValues = {
+          ":requestedQuantity": { N: String(deducted.requestedQuantity) },
+        }
+        const rbNames = {}
+        if (deducted.hasSize && deducted.sizeKey) {
+          rollbackExpr += ", stocks.#sz = stocks.#sz + :requestedQuantity"
+          rbNames["#sz"] = deducted.sizeKey
+        }
+        await ddbClient.send(
+          new UpdateItemCommand({
+            TableName: PRODUCTS_TABLE,
+            Key: { id: { S: deducted.productId } },
+            UpdateExpression: rollbackExpr,
+            ExpressionAttributeValues: rbValues,
+            ...(Object.keys(rbNames).length > 0
+              ? { ExpressionAttributeNames: rbNames }
+              : {}),
+          }),
+        )
+      } catch (rollbackErr) {
+        console.error("[CreateOrder] Error al revertir stock:", rollbackErr)
+      }
+    }
+
+    // Manejo de ConditionalCheckFailedException devolviendo HTTP 400 avisando que no hay stock suficiente
+    if (
+      err.name === "ConditionalCheckFailedException" ||
+      err.code === "ConditionalCheckFailedException" ||
+      err.message?.includes("ConditionalCheckFailed")
+    ) {
+      return response(400, {
+        message:
+          "Stock insuficiente para procesar el pedido. No hay stock suficiente.",
+        error: "ConditionalCheckFailedException",
+      })
+    }
+
+    return response(400, {
+      message: "No hay stock suficiente para procesar el pedido.",
+      error: err.name || "StockError",
+    })
+  }
+
+  // Step 3: Recálculo contable estricto SUNAT Perú en centavos
+  let itemsTotalCents = 0
+  const detailParts = []
+  items.forEach((item, index) => {
+    const product = catalogProducts[index]
+    const unitPriceCents = Math.round(product.price * 100)
+    const quantity = Number(item.quantity ?? item.requestedQuantity ?? 1)
+    itemsTotalCents += unitPriceCents * quantity
+    detailParts.push(
+      `${quantity}x ${product.name}${item.size ? ` (${item.size})` : ""}`,
+    )
+  })
+
+  // Shipping rules: Express = S/. 30.00 | Standard = S/. 15.00 (Gratis si >= S/. 300.00)
+  const shippingMethod =
+    orderInput.shippingMethod === "express" ? "express" : "standard"
+  let shippingCents = 0
+  if (shippingMethod === "express") {
+    shippingCents = 3000
+  } else {
+    shippingCents = itemsTotalCents >= 30000 ? 0 : 1500
+  }
+
+  // SUNAT 18% IGV incluido en precios
+  const subtotalCents = Math.round(itemsTotalCents / 1.18) // Base Imponible
+  const igvCents = itemsTotalCents - subtotalCents // IGV
+  const totalCents = itemsTotalCents + shippingCents // Monto Total
+
+  const rawPaymentMethod = orderInput.paymentMethod || "tarjeta"
+  const paymentMethod = ["tarjeta", "yape_plin", "efectivo"].includes(
+    rawPaymentMethod,
+  )
+    ? rawPaymentMethod
+    : "tarjeta"
+  const initialStatus =
+    paymentMethod === "yape_plin" ? "Pendiente de Pago" : "Procesando"
+
+  const orderId = `ORD-${Math.floor(1000 + Math.random() * 9000)}`
+  const cleanEmail = (orderInput.email || "").trim().toLowerCase()
+
+  let isGuest = true
+  if (cleanEmail) {
+    try {
+      const userRec = await docClient.send(
+        new GetCommand({
+          TableName: USERS_TABLE,
+          Key: { email: cleanEmail },
+        }),
+      )
+      if (userRec.Item) {
+        isGuest = false
+      }
+    } catch {}
+  }
+  if (orderInput.isGuest !== undefined) {
+    isGuest = Boolean(orderInput.isGuest)
+  }
+
+  const transaction = {
+    id: orderId,
+    customer: (orderInput.customer || "Cliente Invitado").trim(),
+    documentType: orderInput.documentType || "DNI",
+    document: (orderInput.document || "").trim(),
+    email: cleanEmail,
+    phone: (orderInput.phone || "").trim(),
+    districtCode: orderInput.districtCode || "LIM",
+    districtName: orderInput.districtName || "Lima",
+    districtX: orderInput.districtX || 260,
+    districtY: orderInput.districtY || 55,
+    address: (orderInput.address || "").trim(),
+    reference: (orderInput.reference || "").trim(),
+    isGuest,
+    shippingMethod,
+    paymentMethod,
+    shipping: Number((shippingCents / 100).toFixed(2)),
+    itemsTotal: Number((itemsTotalCents / 100).toFixed(2)),
+    subtotal: Number((subtotalCents / 100).toFixed(2)),
+    igv: Number((igvCents / 100).toFixed(2)),
+    total: Number((totalCents / 100).toFixed(2)),
+    items,
+    detail: detailParts.join(", "),
+    date: new Date().toISOString(),
+    status: orderInput.status || initialStatus,
+  }
+
+  await docClient.send(
+    new PutCommand({ TableName: ORDERS_TABLE, Item: transaction }),
+  )
+
+  // Step 4: Envío de correo transaccional (Amazon SES) con remitente process.env.SENDER_EMAIL
+  // Envuélvelo en un bloque try/catch para que cualquier fallo en SES se capture en un console.error
+  // y NO interrumpa ni aborte la creación de la orden (debe responder HTTP 200/201 al cliente garantizando que la orden se guardó)
+  if (cleanEmail && process.env.SENDER_EMAIL) {
+    try {
+      await sendOrderReceiptEmail(transaction)
+    } catch (sesError) {
+      console.error(
+        "[SES] Error capturado al enviar recibo de compra para orden " +
+          transaction.id +
+          ":",
+        sesError,
+      )
+    }
+  }
+
+  return response(201, transaction)
+}
+
+export const CreateOrder = createOrder
+
+/**
+ * 3. Generación de Código en Libro de Reclamaciones
+ *    Código correlativo/amigable REC- seguido de timestamp o UUID
+ *    Guardado en ComplaintsTable y devuelto en la respuesta HTTP
+ */
+export async function createComplaint(eventOrData) {
+  const data =
+    eventOrData && eventOrData.body ? parseBody(eventOrData) : eventOrData || {}
+
+  // Validación de campos obligatorios según D.S. 011-2011-PCM
+  const consumerName = (data.consumerName || "").trim()
+  const documentType = (data.documentType || "DNI").trim()
+  const documentNumber = (data.documentNumber || "").trim()
+  const address = (data.address || "").trim()
+  const phone = (data.phone || "").trim()
+  const email = (data.email || "").trim().toLowerCase()
+  const goodType = (data.goodType || "producto").trim()
+  const goodDescription = (data.goodDescription || "").trim()
+  const claimType = (data.claimType || "reclamo").trim() // "reclamo" o "queja"
+  const detail = (data.detail || "").trim()
+  const consumerRequest = (data.consumerRequest || "").trim()
+
+  if (
+    !consumerName ||
+    !documentNumber ||
+    !address ||
+    !phone ||
+    !email ||
+    !goodDescription ||
+    !detail ||
+    !consumerRequest
+  ) {
+    return response(400, {
+      message:
+        "Todos los campos obligatorios del Libro de Reclamaciones deben ser completados.",
+    })
+  }
+
+  // Generar código correlativo o amigable: REC- seguido de timestamp o UUID corto
+  const complaintCode = `REC-${Date.now()}`
+  const complaintId = complaintCode
+  const year = new Date().getFullYear()
+
+  const complaintRecord = {
+    id: complaintId,
+    complaintCode,
+    year,
+    consumerName,
+    documentType,
+    documentNumber,
+    address,
+    phone,
+    email,
+    isMinor: Boolean(data.isMinor),
+    parentName: (data.parentName || "").trim(),
+    parentDocument: (data.parentDocument || "").trim(),
+    goodType, // "producto" o "servicio"
+    claimedAmount: Number(data.claimedAmount) || 0,
+    goodDescription,
+    claimType, // "reclamo" o "queja"
+    detail,
+    consumerRequest,
+    status: "Pendiente",
+    maxResponseDays: 15, // Conforme a Ley N° 31435
+    createdAt: new Date().toISOString(),
+  }
+
+  // Guardar reclamo en ComplaintsTable asociando este código
+  const ComplaintsTable = COMPLAINTS_TABLE
+  await docClient.send(
+    new PutCommand({
+      TableName: ComplaintsTable,
+      Item: complaintRecord,
+    }),
+  )
+
+  // Devolver este código explícitamente en la respuesta HTTP ({ ok: true, code: ... } o { complaintCode: ... })
+  return response(201, {
+    ok: true,
+    success: true,
+    code: complaintCode,
+    complaintCode,
+    complaint: complaintRecord,
+    message:
+      "Hoja de reclamación registrada exitosamente. Se responderá dentro del plazo legal de 15 días hábiles.",
+  })
+}
+
+export const CreateComplaint = createComplaint
 
 // -----------------------------------------------------------------------------
 // Main Lambda Router
@@ -946,6 +1286,13 @@ export async function handler(event) {
           }
 
       const finalImage = (data.imageUrl || data.image || "").trim()
+      const totalStock =
+        typeof data.stock === "number"
+          ? data.stock
+          : Object.values(stocks).reduce(
+              (acc, val) => acc + (parseInt(val, 10) || 0),
+              0,
+            )
       const newProduct = {
         id: data.id || `prod-${Date.now()}`,
         name: data.name.trim(),
@@ -955,6 +1302,7 @@ export async function handler(event) {
         image: finalImage || "/assets/hero-surf.jpg",
         imageUrl: finalImage || "/assets/hero-surf.jpg",
         stocks,
+        stock: totalStock,
         createdAt: new Date().toISOString(),
       }
 
@@ -1004,6 +1352,17 @@ export async function handler(event) {
         return response(404, { message: "Producto no encontrado." })
 
       const finalUpdateImage = (data.imageUrl || data.image || "").trim()
+      const finalStocks = data.stocks ? data.stocks : existing.Item.stocks
+      const finalStockCount =
+        typeof data.stock === "number"
+          ? data.stock
+          : finalStocks
+            ? Object.values(finalStocks).reduce(
+                (acc, val) => acc + (parseInt(val, 10) || 0),
+                0,
+              )
+            : (existing.Item.stock ?? 0)
+
       const updated = {
         ...existing.Item,
         ...(data.name ? { name: data.name.trim() } : {}),
@@ -1016,6 +1375,7 @@ export async function handler(event) {
           ? { image: finalUpdateImage, imageUrl: finalUpdateImage }
           : {}),
         ...(data.stocks ? { stocks: data.stocks } : {}),
+        stock: finalStockCount,
         updatedAt: new Date().toISOString(),
       }
 
@@ -1151,153 +1511,7 @@ export async function handler(event) {
     }
 
     if (httpMethod === "POST" && path === "/orders") {
-      const orderInput = parseBody(event)
-      const items = orderInput.items
-      if (!Array.isArray(items) || items.length === 0) {
-        return response(400, {
-          message: "El carrito está vacío o el formato es incorrecto.",
-        })
-      }
-
-      // Step 1: Fetch and verify official catalog products
-      const catalogProducts = []
-      for (const item of items) {
-        const prodRes = await docClient.send(
-          new GetCommand({
-            TableName: PRODUCTS_TABLE,
-            Key: { id: item.productId },
-          }),
-        )
-        if (!prodRes.Item) {
-          return response(400, {
-            message: `Producto con ID ${item.productId} no encontrado.`,
-          })
-        }
-        catalogProducts.push(prodRes.Item)
-      }
-
-      // Step 2: Atomic Condition Check and Stock Decrement using DynamoDB TransactWriteItems
-      const transactItems = items.map((item) => {
-        return {
-          Update: {
-            TableName: PRODUCTS_TABLE,
-            Key: { id: item.productId },
-            UpdateExpression: "SET stocks.#sz = stocks.#sz - :qty",
-            ConditionExpression: "attribute_exists(id) AND stocks.#sz >= :qty",
-            ExpressionAttributeNames: { "#sz": item.size },
-            ExpressionAttributeValues: { ":qty": item.quantity },
-          },
-        }
-      })
-
-      try {
-        await docClient.send(
-          new TransactWriteCommand({ TransactItems: transactItems }),
-        )
-      } catch (err) {
-        console.error("DynamoDB atomic transaction failed:", err)
-        return response(400, {
-          message:
-            "Stock insuficiente para una o más prendas de su pedido. Por favor revise el inventario disponible.",
-        })
-      }
-
-      // Step 3: Strict SUNAT Perú accounting recalculation in integer cents
-      let itemsTotalCents = 0
-      const detailParts = []
-      items.forEach((item, index) => {
-        const product = catalogProducts[index]
-        const unitPriceCents = Math.round(product.price * 100)
-        itemsTotalCents += unitPriceCents * item.quantity
-        detailParts.push(`${item.quantity}x ${product.name} (${item.size})`)
-      })
-
-      // Shipping rules: Express = S/. 30.00 | Standard = S/. 15.00 (Gratis si >= S/. 300.00)
-      const shippingMethod =
-        orderInput.shippingMethod === "express" ? "express" : "standard"
-      let shippingCents = 0
-      if (shippingMethod === "express") {
-        shippingCents = 3000
-      } else {
-        shippingCents = itemsTotalCents >= 30000 ? 0 : 1500
-      }
-
-      // SUNAT 18% IGV included in retail prices
-      const subtotalCents = Math.round(itemsTotalCents / 1.18) // Base Imponible
-      const igvCents = itemsTotalCents - subtotalCents // IGV
-      const totalCents = itemsTotalCents + shippingCents // Monto Total
-
-      const rawPaymentMethod = orderInput.paymentMethod || "tarjeta"
-      const paymentMethod = ["tarjeta", "yape_plin", "efectivo"].includes(
-        rawPaymentMethod,
-      )
-        ? rawPaymentMethod
-        : "tarjeta"
-      const initialStatus =
-        paymentMethod === "yape_plin" ? "Pendiente de Pago" : "Procesando"
-
-      const orderId = `ORD-${Math.floor(1000 + Math.random() * 9000)}`
-      const cleanEmail = (orderInput.email || "").trim().toLowerCase()
-
-      let isGuest = true
-      if (cleanEmail) {
-        try {
-          const userRec = await docClient.send(
-            new GetCommand({
-              TableName: USERS_TABLE,
-              Key: { email: cleanEmail },
-            }),
-          )
-          if (userRec.Item) {
-            isGuest = false
-          }
-        } catch {}
-      }
-      if (orderInput.isGuest !== undefined) {
-        isGuest = Boolean(orderInput.isGuest)
-      }
-
-      const transaction = {
-        id: orderId,
-        customer: (orderInput.customer || "Cliente Invitado").trim(),
-        documentType: orderInput.documentType || "DNI",
-        document: (orderInput.document || "").trim(),
-        email: cleanEmail,
-        phone: (orderInput.phone || "").trim(),
-        districtCode: orderInput.districtCode || "LIM",
-        districtName: orderInput.districtName || "Lima",
-        districtX: orderInput.districtX || 260,
-        districtY: orderInput.districtY || 55,
-        address: (orderInput.address || "").trim(),
-        reference: (orderInput.reference || "").trim(),
-        isGuest,
-        shippingMethod,
-        paymentMethod,
-        shipping: Number((shippingCents / 100).toFixed(2)),
-        itemsTotal: Number((itemsTotalCents / 100).toFixed(2)),
-        subtotal: Number((subtotalCents / 100).toFixed(2)),
-        igv: Number((igvCents / 100).toFixed(2)),
-        total: Number((totalCents / 100).toFixed(2)),
-        items,
-        detail: detailParts.join(", "),
-        date: new Date().toISOString(),
-        status: orderInput.status || initialStatus,
-      }
-
-      await docClient.send(
-        new PutCommand({ TableName: ORDERS_TABLE, Item: transaction }),
-      )
-
-      // Envío de correo transaccional de confirmación / recibo por Amazon SES
-      if (cleanEmail && process.env.SENDER_EMAIL) {
-        try {
-          await sendOrderReceiptEmail(transaction)
-        } catch (emailErr) {
-          console.warn("[SES] Error al disparar confirmación:", emailErr)
-        }
-      }
-
-      return response(201, transaction)
+      return await createOrder(event)
     }
 
     if (
@@ -1454,80 +1668,7 @@ export async function handler(event) {
     // 6. COMPLAINTS BOOK (LIBRO DE RECLAMACIONES INDECOPI / LEY 29733)
     // -------------------------------------------------------------------------
     if (httpMethod === "POST" && path === "/complaints") {
-      const data = parseBody(event)
-
-      // Validation according to D.S. 011-2011-PCM
-      const consumerName = (data.consumerName || "").trim()
-      const documentType = (data.documentType || "DNI").trim()
-      const documentNumber = (data.documentNumber || "").trim()
-      const address = (data.address || "").trim()
-      const phone = (data.phone || "").trim()
-      const email = (data.email || "").trim().toLowerCase()
-      const goodType = (data.goodType || "producto").trim()
-      const goodDescription = (data.goodDescription || "").trim()
-      const claimType = (data.claimType || "reclamo").trim() // "reclamo" o "queja"
-      const detail = (data.detail || "").trim()
-      const consumerRequest = (data.consumerRequest || "").trim()
-
-      if (
-        !consumerName ||
-        !documentNumber ||
-        !address ||
-        !phone ||
-        !email ||
-        !goodDescription ||
-        !detail ||
-        !consumerRequest
-      ) {
-        return response(400, {
-          message:
-            "Todos los campos obligatorios del Libro de Reclamaciones deben ser completados.",
-        })
-      }
-
-      // Generate legal complaint code: REC-{YEAR}-{NUMBER}
-      const year = new Date().getFullYear()
-      const randomSuffix = Math.floor(1000 + Math.random() * 9000)
-      const complaintId = `REC-${year}-${randomSuffix}`
-
-      const complaintRecord = {
-        id: complaintId,
-        year,
-        consumerName,
-        documentType,
-        documentNumber,
-        address,
-        phone,
-        email,
-        isMinor: Boolean(data.isMinor),
-        parentName: (data.parentName || "").trim(),
-        parentDocument: (data.parentDocument || "").trim(),
-        goodType, // "producto" o "servicio"
-        claimedAmount: Number(data.claimedAmount) || 0,
-        goodDescription,
-        claimType, // "reclamo" o "queja"
-        detail,
-        consumerRequest,
-        status: "Pendiente",
-        maxResponseDays: 15, // Conforme a Ley N° 31435
-        createdAt: new Date().toISOString(),
-      }
-
-      await docClient.send(
-        new PutCommand({
-          TableName: COMPLAINTS_TABLE,
-          Item: complaintRecord,
-        }),
-      )
-
-      return response(201, {
-        ok: true,
-        success: true,
-        complaintCode: complaintId,
-        complaint: complaintRecord,
-        message:
-          "Hoja de reclamación registrada exitosamente. Se responderá dentro del plazo legal de 15 días hábiles.",
-      })
+      return await createComplaint(event)
     }
 
     if (httpMethod === "GET" && path === "/complaints") {
