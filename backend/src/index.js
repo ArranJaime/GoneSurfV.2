@@ -52,8 +52,13 @@ const ADMIN_PASSWORD_DEFAULT = process.env.ADMIN_PASSWORD || "admin666"
  * Envía correo transaccional de confirmación / recibo de orden vía Amazon SES
  */
 export async function sendOrderReceiptEmail(order) {
-  const senderEmail = process.env.SENDER_EMAIL || SENDER_EMAIL
-  if (!order || !order.email || !senderEmail) return
+  const senderEmail = process.env.SENDER_EMAIL
+  if (!order || !order.email || !senderEmail) {
+    console.warn(
+      "[SES] No se envió recibo de compra: falta email de cliente o process.env.SENDER_EMAIL.",
+    )
+    return
+  }
 
   const subject = `Confirmación de Pedido #${order.id} - Gone Surfing`
   const bodyText = `¡Hola, ${order.customer || "cliente"}!
@@ -99,7 +104,7 @@ Gone Surfing Perú`
   `
 
   const command = new SendEmailCommand({
-    Source: process.env.SENDER_EMAIL || senderEmail,
+    Source: process.env.SENDER_EMAIL,
     Destination: {
       ToAddresses: [order.email],
     },

@@ -297,7 +297,7 @@ Resources:
           ADMIN_USER: admin
           ADMIN_PASSWORD: admin666
           JWT_SECRET: gone_surfing_super_secret_jwt_key_2026_sunat
-          SENDER_EMAIL: Gonesurfin@gmail.com
+          SENDER_EMAIL: !Ref SenderEmail
 
   # ============================================================================
   # 5. API GATEWAY REST API (THROTTLING: 30 REQ/S, BURST 60)
