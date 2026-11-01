@@ -42,7 +42,7 @@ const COMPLAINTS_TABLE =
   process.env.COMPLAINTS_TABLE || "GoneSurfing-Complaints-prod"
 const MEDIA_BUCKET = process.env.MEDIA_BUCKET || ""
 const CLOUDFRONT_DOMAIN = process.env.CLOUDFRONT_DOMAIN || ""
-const SENDER_EMAIL = process.env.SENDER_EMAIL || "Gonesurfin@gmail.com"
+const SENDER_EMAIL = process.env.SENDER_EMAIL || "202311385@urp.edu.pe"
 const JWT_SECRET =
   process.env.JWT_SECRET || "gone_surfing_super_secret_jwt_key_2026_sunat"
 const ADMIN_USER_DEFAULT = process.env.ADMIN_USER || "admin"
@@ -52,7 +52,7 @@ const ADMIN_PASSWORD_DEFAULT = process.env.ADMIN_PASSWORD || "admin666"
  * Envía correo transaccional de confirmación / recibo de orden vía Amazon SES
  */
 export async function sendOrderReceiptEmail(order) {
-  const senderEmail = process.env.SENDER_EMAIL
+  const senderEmail = process.env.SENDER_EMAIL || "202311385@urp.edu.pe"
   if (!order || !order.email || !senderEmail) {
     console.warn(
       "[SES] No se envió recibo de compra: falta email de cliente o process.env.SENDER_EMAIL.",
@@ -104,7 +104,7 @@ Gone Surfing Perú`
   `
 
   const command = new SendEmailCommand({
-    Source: process.env.SENDER_EMAIL,
+    Source: process.env.SENDER_EMAIL || "202311385@urp.edu.pe",
     Destination: {
       ToAddresses: [order.email],
     },

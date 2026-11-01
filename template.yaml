@@ -21,7 +21,7 @@ Parameters:
     Description: S3 Key of backend zip package
   SenderEmail:
     Type: String
-    Default: Gonesurfin@gmail.com
+    Default: 202311385@urp.edu.pe
     Description: Verified sender email for Amazon SES transactional receipts
 
 Resources:
