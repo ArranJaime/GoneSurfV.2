@@ -126,19 +126,11 @@ Gone Surfing Perú`
     },
   })
 
-  try {
-    const sesRes = await sesClient.send(command)
-    console.log(
-      `[SES] Recibo enviado para orden ${order.id} a ${order.email}. MessageId: ${sesRes.MessageId}`,
-    )
-    return sesRes
-  } catch (sesErr) {
-    console.error(
-      `[SES] Error enviando correo de confirmación para orden ${order.id}:`,
-      sesErr,
-    )
-    throw sesErr
-  }
+  const sesRes = await sesClient.send(command)
+  console.log(
+    `[SES] Recibo enviado para orden ${order.id} a ${order.email}. MessageId: ${sesRes.MessageId}`,
+  )
+  return sesRes
 }
 
 // CORS headers for all responses
@@ -595,20 +587,13 @@ export async function createOrder(eventOrData) {
     new PutCommand({ TableName: ORDERS_TABLE, Item: transaction }),
   )
 
-  // Step 4: Envío de correo transaccional (Amazon SES) con remitente process.env.SENDER_EMAIL
-  // Envuélvelo en un bloque try/catch para que cualquier fallo en SES se capture en un console.error
-  // y NO interrumpa ni aborte la creación de la orden (debe responder HTTP 200/201 al cliente garantizando que la orden se guardó)
-  if (cleanEmail && process.env.SENDER_EMAIL) {
-    try {
+  // Step 4: Envío de correo transaccional (Amazon SES) con await explícito y try/catch dedicado
+  try {
+    if (transaction.email) {
       await sendOrderReceiptEmail(transaction)
-    } catch (sesError) {
-      console.error(
-        "[SES] Error capturado al enviar recibo de compra para orden " +
-          transaction.id +
-          ":",
-        sesError,
-      )
     }
+  } catch (error) {
+    console.error("SES_ERROR_DETAILS:", error)
   }
 
   return response(201, transaction)

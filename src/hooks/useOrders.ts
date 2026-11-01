@@ -40,8 +40,13 @@ export function useOrders(initialFilter: string = "Todos los Estados") {
           (typeof localStorage !== "undefined"
             ? localStorage.getItem("token") ||
               localStorage.getItem("admin_token")
-            : null) ||
-          "dev-admin-token"
+            : null)
+
+        if (!token) {
+          setIsLoading(false)
+          return
+        }
+
         const res = await fetch(`${apiUrl}/orders`, {
           headers: {
             Authorization: `Bearer ${token}`,

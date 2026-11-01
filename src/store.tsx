@@ -322,25 +322,30 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         console.warn("[Store] Error al sincronizar colecciones de API:", err)
       })
 
-    api.orders
-      .getAll()
-      .then((liveOrders) => {
-        if (Array.isArray(liveOrders)) {
-          const RESIDUAL_TEST_ORDER_IDS = new Set([
-            "ORD-3314",
-            "ORD-6933",
-            "ORD-6347",
-          ])
-          const cleanOrders = liveOrders.filter(
-            (o) => !RESIDUAL_TEST_ORDER_IDS.has(o?.id),
-          )
-          setTransactions(cleanOrders)
-          safeWriteStorage("gone_transactions", cleanOrders)
-        }
-      })
-      .catch((err) => {
-        console.warn("[Store] Error al sincronizar pedidos de API:", err)
-      })
+    // Sincronizar órdenes vivas solo si hay sesión de administrador activa
+    const adminToken =
+      api.auth.getAdminToken?.() || api.auth.getAdminSession()?.token
+    if (adminToken) {
+      api.orders
+        .getAll()
+        .then((liveOrders) => {
+          if (Array.isArray(liveOrders)) {
+            const RESIDUAL_TEST_ORDER_IDS = new Set([
+              "ORD-3314",
+              "ORD-6933",
+              "ORD-6347",
+            ])
+            const cleanOrders = liveOrders.filter(
+              (o) => !RESIDUAL_TEST_ORDER_IDS.has(o?.id),
+            )
+            setTransactions(cleanOrders)
+            safeWriteStorage("gone_transactions", cleanOrders)
+          }
+        })
+        .catch((err) => {
+          console.warn("[Store] Error al sincronizar pedidos de API:", err)
+        })
+    }
   }, [])
 
   // Persist local changes and broadcast
@@ -557,9 +562,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setCart([])
       safeWriteStorage("gone_cart", [])
 
-      // Broadcast across tabs
+      // Broadcast across tabs (solo catálogo y carrito para no disparar GET /orders público)
       broadcastSyncEvent("products")
-      broadcastSyncEvent("orders")
       broadcastSyncEvent("cart")
 
       return { id }

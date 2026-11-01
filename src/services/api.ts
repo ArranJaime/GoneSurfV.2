@@ -1117,7 +1117,9 @@ export const api = {
         "ORD-6933",
         "ORD-6347",
       ])
-      if (STORAGE_MODE === "aws" && API_GATEWAY_URL) {
+      // El cliente público no debe listar órdenes para evitar error 401
+      const adminToken = getAdminToken()
+      if (STORAGE_MODE === "aws" && API_GATEWAY_URL && adminToken) {
         try {
           const res = await fetchWithAuth("/orders")
           if (res.ok) {
@@ -1209,7 +1211,6 @@ export const api = {
             )
             writeStorage("gone_transactions", [saved, ...currentOrders])
             writeStorage("gone_cart", [])
-            broadcastSyncEvent("orders")
             broadcastSyncEvent("products")
             broadcastSyncEvent("cart")
             return saved
@@ -1263,7 +1264,6 @@ export const api = {
       writeStorage("gone_cart", [])
 
       broadcastSyncEvent("products")
-      broadcastSyncEvent("orders")
       broadcastSyncEvent("cart")
 
       return transaction
