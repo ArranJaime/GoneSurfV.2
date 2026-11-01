@@ -46,7 +46,7 @@ export type {
   CartItem,
   CustomerUser,
   OrderDetailsInput,
-  OrderTransaction,
+  OrderTransaction,  
   Order,
   ComplaintInput,
   ComplaintRecord,

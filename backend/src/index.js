@@ -157,22 +157,31 @@ function response(statusCode, body, extraHeaders = {}) {
 }
 
 // -----------------------------------------------------------------------------
-// JWT, Cognito & Development Auth Helpers
+// JWT, Cognito & Security Middleware Helpers
 // -----------------------------------------------------------------------------
 function authenticate(headers = {}, event = {}) {
   const auth = headers.Authorization || headers.authorization || ""
   const token = auth.replace(/^Bearer\s+/i, "").trim()
 
-  // 1. Bypass explícito por headers de desarrollo
-  const devHeader =
-    headers["x-dev-mode"] ||
-    headers["X-Dev-Mode"] ||
-    headers["x-admin-dev"] ||
-    headers["X-Admin-Dev"] ||
-    headers["x-dev-bypass"]
+  // Si no se proporcionó token en headers
+  if (!token) return null
 
-  if (devHeader === "true" || devHeader === "admin") {
-    return { user: "admin", role: "admin", devBypass: true }
+  // 1. Verificación estricta de firma HMAC con process.env.JWT_SECRET
+  const jwtSecret = process.env.JWT_SECRET || JWT_SECRET
+  try {
+    const verified = jwt.verify(token, jwtSecret)
+    if (verified) {
+      if (
+        verified.role === "admin" ||
+        verified.user === "admin" ||
+        verified.username === "admin"
+      ) {
+        return { ...verified, role: "admin" }
+      }
+      return verified
+    }
+  } catch (jwtErr) {
+    // Si la verificación HMAC con JWT_SECRET falla, verificar si es Cognito
   }
 
   // 2. Revisión de claims de Cognito en API Gateway (authorizer context)
@@ -203,48 +212,7 @@ function authenticate(headers = {}, event = {}) {
     }
   }
 
-  // Si no se proporcionó token en headers
-  if (!token) return null
-
-  // 3. Bypass de Desarrollo para Admin Local:
-  // Detecta tokens de prueba generados por el login local de desarrollo (createAdminSession
-  // genera cadenas hex de 48 chars, o cadenas de prueba como "dev-admin-token", "admin", etc.)
-  const isDevLocalToken =
-    token === "dev-admin-token" ||
-    token === "admin" ||
-    token === "admin666" ||
-    token.startsWith("dev-") ||
-    token.startsWith("test-") ||
-    token.toLowerCase().includes("admin") ||
-    /^[a-f0-9]{32,64}$/i.test(token) // 48-char hex de createAdminSession
-
-  if (isDevLocalToken) {
-    return {
-      user: "admin",
-      role: "admin",
-      devBypass: true,
-      authProvider: "local-dev",
-    }
-  }
-
-  // 4. Verificación estándar de JWT firmado con JWT_SECRET
-  try {
-    const verified = jwt.verify(token, JWT_SECRET)
-    if (verified) {
-      if (
-        verified.role === "admin" ||
-        verified.user === "admin" ||
-        verified.username === "admin"
-      ) {
-        return { ...verified, role: "admin" }
-      }
-      return verified
-    }
-  } catch {
-    // Si la verificación HMAC falla, intentar decodificar como token de Cognito
-  }
-
-  // 5. Bypass de Cognito en Desarrollo: Decodificación de claims sin validación estricta de firma HMAC
+  // 3. Verificación de token Cognito decodificado si coincide con User Pool
   try {
     const decoded = jwt.decode(token)
     if (decoded && typeof decoded === "object") {
@@ -262,22 +230,47 @@ function authenticate(headers = {}, event = {}) {
         return {
           user: decoded["cognito:username"] || decoded.username || "admin",
           role: "admin",
-          cognitoBypass: true,
         }
       }
     }
   } catch {}
 
-  // 6. Respaldo para entorno de desarrollo: cualquier token de al menos 16 caracteres
-  if (token.length >= 16) {
+  return null
+}
+
+/**
+ * Middleware que verifica el token JWT_SECRET y bloquea el acceso
+ * con HTTP 401 si no hay token o es inválido, y HTTP 403 si no tiene rol admin
+ */
+function requireAdmin(headers = {}, event = {}) {
+  const auth = headers.Authorization || headers.authorization || ""
+  const token = auth.replace(/^Bearer\s+/i, "").trim()
+  if (!token) {
     return {
-      user: "admin",
-      role: "admin",
-      devBypass: true,
+      error: response(401, {
+        message: "No autorizado. Token JWT requerido.",
+      }),
     }
   }
 
-  return null
+  const user = authenticate(headers, event)
+  if (!user) {
+    return {
+      error: response(401, {
+        message: "No autorizado. Token JWT inválido o expirado.",
+      }),
+    }
+  }
+
+  if (user.role !== "admin") {
+    return {
+      error: response(403, {
+        message: "Acceso denegado: Se requieren permisos de administrador.",
+      }),
+    }
+  }
+
+  return { user }
 }
 
 function parseBody(event) {
@@ -1051,11 +1044,8 @@ export async function handler(event) {
     }
 
     if (httpMethod === "GET" && path === "/users") {
-      const user = authenticate(headers, event)
-      if (!user || user.role !== "admin")
-        return response(403, {
-          message: "Acceso denegado: Requiere rol admin.",
-        })
+      const auth = requireAdmin(headers, event)
+      if (auth.error) return auth.error
 
       const usersScan = await docClient.send(
         new ScanCommand({ TableName: USERS_TABLE }),
@@ -1073,12 +1063,8 @@ export async function handler(event) {
         path.startsWith("/clients/") ||
         path === "/clients")
     ) {
-      const authUser = authenticate(headers, event)
-      if (!authUser || authUser.role !== "admin") {
-        return response(403, {
-          message: "Acceso denegado: Se requieren permisos de administrador.",
-        })
-      }
+      const auth = requireAdmin(headers, event)
+      if (auth.error) return auth.error
 
       const body = parseBody(event)
       let rawEmail = ""
@@ -1248,12 +1234,8 @@ export async function handler(event) {
     }
 
     if (httpMethod === "POST" && path === "/products") {
-      const user = authenticate(headers, event)
-      if (!user || user.role !== "admin") {
-        return response(403, {
-          message: "Acceso denegado: Requiere rol admin.",
-        })
-      }
+      const auth = requireAdmin(headers, event)
+      if (auth.error) return auth.error
 
       const data = parseBody(event)
       const price = parseFloat(data.price)
@@ -1338,9 +1320,8 @@ export async function handler(event) {
     }
 
     if (httpMethod === "PUT" && path.startsWith("/products/")) {
-      const user = authenticate(headers, event)
-      if (!user || user.role !== "admin")
-        return response(403, { message: "Acceso denegado." })
+      const auth = requireAdmin(headers, event)
+      if (auth.error) return auth.error
 
       const id = path.replace(/^\/products\//, "").replace(/\/.*$/, "")
       const data = parseBody(event)
@@ -1386,9 +1367,8 @@ export async function handler(event) {
     }
 
     if (httpMethod === "DELETE" && path.startsWith("/products/")) {
-      const user = authenticate(headers, event)
-      if (!user || user.role !== "admin")
-        return response(403, { message: "Acceso denegado." })
+      const auth = requireAdmin(headers, event)
+      if (auth.error) return auth.error
 
       const id = path.replace(/^\/products\//, "").replace(/\/.*$/, "")
       await docClient.send(
@@ -1408,9 +1388,8 @@ export async function handler(event) {
     }
 
     if (httpMethod === "POST" && path === "/collections") {
-      const user = authenticate(headers, event)
-      if (!user || user.role !== "admin")
-        return response(403, { message: "Acceso denegado." })
+      const auth = requireAdmin(headers, event)
+      if (auth.error) return auth.error
 
       const data = parseBody(event)
       if (!data.title || !data.image) {
@@ -1434,9 +1413,8 @@ export async function handler(event) {
     }
 
     if (httpMethod === "PATCH" && path.includes("/toggle")) {
-      const user = authenticate(headers, event)
-      if (!user || user.role !== "admin")
-        return response(403, { message: "Acceso denegado." })
+      const auth = requireAdmin(headers, event)
+      if (auth.error) return auth.error
 
       const match = path.match(/\/collections\/([^/]+)\/toggle/)
       const id = match ? match[1] : path.split("/")[2]
@@ -1454,9 +1432,8 @@ export async function handler(event) {
     }
 
     if (httpMethod === "DELETE" && path.startsWith("/collections/")) {
-      const user = authenticate(headers, event)
-      if (!user || user.role !== "admin")
-        return response(403, { message: "Acceso denegado." })
+      const auth = requireAdmin(headers, event)
+      if (auth.error) return auth.error
 
       const id = path.replace(/^\/collections\//, "").replace(/\/.*$/, "")
       const colRecord = await docClient.send(
@@ -1497,9 +1474,8 @@ export async function handler(event) {
     // 4. ORDERS ROUTES (STRICT SUNAT & ATOMIC DYNAMODB STOCK TRANSACTIONS)
     // -------------------------------------------------------------------------
     if (httpMethod === "GET" && path === "/orders") {
-      const user = authenticate(headers, event)
-      if (!user || user.role !== "admin")
-        return response(403, { message: "Acceso denegado." })
+      const auth = requireAdmin(headers, event)
+      if (auth.error) return auth.error
 
       const res = await docClient.send(
         new ScanCommand({ TableName: ORDERS_TABLE }),
@@ -1518,11 +1494,8 @@ export async function handler(event) {
       (httpMethod === "PATCH" || httpMethod === "PUT") &&
       path.startsWith("/orders/")
     ) {
-      const user = authenticate(headers, event)
-      if (!user || user.role !== "admin")
-        return response(403, {
-          message: "Acceso denegado. Se requieren permisos de administrador.",
-        })
+      const auth = requireAdmin(headers, event)
+      if (auth.error) return auth.error
 
       const match = path.match(/^\/orders\/([^/]+)/)
       const rawId = match ? match[1] : path.split("/")[2]
@@ -1615,6 +1588,17 @@ export async function handler(event) {
       })
     }
 
+    if (httpMethod === "DELETE" && path.startsWith("/orders/")) {
+      const auth = requireAdmin(headers, event)
+      if (auth.error) return auth.error
+
+      const id = path.replace(/^\/orders\//, "").replace(/\/.*$/, "")
+      await docClient.send(
+        new DeleteCommand({ TableName: ORDERS_TABLE, Key: { id } }),
+      )
+      return response(200, { success: true, message: `Orden ${id} eliminada.` })
+    }
+
     // -------------------------------------------------------------------------
     // 5. S3 PRESIGNED IMAGE UPLOADS
     // -------------------------------------------------------------------------
@@ -1622,6 +1606,9 @@ export async function handler(event) {
       httpMethod === "POST" &&
       (path === "/admin/upload-url" || path === "/media/presign")
     ) {
+      const auth = requireAdmin(headers, event)
+      if (auth.error) return auth.error
+
       const { fileName, contentType } = parseBody(event)
       const allowedMimes = [
         "image/jpeg",
@@ -1672,12 +1659,8 @@ export async function handler(event) {
     }
 
     if (httpMethod === "GET" && path === "/complaints") {
-      const user = authenticate(headers, event)
-      if (!user || user.role !== "admin") {
-        return response(403, {
-          message: "Acceso denegado. Se requieren permisos de administrador.",
-        })
-      }
+      const auth = requireAdmin(headers, event)
+      if (auth.error) return auth.error
 
       const res = await docClient.send(
         new ScanCommand({ TableName: COMPLAINTS_TABLE }),
@@ -1693,12 +1676,8 @@ export async function handler(event) {
       (httpMethod === "PUT" || httpMethod === "PATCH") &&
       (path.startsWith("/complaints/") || path === "/complaints")
     ) {
-      const user = authenticate(headers, event)
-      if (!user || user.role !== "admin") {
-        return response(403, {
-          message: "Acceso denegado. Se requieren permisos de administrador.",
-        })
-      }
+      const auth = requireAdmin(headers, event)
+      if (auth.error) return auth.error
 
       const match = path.match(/^\/complaints\/([^/]+)$/)
       const body = parseBody(event)

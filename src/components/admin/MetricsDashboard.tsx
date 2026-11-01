@@ -105,6 +105,38 @@ export function MetricsDashboard({
     return { totalUnits, outOfStockSizes }
   }, [products])
 
+  const lowStockItems = useMemo(() => {
+    const alerts: {
+      id: string
+      name: string
+      size: string
+      quantity: number
+    }[] = []
+
+    products.forEach((p) => {
+      const relevantSizes =
+        p.category === "Accesorios"
+          ? (["Única"] as Size[])
+          : p.stocks && Object.keys(p.stocks).length > 0
+            ? (Object.keys(p.stocks) as Size[])
+            : SIZES
+
+      relevantSizes.forEach((sz) => {
+        const qty = p.stocks?.[sz] ?? 0
+        if (qty < 10) {
+          alerts.push({
+            id: `${p.id}-${sz}`,
+            name: p.name,
+            size: sz,
+            quantity: qty,
+          })
+        }
+      })
+    })
+
+    return alerts
+  }, [products])
+
   const uniqueCustomerEmails = useMemo(() => {
     const set = new Set<string>()
     users.forEach((u) => {
@@ -440,6 +472,105 @@ export function MetricsDashboard({
           </small>
         </article>
       </section>
+
+      {/* MÓDULO DE NOTIFICACIÓN DE BAJO STOCK (< 10 UNIDADES) */}
+      <div
+        className="w-full"
+        style={{
+          width: "100%",
+          backgroundColor: "#fff",
+          border: "1px solid #eee",
+          borderRadius: "8px",
+          padding: "1.25rem 1.5rem",
+          marginBottom: "2.5rem",
+          boxShadow: "0 1px 3px rgba(0,0,0,0.03)",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            marginBottom: "0.85rem",
+            paddingBottom: "0.6rem",
+            borderBottom: "1px solid #f0f0f0",
+          }}
+        >
+          <span
+            style={{
+              fontSize: "0.75rem",
+              fontWeight: "bold",
+              color: "#555",
+              letterSpacing: "1px",
+              textTransform: "uppercase",
+            }}
+          >
+            Notificaciones de Inventario (Bajo Stock &lt; 10 unidades)
+          </span>
+          <span
+            style={{
+              fontSize: "0.75rem",
+              color: "#888",
+            }}
+          >
+            {lowStockItems.length} alerta{lowStockItems.length === 1 ? "" : "s"} registrada{lowStockItems.length === 1 ? "" : "s"}
+          </span>
+        </div>
+
+        {lowStockItems.length === 0 ? (
+          <p
+            style={{
+              fontSize: "0.85rem",
+              color: "#777",
+              margin: "0.5rem 0 0 0",
+            }}
+          >
+            Inventario en nivel óptimo. Todas las prendas y tallas cuentan con 10 o más unidades disponibles.
+          </p>
+        ) : (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "0.75rem",
+              overflowX: "auto",
+              paddingBottom: "0.5rem",
+            }}
+          >
+            {lowStockItems.map((item) => (
+              <div
+                key={item.id}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "0.5rem",
+                  padding: "0.55rem 0.9rem",
+                  backgroundColor: "#f4f4f5",
+                  border: "1px solid #e4e4e7",
+                  borderRadius: "6px",
+                  fontSize: "0.8rem",
+                  color: "#3f3f46",
+                  whiteSpace: "nowrap",
+                  flexShrink: 0,
+                }}
+              >
+                <span
+                  style={{
+                    width: "6px",
+                    height: "6px",
+                    borderRadius: "50%",
+                    backgroundColor: "#71717a",
+                    display: "inline-block",
+                  }}
+                />
+                <span>
+                  Atención: <strong>{item.name}</strong> - Talla {item.size} (Quedan {item.quantity} unidades)
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   )
 }
