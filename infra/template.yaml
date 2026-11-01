@@ -282,6 +282,12 @@ Resources:
       MemorySize: 256
       Timeout: 15
       Role: !GetAtt LambdaExecutionRole.Arn
+      Policies:
+        - Effect: Allow
+          Action:
+            - ses:SendEmail
+            - ses:SendRawEmail
+          Resource: "*"
       Code:
         S3Bucket: !Ref ArtifactsBucketName
         S3Key: !Ref ArtifactsKey
