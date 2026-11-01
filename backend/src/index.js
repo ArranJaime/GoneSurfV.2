@@ -9,6 +9,7 @@ import {
   TransactWriteCommand,
 } from "@aws-sdk/lib-dynamodb"
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3"
+import { SESClient, SendEmailCommand } from "@aws-sdk/client-ses"
 import {
   CognitoIdentityProviderClient,
   AdminDeleteUserCommand,
@@ -27,6 +28,7 @@ const docClient = DynamoDBDocumentClient.from(ddbClient, {
   marshallOptions: { removeUndefinedValues: true },
 })
 const s3Client = new S3Client({ region: REGION })
+const sesClient = new SESClient({ region: REGION })
 const COGNITO_USER_POOL_ID =
   process.env.COGNITO_USER_POOL_ID || process.env.USER_POOL_ID || "us-east-1_7h815wB0O"
 const cognitoClient = new CognitoIdentityProviderClient({ region: REGION })
@@ -40,10 +42,97 @@ const COMPLAINTS_TABLE =
   process.env.COMPLAINTS_TABLE || "GoneSurfing-Complaints-prod"
 const MEDIA_BUCKET = process.env.MEDIA_BUCKET || ""
 const CLOUDFRONT_DOMAIN = process.env.CLOUDFRONT_DOMAIN || ""
+const SENDER_EMAIL = process.env.SENDER_EMAIL || "Gonesurfin@gmail.com"
 const JWT_SECRET =
   process.env.JWT_SECRET || "gone_surfing_super_secret_jwt_key_2026_sunat"
 const ADMIN_USER_DEFAULT = process.env.ADMIN_USER || "admin"
 const ADMIN_PASSWORD_DEFAULT = process.env.ADMIN_PASSWORD || "admin666"
+
+/**
+ * Envía correo transaccional de confirmación / recibo de orden vía Amazon SES
+ */
+async function sendOrderReceiptEmail(order) {
+  const senderEmail = process.env.SENDER_EMAIL || SENDER_EMAIL
+  if (!order || !order.email || !senderEmail) return
+
+  const subject = `Confirmación de Pedido #${order.id} - Gone Surfing`
+  const bodyText = `¡Hola, ${order.customer || "cliente"}!
+
+Gracias por tu compra en Gone Surfing. Tu pedido #${order.id} ha sido registrado exitosamente.
+
+Detalles del Pedido:
+- Código: #${order.id}
+- Total: S/. ${Number(order.total || 0).toFixed(2)}
+- Método de Pago: ${order.paymentMethod || "No especificado"}
+- Destino: ${order.address || "Lima, Perú"} (${order.districtName || "Lima"})
+- Detalle: ${order.detail || "Productos Gone Surfing"}
+
+Si seleccionaste pago con Yape/Plin o transferencia bancaria, puedes responder directamente a este correo adjuntando tu comprobante o enviarlo a nuestro WhatsApp.
+
+¡Buenas olas!
+Gone Surfing Perú`
+
+  const bodyHtml = `
+    <div style="font-family: Arial, sans-serif; color: #111; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #eee; border-radius: 8px;">
+      <h2 style="color: #0a0a0a; border-bottom: 2px solid #000; padding-bottom: 12px; margin-top: 0; text-transform: uppercase; letter-spacing: 1px;">
+        Gone Surfing Perú
+      </h2>
+      <p style="font-size: 16px;">¡Hola <strong>${order.customer || "cliente"}</strong>!</p>
+      <p style="font-size: 14px; color: #444; line-height: 1.5;">
+        Gracias por tu compra. Hemos registrado tu pedido <strong>#${order.id}</strong> exitosamente.
+      </p>
+      <div style="background-color: #f8f9fa; padding: 16px; border-radius: 6px; margin: 20px 0; border: 1px solid #e9ecef;">
+        <p style="margin: 6px 0; font-size: 14px;"><strong>Número de Pedido:</strong> #${order.id}</p>
+        <p style="margin: 6px 0; font-size: 14px;"><strong>Monto Total:</strong> S/. ${Number(order.total || 0).toFixed(2)}</p>
+        <p style="margin: 6px 0; font-size: 14px;"><strong>Método de Pago:</strong> ${order.paymentMethod || "tarjeta"}</p>
+        <p style="margin: 6px 0; font-size: 14px;"><strong>Dirección de Entrega:</strong> ${order.address || "Lima"} (${order.districtName || "Lima"})</p>
+        <p style="margin: 6px 0; font-size: 14px;"><strong>Resumen:</strong> ${order.detail || "Prendas Gone Surfing"}</p>
+      </div>
+      <p style="font-size: 13px; color: #666; line-height: 1.4;">
+        Si seleccionaste Yape/Plin o transferencia bancaria y aún no has enviado tu comprobante, por favor respóndenos a este correo o vía WhatsApp con la captura.
+      </p>
+      <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;" />
+      <p style="font-size: 12px; color: #999; margin-bottom: 0;">
+        Gone Surfing Perú S.A.C. &bull; Correo transaccional oficial de compra.
+      </p>
+    </div>
+  `
+
+  const command = new SendEmailCommand({
+    Source: process.env.SENDER_EMAIL,
+    Destination: {
+      ToAddresses: [order.email],
+    },
+    Message: {
+      Subject: {
+        Data: subject,
+        Charset: "UTF-8",
+      },
+      Body: {
+        Text: {
+          Data: bodyText,
+          Charset: "UTF-8",
+        },
+        Html: {
+          Data: bodyHtml,
+          Charset: "UTF-8",
+        },
+      },
+    },
+  })
+
+  try {
+    const sesRes = await sesClient.send(command)
+    console.log(
+      `[SES] Recibo enviado para orden ${order.id} a ${order.email}. MessageId: ${sesRes.MessageId}`,
+    )
+  } catch (sesErr) {
+    console.error(
+      `[SES] Error enviando correo de confirmación para orden ${order.id}:`,
+      sesErr,
+    )
+  }
+}
 
 // CORS headers for all responses
 const CORS_HEADERS = {
@@ -1198,6 +1287,16 @@ export async function handler(event) {
       await docClient.send(
         new PutCommand({ TableName: ORDERS_TABLE, Item: transaction }),
       )
+
+      // Envío de correo transaccional de confirmación / recibo por Amazon SES
+      if (cleanEmail && process.env.SENDER_EMAIL) {
+        try {
+          await sendOrderReceiptEmail(transaction)
+        } catch (emailErr) {
+          console.warn("[SES] Error al disparar confirmación:", emailErr)
+        }
+      }
+
       return response(201, transaction)
     }
 

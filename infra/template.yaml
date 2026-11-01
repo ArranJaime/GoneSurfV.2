@@ -19,6 +19,10 @@ Parameters:
     Type: String
     Default: backend.zip
     Description: S3 Key of backend zip package
+  SenderEmail:
+    Type: String
+    Default: Gonesurfin@gmail.com
+    Description: Verified sender email for Amazon SES transactional receipts
 
 Resources:
   # ============================================================================
@@ -259,6 +263,15 @@ Resources:
                   - cognito-idp:AdminGetUser
                   - cognito-idp:ListUsers
                 Resource: '*'
+        - PolicyName: SESAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ses:SendEmail
+                  - ses:SendRawEmail
+                Resource: '*'
 
   BackendLambda:
     Type: AWS::Lambda::Function
@@ -284,6 +297,7 @@ Resources:
           ADMIN_USER: admin
           ADMIN_PASSWORD: admin666
           JWT_SECRET: gone_surfing_super_secret_jwt_key_2026_sunat
+          SENDER_EMAIL: Gonesurfin@gmail.com
 
   # ============================================================================
   # 5. API GATEWAY REST API (THROTTLING: 30 REQ/S, BURST 60)
