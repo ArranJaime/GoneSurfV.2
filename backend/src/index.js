@@ -145,7 +145,7 @@ Gone Surfing Perú`
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
-    "Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Dev-Mode,x-dev-mode",
+    "Content-Type, Authorization, X-Amz-Date, X-Api-Key, X-Amz-Security-Token",
   "Access-Control-Allow-Methods": "OPTIONS,GET,POST,PUT,PATCH,DELETE",
 }
 
