@@ -15,15 +15,15 @@ export default function Footer({ openChat }: FooterProps = {}) {
 
   return (
     <footer className="w-full bg-[#0a0a0a] border-t border-[#1a1a1a] text-white py-6 md:py-8 px-6">
-      <div className="flex flex-col md:flex-row items-center justify-between w-full max-w-7xl mx-auto gap-6 md:gap-4">
+      <div className="flex flex-col md:flex-row items-center justify-between w-full gap-6 md:gap-4">
         {/* ================================================================= */}
         {/* BLOQUE IZQUIERDO: Logo                                            */}
         {/* ================================================================= */}
-        <div className="flex-1 flex justify-center md:justify-start items-center bg-transparent border-none outline-none shadow-none p-0 m-0">
+        <div className="flex-1 flex justify-start items-center bg-transparent border-none outline-none shadow-none p-0 m-0">
           <button
             type="button"
             onClick={() => navigate("/")}
-            className="bg-transparent border-none outline-none shadow-none p-0 m-0 flex items-center cursor-pointer transition-opacity hover:opacity-80"
+            className="bg-transparent border-none outline-none shadow-none p-0 m-0 flex items-center justify-start cursor-pointer transition-opacity hover:opacity-80"
             style={{
               background: "transparent",
               border: "none",
@@ -37,10 +37,14 @@ export default function Footer({ openChat }: FooterProps = {}) {
             <img
               src="/logo-gone-surfing.png"
               alt="Gone Surfing Logo"
-              className="h-8 md:h-9 w-auto object-contain brand-logo mix-blend-screen bg-transparent"
+              className="w-36 md:w-44 h-auto max-h-[45px] object-contain brand-logo mix-blend-screen bg-transparent"
               style={{
                 mixBlendMode: "screen",
                 background: "transparent",
+                maxHeight: "45px",
+                maxWidth: "180px",
+                width: "auto",
+                objectFit: "contain",
               }}
             />
           </button>
