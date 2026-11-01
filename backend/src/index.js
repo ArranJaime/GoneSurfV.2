@@ -1478,7 +1478,15 @@ export async function handler(event) {
     // -------------------------------------------------------------------------
     // 4. ORDERS ROUTES (STRICT SUNAT & ATOMIC DYNAMODB STOCK TRANSACTIONS)
     // -------------------------------------------------------------------------
-    if (httpMethod === "GET" && path === "/orders") {
+    // 4.1. ENDPOINT PÚBLICO: Creación de Órdenes desde Checkout
+    // Permite compras públicas a clientes invitados y registrados sin exigir token JWT.
+    if (httpMethod === "POST" && (path === "/orders" || path === "/orders/")) {
+      return await createOrder(event)
+    }
+
+    // 4.2. RUTAS PROTEGIDAS CON JWT (requireAdmin):
+    // Listar pedidos (GET /orders) - Solo administradores
+    if (httpMethod === "GET" && (path === "/orders" || path === "/orders/")) {
       const auth = requireAdmin(headers, event)
       if (auth.error) return auth.error
 
@@ -1491,23 +1499,25 @@ export async function handler(event) {
       return response(200, sorted)
     }
 
-    if (httpMethod === "POST" && path === "/orders") {
-      return await createOrder(event)
-    }
-
+    // Actualizar estado de orden (PUT / PATCH /orders/:id) - Solo administradores
     if (
       (httpMethod === "PATCH" || httpMethod === "PUT") &&
-      path.startsWith("/orders/")
+      (path.startsWith("/orders/") || path === "/orders" || path === "/orders/")
     ) {
       const auth = requireAdmin(headers, event)
       if (auth.error) return auth.error
 
+      const body = parseBody(event)
       const match = path.match(/^\/orders\/([^/]+)/)
       const rawId = match ? match[1] : path.split("/")[2]
-      const id = decodeURIComponent(rawId || "").replace(/\/status$/, "")
+      const id = decodeURIComponent(rawId || body.id || "").replace(/\/status$/, "")
 
-      const body = parseBody(event)
       const status = body.status
+      if (!id) {
+        return response(400, {
+          message: "El ID de la orden es obligatorio.",
+        })
+      }
       if (!status) {
         return response(400, {
           message:
@@ -1593,11 +1603,23 @@ export async function handler(event) {
       })
     }
 
-    if (httpMethod === "DELETE" && path.startsWith("/orders/")) {
+    // Eliminar orden (DELETE /orders/:id) - Solo administradores
+    if (
+      httpMethod === "DELETE" &&
+      (path.startsWith("/orders/") || path === "/orders" || path === "/orders/")
+    ) {
       const auth = requireAdmin(headers, event)
       if (auth.error) return auth.error
 
-      const id = path.replace(/^\/orders\//, "").replace(/\/.*$/, "")
+      const body = parseBody(event)
+      const id = path.startsWith("/orders/")
+        ? path.replace(/^\/orders\//, "").replace(/\/.*$/, "")
+        : (event.queryStringParameters?.id || body.id || "")
+
+      if (!id) {
+        return response(400, { message: "El ID de la orden es requerido." })
+      }
+
       await docClient.send(
         new DeleteCommand({ TableName: ORDERS_TABLE, Key: { id } }),
       )
