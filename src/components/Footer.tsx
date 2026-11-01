@@ -19,16 +19,29 @@ export default function Footer({ openChat }: FooterProps = {}) {
         {/* ================================================================= */}
         {/* BLOQUE IZQUIERDO: Logo                                            */}
         {/* ================================================================= */}
-        <div className="flex-1 flex justify-center md:justify-start items-center">
+        <div className="flex-1 flex justify-center md:justify-start items-center bg-transparent border-none outline-none shadow-none p-0 m-0">
           <button
+            type="button"
             onClick={() => navigate("/")}
-            className="bg-transparent border-0 p-0 flex items-center cursor-pointer transition-opacity hover:opacity-80"
+            className="bg-transparent border-none outline-none shadow-none p-0 m-0 flex items-center cursor-pointer transition-opacity hover:opacity-80"
+            style={{
+              background: "transparent",
+              border: "none",
+              outline: "none",
+              boxShadow: "none",
+              padding: 0,
+              margin: 0,
+            }}
             aria-label="Gone Surfing Home"
           >
             <img
               src="/logo-gone-surfing.png"
               alt="Gone Surfing Logo"
-              className="h-8 md:h-9 w-auto object-contain brand-logo"
+              className="h-8 md:h-9 w-auto object-contain brand-logo mix-blend-screen bg-transparent"
+              style={{
+                mixBlendMode: "screen",
+                background: "transparent",
+              }}
             />
           </button>
         </div>
