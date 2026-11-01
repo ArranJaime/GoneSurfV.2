@@ -14,27 +14,74 @@ export default function Footer({ openChat }: FooterProps = {}) {
   }
 
   return (
-    <footer className="w-full bg-[#0a0a0a] border-t border-[#1a1a1a] text-white py-8 px-4 flex flex-col items-center justify-center">
-      <div className="flex flex-col items-center justify-center text-center gap-4 w-full max-w-4xl mx-auto">
+    <footer className="w-full bg-[#0a0a0a] border-t border-[#1a1a1a] text-white py-6 md:py-8 px-6">
+      <div className="flex flex-col md:flex-row items-center justify-between w-full max-w-7xl mx-auto gap-6 md:gap-4">
         {/* ================================================================= */}
-        {/* FILA 1: Logo Centrado                                             */}
+        {/* BLOQUE IZQUIERDO: Logo                                            */}
         {/* ================================================================= */}
-        <button
-          onClick={() => navigate("/")}
-          className="bg-transparent border-0 p-0 flex items-center justify-center cursor-pointer transition-opacity hover:opacity-80"
-          aria-label="Gone Surfing Home"
-        >
-          <img
-            src="/logo-gone-surfing.png"
-            alt="Gone Surfing Logo"
-            className="h-8 md:h-9 w-auto object-contain brand-logo"
-          />
-        </button>
+        <div className="flex-1 flex justify-center md:justify-start items-center">
+          <button
+            onClick={() => navigate("/")}
+            className="bg-transparent border-0 p-0 flex items-center cursor-pointer transition-opacity hover:opacity-80"
+            aria-label="Gone Surfing Home"
+          >
+            <img
+              src="/logo-gone-surfing.png"
+              alt="Gone Surfing Logo"
+              className="h-8 md:h-9 w-auto object-contain brand-logo"
+            />
+          </button>
+        </div>
 
         {/* ================================================================= */}
-        {/* FILA 2: Redes Sociales Centradas                                  */}
+        {/* BLOQUE CENTRAL: Enlaces Legales e Identidad Fiscal                */}
         {/* ================================================================= */}
-        <div className="flex items-center justify-center gap-5 text-white">
+        <div className="flex flex-col items-center justify-center text-center shrink-0 px-4">
+          <div className="flex flex-wrap md:flex-nowrap items-center justify-center gap-x-3 gap-y-1 text-xs text-gray-400 md:whitespace-nowrap">
+            <Link
+              to="/terminos"
+              className="hover:text-white transition-colors"
+            >
+              Términos y Condiciones
+            </Link>
+
+            <span className="text-gray-600 select-none">•</span>
+
+            <Link
+              to="/privacidad"
+              className="hover:text-white transition-colors"
+            >
+              Políticas de Privacidad
+            </Link>
+
+            <span className="text-gray-600 select-none">•</span>
+
+            <Link
+              to="/cambios-devoluciones"
+              className="hover:text-white transition-colors"
+            >
+              Cambios y Devoluciones
+            </Link>
+
+            <span className="text-gray-600 select-none">•</span>
+
+            <Link
+              to="/libro-reclamaciones"
+              className="hover:text-white transition-colors"
+            >
+              Libro de Reclamaciones
+            </Link>
+          </div>
+
+          <div className="mt-2 text-[11px] text-gray-500 tracking-wide">
+            <span>© 2026 Gone Surfing Perú S.A.C. • RUC: 20000000000</span>
+          </div>
+        </div>
+
+        {/* ================================================================= */}
+        {/* BLOQUE DERECHO: Redes Sociales                                    */}
+        {/* ================================================================= */}
+        <div className="flex-1 flex justify-center md:justify-end items-center gap-4 text-white">
           {/* Instagram */}
           <a
             href="https://instagram.com"
@@ -120,52 +167,6 @@ export default function Footer({ openChat }: FooterProps = {}) {
               <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
             </svg>
           </a>
-        </div>
-
-        {/* ================================================================= */}
-        {/* FILA 3: Enlaces Legales en una sola línea en Desktop              */}
-        {/* ================================================================= */}
-        <div className="flex flex-wrap md:flex-nowrap items-center justify-center gap-x-3 gap-y-1 text-xs text-gray-400 md:whitespace-nowrap">
-          <Link
-            to="/terminos"
-            className="hover:text-white transition-colors"
-          >
-            Términos y Condiciones
-          </Link>
-
-          <span className="text-gray-600 select-none">•</span>
-
-          <Link
-            to="/privacidad"
-            className="hover:text-white transition-colors"
-          >
-            Políticas de Privacidad
-          </Link>
-
-          <span className="text-gray-600 select-none">•</span>
-
-          <Link
-            to="/cambios-devoluciones"
-            className="hover:text-white transition-colors"
-          >
-            Cambios y Devoluciones
-          </Link>
-
-          <span className="text-gray-600 select-none">•</span>
-
-          <Link
-            to="/libro-reclamaciones"
-            className="hover:text-white transition-colors"
-          >
-            Libro de Reclamaciones
-          </Link>
-        </div>
-
-        {/* ================================================================= */}
-        {/* FILA 4: Identidad Fiscal                                          */}
-        {/* ================================================================= */}
-        <div className="text-[11px] text-gray-500 tracking-wide">
-          <span>© 2026 Gone Surfing Perú S.A.C. • RUC: 20000000000</span>
         </div>
       </div>
     </footer>
