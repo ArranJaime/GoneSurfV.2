@@ -18,6 +18,7 @@ import {
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner"
 import bcrypt from "bcryptjs"
 import jwt from "jsonwebtoken"
+import axios from "axios"
 
 // -----------------------------------------------------------------------------
 // AWS SDK & Environment Configuration
@@ -47,6 +48,8 @@ const JWT_SECRET =
   process.env.JWT_SECRET || "gone_surfing_super_secret_jwt_key_2026_sunat"
 const ADMIN_USER_DEFAULT = process.env.ADMIN_USER || "admin"
 const ADMIN_PASSWORD_DEFAULT = process.env.ADMIN_PASSWORD || "admin666"
+const NUBEFACT_URL = process.env.NUBEFACT_URL || ""
+const NUBEFACT_TOKEN = process.env.NUBEFACT_TOKEN || ""
 
 /**
  * Envía correo transaccional de confirmación / recibo de orden vía Amazon SES
@@ -556,6 +559,158 @@ export async function createOrder(eventOrData) {
     isGuest = Boolean(orderInput.isGuest)
   }
 
+  // ---------------------------------------------------------------------------
+  // Step 3.5: Integración de Facturación Electrónica SUNAT (Nubefact)
+  // ---------------------------------------------------------------------------
+  let invoicePdfUrl = null
+  let invoiceStatus = "pendiente"
+  let invoiceError = null
+
+  // Mapeo de comprobante SUNAT: 1: Factura, 2: Boleta de Venta
+  const isFactura = String(orderInput.documentType).trim().toUpperCase() === "RUC"
+  const tipoDeComprobante = isFactura ? 1 : 2
+  const serieComprobante = isFactura ? "FFF1" : "BBB1"
+  const correlativoNumero = Math.floor(100000 + Math.random() * 900000)
+
+  // Mapeo tipo de documento SUNAT: 1: DNI, 6: RUC, 4: Carnet Extranjería, 7: Pasaporte
+  let clienteTipoDoc = "1"
+  if (isFactura) {
+    clienteTipoDoc = "6"
+  } else if (orderInput.documentType === "CE") {
+    clienteTipoDoc = "4"
+  } else if (orderInput.documentType === "Pasaporte") {
+    clienteTipoDoc = "7"
+  }
+
+  // Construcción de ítems iterando el carrito de la orden
+  const nubefactItems = items.map((item, index) => {
+    const prod = catalogProducts[index] || {}
+    const qty = Number(item.quantity ?? item.requestedQuantity ?? 1)
+    const unitPrice = Number(prod.price || 0)
+    const unitValue = Number((unitPrice / 1.18).toFixed(2))
+    const itemSubtotal = Number((unitValue * qty).toFixed(2))
+    const itemIgv = Number((unitPrice * qty - itemSubtotal).toFixed(2))
+    const itemTotal = Number((unitPrice * qty).toFixed(2))
+
+    return {
+      unidad_de_medida: "NIU", // Código SUNAT para Unidades
+      codigo: prod.id || `PROD-${index + 1}`,
+      descripcion: `${prod.name || "Prenda"}${item.size ? ` - Talla ${item.size}` : ""}`,
+      cantidad: qty,
+      valor_unitario: unitValue,
+      precio_unitario: unitPrice,
+      descuento: "",
+      subtotal: itemSubtotal,
+      tipo_de_igv: 1, // 1: Gravado - Operación Onerosa
+      igv: itemIgv,
+      total: itemTotal,
+      anticipo_regularizacion: false,
+      anticipo_documento_serie: "",
+      anticipo_documento_numero: "",
+    }
+  })
+
+  // Ítem adicional para costo de envío si aplica
+  if (shippingCents > 0) {
+    const shipPrice = Number((shippingCents / 100).toFixed(2))
+    const shipVal = Number((shipPrice / 1.18).toFixed(2))
+    const shipSub = shipVal
+    const shipIgv = Number((shipPrice - shipSub).toFixed(2))
+    nubefactItems.push({
+      unidad_de_medida: "ZZ", // Código SUNAT para Servicios
+      codigo: "ENVIO",
+      descripcion: `Servicio de Entrega (${shippingMethod === "express" ? "Express" : "Estándar"})`,
+      cantidad: 1,
+      valor_unitario: shipVal,
+      precio_unitario: shipPrice,
+      descuento: "",
+      subtotal: shipSub,
+      tipo_de_igv: 1,
+      igv: shipIgv,
+      total: shipPrice,
+      anticipo_regularizacion: false,
+      anticipo_documento_serie: "",
+      anticipo_documento_numero: "",
+    })
+  }
+
+  // Payload estándar exigido por la API de Nubefact
+  const nubefactPayload = {
+    operacion: "generar_comprobante",
+    tipo_de_comprobante: tipoDeComprobante,
+    serie: serieComprobante,
+    numero: correlativoNumero,
+    sunat_transaction: 1,
+    cliente_tipo_de_documento: clienteTipoDoc,
+    cliente_numero_de_documento: (orderInput.document || "00000000").trim(),
+    cliente_denominacion: (orderInput.customer || "Cliente Invitado").trim(),
+    cliente_direccion: (orderInput.address || "Lima, Perú").trim(),
+    cliente_email: cleanEmail || "",
+    fecha_de_emision: new Date().toISOString().split("T")[0],
+    moneda: 1, // 1: Soles (PEN)
+    tipo_de_cambio: "",
+    porcentaje_de_igv: 18.0,
+    descuento_global: "",
+    total_descuento: "",
+    total_anticipo: "",
+    total_gravada: Number((subtotalCents / 100).toFixed(2)),
+    total_inafecta: "",
+    total_exonerada: "",
+    total_igv: Number((igvCents / 100).toFixed(2)),
+    total_gratuita: "",
+    total_otros_cargos: "",
+    total: Number((totalCents / 100).toFixed(2)),
+    percepcion_tipo: "",
+    percepcion_base_imponible: "",
+    total_percepcion: "",
+    total_incluido_percepcion: "",
+    detraccion: false,
+    observaciones: `Pedido Gone Surfing #${orderId}`,
+    enviar_automaticamente_a_la_sunat: true,
+    enviar_automaticamente_al_cliente: Boolean(cleanEmail),
+    items: nubefactItems,
+  }
+
+  // Llamada HTTP con Axios envuelta en try/catch sin bloquear guardado
+  const activeNubefactUrl = process.env.NUBEFACT_URL || NUBEFACT_URL
+  const activeNubefactToken = process.env.NUBEFACT_TOKEN || NUBEFACT_TOKEN
+
+  if (activeNubefactUrl && activeNubefactToken) {
+    try {
+      console.log(`[Nubefact] Generando comprobante para orden ${orderId}...`)
+      const nubefactRes = await axios.post(activeNubefactUrl, nubefactPayload, {
+        headers: {
+          Authorization: `Bearer ${activeNubefactToken}`,
+          "Content-Type": "application/json",
+        },
+        timeout: 10000,
+      })
+
+      if (nubefactRes.data) {
+        invoicePdfUrl =
+          nubefactRes.data.enlace_del_pdf ||
+          nubefactRes.data.enlace ||
+          nubefactRes.data.pdf_url ||
+          null
+        invoiceStatus = "emitida"
+        console.log(`[Nubefact] Comprobante emitido exitosamente. URL PDF: ${invoicePdfUrl}`)
+      }
+    } catch (nbErr) {
+      console.error(
+        `[Nubefact] Error al emitir comprobante para orden ${orderId}:`,
+        nbErr.response?.data || nbErr.message,
+      )
+      invoiceStatus = "error_facturacion"
+      invoiceError =
+        nbErr.response?.data?.errors ||
+        nbErr.response?.data?.message ||
+        nbErr.message ||
+        "Error al emitir comprobante con Nubefact"
+    }
+  } else {
+    invoiceStatus = "no_configurado"
+  }
+
   const transaction = {
     id: orderId,
     customer: (orderInput.customer || "Cliente Invitado").trim(),
@@ -581,6 +736,9 @@ export async function createOrder(eventOrData) {
     detail: detailParts.join(", "),
     date: new Date().toISOString(),
     status: orderInput.status || initialStatus,
+    invoicePdfUrl: invoicePdfUrl || null,
+    invoiceStatus,
+    invoiceError: invoiceError || null,
   }
 
   await docClient.send(

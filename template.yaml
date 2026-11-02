@@ -23,6 +23,15 @@ Parameters:
     Type: String
     Default: 202311385@urp.edu.pe
     Description: Verified sender email for Amazon SES transactional receipts
+  NubefactUrl:
+    Type: String
+    Default: 'https://api.nubefact.com/api/v1/'
+    Description: Endpoint URL for Nubefact Electronic Invoicing API
+  NubefactToken:
+    Type: String
+    Default: ''
+    NoEcho: true
+    Description: Authorization token for Nubefact Electronic Invoicing API
 
 Resources:
   # ============================================================================
@@ -304,6 +313,8 @@ Resources:
           ADMIN_PASSWORD: admin666
           JWT_SECRET: gone_surfing_super_secret_jwt_key_2026_sunat
           SENDER_EMAIL: !Ref SenderEmail
+          NUBEFACT_URL: !Ref NubefactUrl
+          NUBEFACT_TOKEN: !Ref NubefactToken
 
   # ============================================================================
   # 5. API GATEWAY REST API (THROTTLING: 30 REQ/S, BURST 60)

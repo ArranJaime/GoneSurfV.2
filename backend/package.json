@@ -13,6 +13,7 @@
     "@aws-sdk/client-ses": "^3.1161.0",
     "@aws-sdk/lib-dynamodb": "^3.758.0",
     "@aws-sdk/s3-request-presigner": "^3.758.0",
+    "axios": "^1.21.0",
     "bcryptjs": "^2.4.3",
     "jsonwebtoken": "^9.0.2"
   },
