@@ -284,22 +284,101 @@ function parseBody(event) {
 }
 
 /**
- * Genera un resumen dinámico de tallas y cantidades para el historial de ingreso de mercadería
+ * Construye el string de trazabilidad exacta de inventario (Kardex).
+ * Estructura exacta:
+ * "Se ingresó [Cantidad Agregada] de [Nombre del Producto - Talla]. Antes había [Stock Anterior] = Ahora hay [Nuevo Stock Total]."
+ * Ejemplo: "Se ingresó 30 de Pita Gone - Talla Única. Antes había 20 = Ahora hay 50."
  */
-function formatStockLog(productName, stocks, defaultTotal) {
-  let sizesSummary = ""
-  if (stocks && typeof stocks === "object") {
-    const parts = Object.entries(stocks)
-      .filter(([_, qty]) => Number(qty) > 0)
-      .map(([size, qty]) => `${qty} ${size}`)
-    if (parts.length > 0) {
-      sizesSummary = parts.join(", ")
+function createStockKardexMessage(productName, formattedSize, prevQty, newQty, addedQty) {
+  const productAndSize = formattedSize
+    ? `${productName} - ${formattedSize}`
+    : productName
+  return `Se ingresó ${addedQty} de ${productAndSize}. Antes había ${prevQty} = Ahora hay ${newQty}.`
+}
+
+/**
+ * Obtiene de forma tolerante la cantidad de stock para una talla dada
+ */
+function getStockForSize(stocks, size) {
+  if (!stocks || typeof stocks !== "object") return 0
+  if (stocks[size] !== undefined) return Number(stocks[size]) || 0
+  const normalizedKey = (size || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
+  for (const [k, v] of Object.entries(stocks)) {
+    const normK = k.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
+    if (normK === normalizedKey) return Number(v) || 0
+  }
+  return 0
+}
+
+/**
+ * Compara el stock anterior con el nuevo para cada talla/ítem y guarda los logs de Kardex en DynamoDB
+ */
+async function recordStockKardexLogs(
+  docClient,
+  logsTable,
+  productName,
+  prevStocks = {},
+  newStocks = {},
+  prevFlatStock = 0,
+  newFlatStock = 0,
+) {
+  const sizes = Object.keys(newStocks || {})
+  if (sizes.length > 0) {
+    for (const size of sizes) {
+      const prevQty = getStockForSize(prevStocks, size)
+      const newQty = getStockForSize(newStocks, size)
+      const addedQty = newQty - prevQty
+      if (addedQty > 0) {
+        let formattedSize = size
+        const normSize = (size || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
+        if (normSize === "unica" || normSize === "talla unica") {
+          formattedSize = "Talla Única"
+        } else if (!size.toLowerCase().startsWith("talla")) {
+          formattedSize = `Talla ${size}`
+        }
+        const message = createStockKardexMessage(
+          productName,
+          formattedSize,
+          prevQty,
+          newQty,
+          addedQty,
+        )
+        await docClient.send(
+          new PutCommand({
+            TableName: logsTable,
+            Item: {
+              id: `log-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+              message,
+              timestamp: new Date().toISOString(),
+            },
+          }),
+        )
+      }
+    }
+  } else if (newFlatStock !== undefined) {
+    const prevQty = Number(prevFlatStock ?? 0)
+    const newQty = Number(newFlatStock ?? 0)
+    const addedQty = newQty - prevQty
+    if (addedQty > 0) {
+      const message = createStockKardexMessage(
+        productName,
+        null,
+        prevQty,
+        newQty,
+        addedQty,
+      )
+      await docClient.send(
+        new PutCommand({
+          TableName: logsTable,
+          Item: {
+            id: `log-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+            message,
+            timestamp: new Date().toISOString(),
+          },
+        }),
+      )
     }
   }
-  if (!sizesSummary) {
-    sizesSummary = `${defaultTotal || 0} unidades`
-  }
-  return `Se ingresó: ${productName} - ${sizesSummary}`
 }
 
 // -----------------------------------------------------------------------------
@@ -1474,6 +1553,23 @@ export async function handler(event) {
         createdAt: new Date().toISOString(),
       }
 
+      // 1. Lectura previa: consultar si el producto ya existía para conocer su stock anterior (0 si es nuevo)
+      let previousStocks = {}
+      let previousTotalStock = 0
+      if (data.id) {
+        try {
+          const prevRes = await docClient.send(
+            new GetCommand({ TableName: PRODUCTS_TABLE, Key: { id: data.id } }),
+          )
+          if (prevRes.Item) {
+            previousStocks = prevRes.Item.stocks || {}
+            previousTotalStock = prevRes.Item.stock || 0
+          }
+        } catch (prevErr) {
+          console.warn("Aviso al consultar stock previo:", prevErr?.message)
+        }
+      }
+
       // Ejecución explícita y esperada (await) de DynamoDB PutCommand
       try {
         console.log(
@@ -1491,25 +1587,22 @@ export async function handler(event) {
           newProduct.id,
         )
 
-        // Registro en el Historial de Ingreso de Mercadería
+        // Registro en el Historial de Ingreso de Mercadería (Kardex de trazabilidad)
         try {
-          const logItem = {
-            id: `log-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-            message: formatStockLog(
-              newProduct.name,
-              newProduct.stocks,
-              newProduct.stock,
-            ),
-            timestamp: new Date().toISOString(),
-          }
-          await docClient.send(
-            new PutCommand({
-              TableName: LOGS_TABLE,
-              Item: logItem,
-            }),
+          await recordStockKardexLogs(
+            docClient,
+            LOGS_TABLE,
+            newProduct.name,
+            previousStocks,
+            newProduct.stocks,
+            previousTotalStock,
+            newProduct.stock,
           )
         } catch (logErr) {
-          console.warn("Aviso al guardar log de mercadería:", logErr?.message)
+          console.warn(
+            "Aviso al guardar log de trazabilidad de mercadería:",
+            logErr?.message,
+          )
         }
       } catch (dbErr) {
         console.error(
@@ -1571,25 +1664,22 @@ export async function handler(event) {
         new PutCommand({ TableName: PRODUCTS_TABLE, Item: updated }),
       )
 
-      // Registro en el Historial de Ingreso de Mercadería
+      // Registro en el Historial de Ingreso de Mercadería (Kardex de trazabilidad)
       try {
-        const logItem = {
-          id: `log-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-          message: formatStockLog(
-            updated.name,
-            updated.stocks,
-            updated.stock,
-          ),
-          timestamp: new Date().toISOString(),
-        }
-        await docClient.send(
-          new PutCommand({
-            TableName: LOGS_TABLE,
-            Item: logItem,
-          }),
+        await recordStockKardexLogs(
+          docClient,
+          LOGS_TABLE,
+          updated.name,
+          existing.Item.stocks || {},
+          updated.stocks || {},
+          existing.Item.stock || 0,
+          updated.stock || 0,
         )
       } catch (logErr) {
-        console.warn("Aviso al guardar log de mercadería:", logErr?.message)
+        console.warn(
+          "Aviso al guardar log de trazabilidad de mercadería:",
+          logErr?.message,
+        )
       }
 
       return response(200, updated)
