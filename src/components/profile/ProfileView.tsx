@@ -32,6 +32,7 @@ export default function Profile() {
   )
   const [loginErrorMessage, setLoginErrorMessage] = useState("")
   const [registerError, setRegisterError] = useState("")
+  const [registerEmailError, setRegisterEmailError] = useState("")
   const [registerAcceptedTerms, setRegisterAcceptedTerms] = useState(false)
   const [currentTab, setCurrentTab] = useState<"pedidos" | "perfil">("pedidos")
 
@@ -66,6 +67,7 @@ export default function Profile() {
       setAuthMode(mode)
       setLoginErrorMessage("")
       setRegisterError("")
+      setRegisterEmailError("")
     }
   }, [searchParams])
 
@@ -98,6 +100,8 @@ export default function Profile() {
 
   const handleRegister = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
+    setRegisterError("")
+    setRegisterEmailError("")
 
     if (!registerAcceptedTerms) {
       setRegisterError(
@@ -110,7 +114,7 @@ export default function Profile() {
 
     const rawEmail = sanitizeString(data.get("email")).toLowerCase()
     if (!validateEmail(rawEmail)) {
-      setRegisterError("Por favor ingresa un correo electrónico válido.")
+      setRegisterEmailError("Por favor ingresa un correo electrónico válido.")
       return
     }
 
@@ -143,7 +147,16 @@ export default function Profile() {
     // Registro en AWS o almacenamiento local con sincronización de pedidos de invitado
     const res = await api.auth.registerCustomer(newUser)
     if (!res.ok) {
-      setRegisterError(res.error || "No se pudo completar el registro.")
+      const errorMsg = res.error || "No se pudo completar el registro."
+      if (
+        errorMsg.toLowerCase().includes("correo") ||
+        errorMsg.toLowerCase().includes("email") ||
+        errorMsg.toLowerCase().includes("registrado")
+      ) {
+        setRegisterEmailError(errorMsg)
+      } else {
+        setRegisterError(errorMsg)
+      }
       return
     }
 
@@ -153,6 +166,7 @@ export default function Profile() {
     setIsAuth(true)
     setLoginErrorMessage("")
     setRegisterError("")
+    setRegisterEmailError("")
   }
 
   const handleUpdateProfile = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -265,6 +279,7 @@ export default function Profile() {
                 setAuthMode("login")
                 setLoginErrorMessage("")
                 setRegisterError("")
+                setRegisterEmailError("")
               }}
               style={{
                 flex: 1,
@@ -284,6 +299,7 @@ export default function Profile() {
                 setAuthMode("register")
                 setLoginErrorMessage("")
                 setRegisterError("")
+                setRegisterEmailError("")
               }}
               style={{
                 flex: 1,
@@ -595,13 +611,45 @@ export default function Profile() {
                     type="email"
                     required
                     defaultValue={searchParams.get("email") || ""}
+                    onChange={() => {
+                      if (registerEmailError) setRegisterEmailError("")
+                    }}
                     style={{
                       width: "100%",
                       padding: "1rem",
-                      border: "1px solid #ddd",
+                      border: registerEmailError ? "1px solid #dc2626" : "1px solid #ddd",
                       borderRadius: "4px",
                     }}
                   />
+                  {registerEmailError && (
+                    <div
+                      role="alert"
+                      className="mt-1.5 flex items-center gap-1.5 text-xs text-red-600 font-semibold"
+                      style={{
+                        marginTop: "0.4rem",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "6px",
+                        color: "#dc2626",
+                        fontSize: "0.75rem",
+                        fontWeight: 600,
+                      }}
+                    >
+                      <svg
+                        className="w-3.5 h-3.5 shrink-0"
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                        style={{ width: "14px", height: "14px", flexShrink: 0 }}
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                      <span>{registerEmailError}</span>
+                    </div>
+                  )}
                 </div>
                 <div style={{ flex: "1 1 200px" }}>
                   <label

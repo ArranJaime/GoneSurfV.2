@@ -985,7 +985,7 @@ export async function handler(event) {
       )
       if (existing.Item) {
         return response(400, {
-          message: "Este correo electrónico ya está registrado.",
+          message: "Este correo ya está registrado. Por favor, inicia sesión.",
         })
       }
 
@@ -1009,9 +1009,27 @@ export async function handler(event) {
         updatedAt: new Date().toISOString(),
       }
 
-      await docClient.send(
-        new PutCommand({ TableName: USERS_TABLE, Item: customerItem }),
-      )
+      try {
+        await docClient.send(
+          new PutCommand({
+            TableName: USERS_TABLE,
+            Item: customerItem,
+            ConditionExpression: "attribute_not_exists(email)",
+          }),
+        )
+      } catch (err) {
+        if (
+          err.name === "ConditionalCheckFailedException" ||
+          err.code === "ConditionalCheckFailedException" ||
+          err.__type?.includes("ConditionalCheckFailedException") ||
+          (err.message && err.message.includes("ConditionalCheckFailedException"))
+        ) {
+          return response(400, {
+            message: "Este correo ya está registrado. Por favor, inicia sesión.",
+          })
+        }
+        throw err
+      }
 
       // Sincronización Automática de Invitado a Registrado en DynamoDB (ORDERS_TABLE)
       try {

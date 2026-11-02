@@ -341,7 +341,7 @@ export const api = {
       if (exists) {
         return {
           ok: false,
-          error: "Este correo ya está registrado. Intenta iniciar sesión.",
+          error: "Este correo ya está registrado. Por favor, inicia sesión.",
         }
       }
 
