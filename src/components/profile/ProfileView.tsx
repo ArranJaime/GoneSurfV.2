@@ -30,6 +30,7 @@ export default function Profile() {
   const [authMode, setAuthMode] = useState<"login" | "register">(
     searchParams.get("mode") === "register" ? "register" : "login",
   )
+  const [isLoading, setIsLoading] = useState(false)
   const [loginErrorMessage, setLoginErrorMessage] = useState("")
   const [registerError, setRegisterError] = useState("")
   const [registerEmailError, setRegisterEmailError] = useState("")
@@ -74,27 +75,35 @@ export default function Profile() {
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setLoginErrorMessage("")
-    const data = new FormData(e.currentTarget)
-    const email = sanitizeString(data.get("email")).toLowerCase()
-    const pass = String(data.get("password") || "")
+    setIsLoading(true)
 
-    // Intentar autenticación con AWS primero
-    const customerRes = await api.auth.loginCustomer(email, pass)
-    if (customerRes) {
-      setCurrentUser(customerRes)
-      setIsAuth(true)
-      setLoginErrorMessage("")
-      return
-    }
+    try {
+      const data = new FormData(e.currentTarget)
+      const email = sanitizeString(data.get("email")).toLowerCase()
+      const pass = String(data.get("password") || "")
 
-    // Fallback a autenticación local
-    const authenticated = authenticateUser(email, pass)
-    if (authenticated) {
-      setCurrentUser(authenticated)
-      setIsAuth(true)
-      setLoginErrorMessage("")
-    } else {
-      setLoginErrorMessage("El correo o la contraseña son incorrectos.")
+      // Intentar autenticación con AWS primero
+      const customerRes = await api.auth.loginCustomer(email, pass)
+      if (customerRes) {
+        setCurrentUser(customerRes)
+        setIsAuth(true)
+        setLoginErrorMessage("")
+        return
+      }
+
+      // Fallback a autenticación local
+      const authenticated = authenticateUser(email, pass)
+      if (authenticated) {
+        setCurrentUser(authenticated)
+        setIsAuth(true)
+        setLoginErrorMessage("")
+      } else {
+        setLoginErrorMessage("El correo o la contraseña son incorrectos.")
+      }
+    } catch {
+      setLoginErrorMessage("Error de conexión al iniciar sesión. Inténtalo nuevamente.")
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -319,11 +328,17 @@ export default function Profile() {
           {authMode === "login" ? (
             <form
               onSubmit={handleLogin}
+              className={`transition-all duration-200 ${
+                isLoading ? "pointer-events-none opacity-80" : ""
+              }`}
               style={{
                 display: "flex",
                 flexDirection: "column",
                 gap: "1.2rem",
                 animation: "fadeIn 0.3s ease",
+                pointerEvents: isLoading ? "none" : "auto",
+                opacity: isLoading ? 0.8 : 1,
+                transition: "opacity 0.2s ease-in-out",
               }}
             >
               <div>
@@ -342,6 +357,7 @@ export default function Profile() {
                   name="email"
                   type="email"
                   required
+                  disabled={isLoading}
                   defaultValue={searchParams.get("email") || ""}
                   style={{
                     width: "100%",
@@ -367,6 +383,7 @@ export default function Profile() {
                   name="password"
                   type="password"
                   required
+                  disabled={isLoading}
                   style={{
                     width: "100%",
                     padding: "1rem",
@@ -391,6 +408,11 @@ export default function Profile() {
                 </div>
               )}
               <button
+                type="submit"
+                disabled={isLoading}
+                className={`inline-flex items-center justify-center gap-2 transition-all ${
+                  isLoading ? "opacity-70 cursor-not-allowed" : "hover:bg-neutral-800"
+                }`}
                 style={{
                   background: "#000",
                   color: "#fff",
@@ -398,12 +420,44 @@ export default function Profile() {
                   padding: "1rem",
                   fontWeight: "bold",
                   textTransform: "uppercase",
-                  cursor: "pointer",
+                  cursor: isLoading ? "not-allowed" : "pointer",
                   marginTop: "1rem",
                   borderRadius: "4px",
+                  opacity: isLoading ? 0.7 : 1,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "0.5rem",
                 }}
               >
-                Entrar a mi cuenta
+                {isLoading ? (
+                  <>
+                    <svg
+                      className="animate-spin h-4 w-4 text-white shrink-0"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      style={{ width: "16px", height: "16px" }}
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      />
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      />
+                    </svg>
+                    <span>Cargando...</span>
+                  </>
+                ) : (
+                  "Entrar a mi cuenta"
+                )}
               </button>
             </form>
           ) : (
