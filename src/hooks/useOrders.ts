@@ -102,9 +102,17 @@ export function useOrders(initialFilter: string = "Todos los Estados") {
 
       try {
         // 3. Guardar permanentemente en DynamoDB a través del API Gateway
-        await api.orders.updateStatus(id, nextStatus)
+        const updated = await api.orders.updateStatus(id, nextStatus)
         // 4. Sincronizar el store global
         updateOrderStatus(id, nextStatus)
+        if (updated) {
+          setOrders((prev) =>
+            prev.map((o) =>
+              o.id === id ? { ...o, ...updated, status: nextStatus } : o,
+            ),
+          )
+        }
+        return updated
       } catch (err) {
         console.error(
           "[useOrders] Error actualizando estado de pedido en DynamoDB:",

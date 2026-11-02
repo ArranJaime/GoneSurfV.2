@@ -1303,7 +1303,7 @@ export const api = {
               [],
             )
             const updatedOrders = orders.map((o) =>
-              o.id === id ? { ...o, status: nextStatus } : o,
+              o.id === id ? { ...o, ...updated, status: nextStatus } : o,
             )
             writeStorage("gone_transactions", updatedOrders)
             broadcastSyncEvent("orders")
@@ -1387,6 +1387,75 @@ export const api = {
       broadcastSyncEvent("orders")
 
       return { ...target, status: nextStatus }
+    },
+
+    async retryInvoice(id: string): Promise<OrderTransaction> {
+      if (STORAGE_MODE === "aws" && API_GATEWAY_URL) {
+        try {
+          // Intentar POST /orders/:id/retry-invoice
+          let res = await fetchWithAuth(
+            `/orders/${encodeURIComponent(id)}/retry-invoice`,
+            {
+              method: "POST",
+              body: JSON.stringify({ retryInvoice: true }),
+            },
+          )
+          if (!res.ok) {
+            res = await fetchWithAuth(
+              `/orders/${encodeURIComponent(id)}/status`,
+              {
+                method: "PUT",
+                body: JSON.stringify({ retryInvoice: true }),
+              },
+            )
+          }
+
+          if (res.ok) {
+            const body = await res.json()
+            const updated = body.order || body
+            const orders = readStorage<OrderTransaction[]>(
+              "gone_transactions",
+              [],
+            )
+            const updatedOrders = orders.map((o) =>
+              o.id === id ? { ...o, ...updated } : o,
+            )
+            writeStorage("gone_transactions", updatedOrders)
+            broadcastSyncEvent("orders")
+            return updated
+          } else {
+            const errText = await res.text().catch(() => "")
+            let msg = "Error al reintentar la emisión del comprobante."
+            try {
+              const parsed = JSON.parse(errText)
+              msg = parsed.message || parsed.error || msg
+            } catch {}
+            throw new Error(msg)
+          }
+        } catch (err: any) {
+          console.error("Fallo al reintentar emisión de boleta en AWS:", err)
+          throw err
+        }
+      }
+
+      // Mock / fallback
+      const orders = readStorage<OrderTransaction[]>("gone_transactions", [])
+      const target = orders.find((o) => o.id === id)
+      if (target) {
+        const updated = {
+          ...target,
+          invoicePdfUrl: `https://fake-nubefact.com/invoices/${id}.pdf`,
+          invoiceStatus: "emitida",
+          invoiceError: null,
+        }
+        writeStorage(
+          "gone_transactions",
+          orders.map((o) => (o.id === id ? updated : o)),
+        )
+        broadcastSyncEvent("orders")
+        return updated
+      }
+      throw new Error("Orden no encontrada.")
     },
   },
 

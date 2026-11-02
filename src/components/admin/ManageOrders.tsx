@@ -93,6 +93,7 @@ export default function ManageOrders({
   const [internalError, setInternalError] = useState<string | null>(null)
   const [statusFilter, setStatusFilter] = useState<string>("Todos los Estados")
   const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null)
+  const [retryingOrderId, setRetryingOrderId] = useState<string | null>(null)
   const [notification, setNotification] = useState<{
     message: string
     type: "success" | "error"
@@ -228,16 +229,29 @@ export default function ManageOrders({
     )
 
     try {
+      let updatedOrder: OrderTransaction | null = null
       if (propOnStatusChange) {
-        await propOnStatusChange(orderId, newStatus)
+        const res = await propOnStatusChange(orderId, newStatus)
+        if (res) updatedOrder = res as any
       } else {
-        await api.orders.updateStatus(orderId, newStatus)
+        const res = await api.orders.updateStatus(orderId, newStatus)
         updateOrderStatus(orderId, newStatus)
+        if (res) updatedOrder = res
+      }
+
+      if (updatedOrder) {
+        setOrders((prevOrders) =>
+          prevOrders.map((order) =>
+            order.id === orderId
+              ? { ...order, ...updatedOrder, status: newStatus }
+              : order,
+          ),
+        )
       }
 
       setNotification({
         type: "success",
-        message: `✓ Pedido ${orderId} actualizado a "${newStatus}" en DynamoDB`,
+        message: `✓ Pedido ${orderId} actualizado a "${newStatus}" en DynamoDB${updatedOrder?.invoicePdfUrl ? " (Boleta emitida)" : ""}`,
       })
     } catch (err: any) {
       console.error("[Admin] Error actualizando estado de pedido:", err)
@@ -249,6 +263,234 @@ export default function ManageOrders({
     } finally {
       setUpdatingOrderId(null)
     }
+  }
+
+  const handleRetryInvoice = async (orderId: string) => {
+    setRetryingOrderId(orderId)
+    try {
+      const updated = await api.orders.retryInvoice(orderId)
+      setOrders((prevOrders) =>
+        prevOrders.map((order) =>
+          order.id === orderId ? { ...order, ...updated } : order,
+        ),
+      )
+      if (updated.invoicePdfUrl) {
+        setNotification({
+          type: "success",
+          message: `✓ Boleta electrónica generada exitosamente para el pedido ${orderId}`,
+        })
+      } else {
+        setNotification({
+          type: "error",
+          message: `⚠️ No se pudo generar la boleta: ${updated.invoiceError || "Error desconocido"}`,
+        })
+      }
+    } catch (err: any) {
+      console.error("[ManageOrders] Error al reintentar emisión de boleta:", err)
+      setNotification({
+        type: "error",
+        message: `⚠️ Error al emitir boleta: ${err?.message || "Revisa la conexión con Nubefact."}`,
+      })
+    } finally {
+      setRetryingOrderId(null)
+    }
+  }
+
+  const renderInvoiceCell = (t: OrderTransaction) => {
+    const isRetrying = retryingOrderId === t.id
+    const hasPdf = Boolean(
+      t.invoicePdfUrl &&
+        typeof t.invoicePdfUrl === "string" &&
+        t.invoicePdfUrl.trim() !== "",
+    )
+    const isError =
+      t.invoiceStatus === "error_facturacion" ||
+      Boolean(t.invoiceError && !hasPdf)
+
+    const method = String(t.paymentMethod || "").toLowerCase()
+    const isYapePlin =
+      method === "yape_plin" || method.includes("yape") || method.includes("plin")
+    const isContraEntrega =
+      method === "efectivo" ||
+      method.includes("contra") ||
+      method.includes("entrega")
+
+    // 1. Si existe URL de la boleta: Ver Boleta
+    if (hasPdf) {
+      return (
+        <a
+          href={t.invoicePdfUrl!}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-neutral-900 hover:bg-neutral-800 active:scale-95 rounded transition-all shadow-xs"
+          style={{
+            textDecoration: "none",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "6px",
+            padding: "6px 12px",
+            fontSize: "0.75rem",
+            fontWeight: 700,
+            color: "#fff",
+            backgroundColor: "#0a0a0a",
+            borderRadius: "4px",
+          }}
+          title="Abrir boleta / factura electrónica de Nubefact (PDF)"
+        >
+          <svg
+            className="w-3.5 h-3.5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg"
+            style={{ width: "14px", height: "14px" }}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+            />
+          </svg>
+          <span>Ver Boleta</span>
+        </a>
+      )
+    }
+
+    // 2. Si falló la petición a Nubefact: Botón rojo "Reintentar Boleta"
+    if (isError) {
+      return (
+        <button
+          type="button"
+          onClick={() => handleRetryInvoice(t.id)}
+          disabled={isRetrying}
+          className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-bold text-red-700 bg-red-50 hover:bg-red-100 border border-red-300 active:scale-95 rounded transition-all shadow-xs cursor-pointer disabled:opacity-50"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "6px",
+            padding: "6px 12px",
+            fontSize: "0.75rem",
+            fontWeight: 700,
+            color: "#b91c1c",
+            backgroundColor: "#fef2f2",
+            border: "1px solid #fca5a5",
+            borderRadius: "4px",
+            cursor: isRetrying ? "not-allowed" : "pointer",
+          }}
+          title={
+            t.invoiceError ||
+            "Error al generar comprobante con Nubefact. Clic para reintentar."
+          }
+        >
+          {isRetrying ? (
+            <>
+              <svg
+                className="animate-spin"
+                style={{ width: "12px", height: "12px" }}
+                viewBox="0 0 24 24"
+                fill="none"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                />
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8v8H4z"
+                />
+              </svg>
+              <span>Emitiendo...</span>
+            </>
+          ) : (
+            <>
+              <svg
+                style={{ width: "13px", height: "13px" }}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                />
+              </svg>
+              <span>Reintentar Boleta</span>
+            </>
+          )}
+        </button>
+      )
+    }
+
+    // 3. Pago Contra Entrega y estado no es Entregado: "Se emite al entregar"
+    if (isContraEntrega && t.status !== "Entregado") {
+      return (
+        <span
+          className="text-xs text-neutral-500 italic inline-flex items-center gap-1.5"
+          style={{
+            fontSize: "0.75rem",
+            color: "#71717a",
+            fontStyle: "italic",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "5px",
+          }}
+          title="El comprobante electrónico se emitirá automáticamente cuando el pedido sea marcado como Entregado"
+        >
+          <span style={{ fontSize: "0.85rem" }}>⏳</span>
+          <span>Se emite al entregar</span>
+        </span>
+      )
+    }
+
+    // 4. Yape / Plin y estado es Pendiente de Pago: "Esperando pago"
+    if (isYapePlin && t.status === "Pendiente de Pago") {
+      return (
+        <span
+          className="text-xs text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded inline-flex items-center gap-1.5 font-medium"
+          style={{
+            fontSize: "0.75rem",
+            color: "#b45309",
+            backgroundColor: "#fffbeb",
+            border: "1px solid #fde68a",
+            padding: "3px 8px",
+            borderRadius: "4px",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "5px",
+            fontWeight: 500,
+          }}
+          title="El comprobante electrónico se emitirá cuando verifiques el pago y pases el pedido a Procesando"
+        >
+          <span style={{ fontSize: "0.85rem" }}>📱</span>
+          <span>Esperando pago</span>
+        </span>
+      )
+    }
+
+    // 5. Fallback para otros casos no emitidos
+    return (
+      <span
+        className="text-xs text-neutral-400 italic inline-flex items-center gap-1"
+        style={{
+          fontSize: "0.75rem",
+          color: "#a1a1aa",
+          fontStyle: "italic",
+          display: "inline-flex",
+          alignItems: "center",
+          gap: "4px",
+        }}
+      >
+        <span>No emitida</span>
+      </span>
+    )
   }
 
   if (isLoading && orders.length === 0) {
@@ -674,74 +916,7 @@ export default function ManageOrders({
                       </div>
                     </td>
                     <td style={{ padding: "1rem", whiteSpace: "nowrap" }}>
-                      {t.invoicePdfUrl &&
-                      typeof t.invoicePdfUrl === "string" &&
-                      t.invoicePdfUrl.trim() !== "" ? (
-                        <a
-                          href={t.invoicePdfUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-neutral-900 hover:bg-neutral-800 active:scale-95 rounded transition-all shadow-xs"
-                          style={{
-                            textDecoration: "none",
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: "6px",
-                            padding: "6px 12px",
-                            fontSize: "0.75rem",
-                            fontWeight: 700,
-                            color: "#fff",
-                            backgroundColor: "#0a0a0a",
-                            borderRadius: "4px",
-                          }}
-                          title="Abrir boleta / factura electrónica de Nubefact (PDF)"
-                        >
-                          <svg
-                            className="w-3.5 h-3.5"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                            xmlns="http://www.w3.org/2000/svg"
-                            style={{ width: "14px", height: "14px" }}
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                            />
-                          </svg>
-                          <span>Ver Boleta</span>
-                        </a>
-                      ) : (
-                        <span
-                          className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-neutral-500 bg-neutral-100 border border-neutral-200 rounded"
-                          style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: "6px",
-                            padding: "4px 8px",
-                            borderRadius: "4px",
-                            backgroundColor: "#f4f4f5",
-                            border: "1px solid #e4e4e7",
-                            color: "#71717a",
-                            fontSize: "0.75rem",
-                            fontWeight: 600,
-                          }}
-                          title="Comprobante electrónico aún no generado o pendiente"
-                        >
-                          <span
-                            style={{
-                              width: "6px",
-                              height: "6px",
-                              borderRadius: "50%",
-                              backgroundColor: "#a1a1aa",
-                              display: "inline-block",
-                            }}
-                          />
-                          <span>Pendiente</span>
-                        </span>
-                      )}
+                      {renderInvoiceCell(t)}
                     </td>
                   </tr>
                 )
