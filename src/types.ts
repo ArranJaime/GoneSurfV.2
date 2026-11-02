@@ -97,6 +97,12 @@ export interface OrderTransaction extends OrderDetailsInput {
 
 export type Order = OrderTransaction
 
+export interface InventoryLog {
+  id: string
+  message: string
+  timestamp: string
+}
+
 export interface ComplaintInput {
   consumerName: string
   documentType: "DNI" | "CE" | "Pasaporte"

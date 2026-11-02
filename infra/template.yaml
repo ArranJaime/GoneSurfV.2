@@ -103,6 +103,18 @@ Resources:
       PointInTimeRecoverySpecification:
         PointInTimeRecoveryEnabled: true
 
+  LogsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub 'GoneSurfing-Logs-${Environment}'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+
   # ============================================================================
   # 2. S3 BUCKETS (FRONTEND HOSTING & MEDIA STORAGE)
   # ============================================================================
@@ -250,6 +262,7 @@ Resources:
                   - !GetAtt OrdersTable.Arn
                   - !GetAtt UsersTable.Arn
                   - !GetAtt ComplaintsTable.Arn
+                  - !GetAtt LogsTable.Arn
         - PolicyName: S3MediaAccess
           PolicyDocument:
             Version: '2012-10-17'
@@ -307,6 +320,7 @@ Resources:
           ORDERS_TABLE: !Ref OrdersTable
           USERS_TABLE: !Ref UsersTable
           COMPLAINTS_TABLE: !Ref ComplaintsTable
+          LOGS_TABLE: !Ref LogsTable
           MEDIA_BUCKET: !Ref MediaBucket
           CLOUDFRONT_DOMAIN: !GetAtt CloudFrontDistribution.DomainName
           ADMIN_USER: admin

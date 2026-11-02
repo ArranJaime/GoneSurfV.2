@@ -41,6 +41,7 @@ const ORDERS_TABLE = process.env.ORDERS_TABLE || "GoneSurfing-Orders-prod"
 const USERS_TABLE = process.env.USERS_TABLE || "GoneSurfing-Users-prod"
 const COMPLAINTS_TABLE =
   process.env.COMPLAINTS_TABLE || "GoneSurfing-Complaints-prod"
+const LOGS_TABLE = process.env.LOGS_TABLE || "GoneSurfing-Logs-prod"
 const MEDIA_BUCKET = process.env.MEDIA_BUCKET || ""
 const CLOUDFRONT_DOMAIN = process.env.CLOUDFRONT_DOMAIN || ""
 const SENDER_EMAIL = process.env.SENDER_EMAIL || "202311385@urp.edu.pe"
@@ -280,6 +281,25 @@ function parseBody(event) {
   } catch {
     return {}
   }
+}
+
+/**
+ * Genera un resumen dinámico de tallas y cantidades para el historial de ingreso de mercadería
+ */
+function formatStockLog(productName, stocks, defaultTotal) {
+  let sizesSummary = ""
+  if (stocks && typeof stocks === "object") {
+    const parts = Object.entries(stocks)
+      .filter(([_, qty]) => Number(qty) > 0)
+      .map(([size, qty]) => `${qty} ${size}`)
+    if (parts.length > 0) {
+      sizesSummary = parts.join(", ")
+    }
+  }
+  if (!sizesSummary) {
+    sizesSummary = `${defaultTotal || 0} unidades`
+  }
+  return `Se ingresó: ${productName} - ${sizesSummary}`
 }
 
 // -----------------------------------------------------------------------------
@@ -1470,6 +1490,27 @@ export async function handler(event) {
           `[DynamoDB] Guardado confirmado en ${PRODUCTS_TABLE}:`,
           newProduct.id,
         )
+
+        // Registro en el Historial de Ingreso de Mercadería
+        try {
+          const logItem = {
+            id: `log-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+            message: formatStockLog(
+              newProduct.name,
+              newProduct.stocks,
+              newProduct.stock,
+            ),
+            timestamp: new Date().toISOString(),
+          }
+          await docClient.send(
+            new PutCommand({
+              TableName: LOGS_TABLE,
+              Item: logItem,
+            }),
+          )
+        } catch (logErr) {
+          console.warn("Aviso al guardar log de mercadería:", logErr?.message)
+        }
       } catch (dbErr) {
         console.error(
           `[DynamoDB] Error crítico al ejecutar PutCommand en ${PRODUCTS_TABLE}:`,
@@ -1529,6 +1570,28 @@ export async function handler(event) {
       await docClient.send(
         new PutCommand({ TableName: PRODUCTS_TABLE, Item: updated }),
       )
+
+      // Registro en el Historial de Ingreso de Mercadería
+      try {
+        const logItem = {
+          id: `log-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+          message: formatStockLog(
+            updated.name,
+            updated.stocks,
+            updated.stock,
+          ),
+          timestamp: new Date().toISOString(),
+        }
+        await docClient.send(
+          new PutCommand({
+            TableName: LOGS_TABLE,
+            Item: logItem,
+          }),
+        )
+      } catch (logErr) {
+        console.warn("Aviso al guardar log de mercadería:", logErr?.message)
+      }
+
       return response(200, updated)
     }
 
@@ -1953,6 +2016,63 @@ export async function handler(event) {
         message: "Reclamación actualizada correctamente.",
         complaint: updateRes.Attributes,
       })
+    }
+
+    // -------------------------------------------------------------------------
+    // 6. INVENTORY / ADMIN LOGS ROUTES
+    // -------------------------------------------------------------------------
+    if (httpMethod === "GET" && (path === "/admin/logs" || path === "/logs")) {
+      const auth = requireAdmin(headers, event)
+      if (auth.error) return auth.error
+
+      const res = await docClient.send(
+        new ScanCommand({ TableName: LOGS_TABLE }),
+      )
+      const logs = (res.Items || []).sort(
+        (a, b) =>
+          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
+      )
+      return response(200, { ok: true, logs })
+    }
+
+    if (
+      httpMethod === "DELETE" &&
+      (path.startsWith("/admin/logs/") || path.startsWith("/logs/"))
+    ) {
+      const auth = requireAdmin(headers, event)
+      if (auth.error) return auth.error
+
+      const id = path.replace(/^\/(admin\/logs|logs)\//, "").replace(/\/.*$/, "")
+      if (!id) {
+        return response(400, { message: "ID del log requerido." })
+      }
+
+      await docClient.send(
+        new DeleteCommand({ TableName: LOGS_TABLE, Key: { id } }),
+      )
+      return response(200, {
+        ok: true,
+        success: true,
+        message: "Log eliminado correctamente.",
+      })
+    }
+
+    if (httpMethod === "POST" && (path === "/admin/logs" || path === "/logs")) {
+      const auth = requireAdmin(headers, event)
+      if (auth.error) return auth.error
+
+      const { message } = parseBody(event)
+      if (!message) return response(400, { message: "Mensaje requerido." })
+
+      const newLog = {
+        id: `log-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+        message: String(message).trim(),
+        timestamp: new Date().toISOString(),
+      }
+      await docClient.send(
+        new PutCommand({ TableName: LOGS_TABLE, Item: newLog }),
+      )
+      return response(201, { ok: true, log: newLog })
     }
 
     return response(404, {

@@ -35,6 +35,7 @@ import type {
   ComplaintStatus,
   ComplaintStatusUpdateOptions,
   ComplaintUpdateResult,
+  InventoryLog,
 } from "../types"
 
 export type {
@@ -1660,6 +1661,71 @@ export const api = {
           error: err?.message || "Error al actualizar localmente.",
         }
       }
+    },
+  },
+
+  // ---------------------------------------------------------------------------
+  // INVENTORY / ADMIN LOGS SERVICE (HISTORIAL DE INGRESO DE MERCADERÍA)
+  // ---------------------------------------------------------------------------
+  logs: {
+    async getAll(): Promise<InventoryLog[]> {
+      const adminToken = getAdminToken()
+      if (STORAGE_MODE === "aws" && API_GATEWAY_URL && adminToken) {
+        try {
+          const res = await fetchWithAuth("/admin/logs")
+          if (res.ok) {
+            const data = await res.json()
+            const logsArray: InventoryLog[] = Array.isArray(data)
+              ? data
+              : data.logs || []
+            writeStorage("gone_inventory_logs", logsArray)
+            return logsArray
+          }
+        } catch (err) {
+          console.error("Error al obtener logs desde AWS:", err)
+        }
+      }
+      return readStorage<InventoryLog[]>("gone_inventory_logs", [])
+    },
+
+    async delete(id: string): Promise<boolean> {
+      const adminToken = getAdminToken()
+      if (STORAGE_MODE === "aws" && API_GATEWAY_URL && adminToken) {
+        try {
+          const res = await fetchWithAuth(
+            `/admin/logs/${encodeURIComponent(id)}`,
+            {
+              method: "DELETE",
+            },
+          )
+          if (res.ok) {
+            const current = readStorage<InventoryLog[]>(
+              "gone_inventory_logs",
+              [],
+            )
+            const filtered = current.filter((l) => l.id !== id)
+            writeStorage("gone_inventory_logs", filtered)
+            return true
+          }
+        } catch (err) {
+          console.error("Error al eliminar log en AWS:", err)
+        }
+      }
+      const current = readStorage<InventoryLog[]>("gone_inventory_logs", [])
+      const filtered = current.filter((l) => l.id !== id)
+      writeStorage("gone_inventory_logs", filtered)
+      return true
+    },
+
+    async create(message: string): Promise<InventoryLog> {
+      const newLog: InventoryLog = {
+        id: `log-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+        message,
+        timestamp: new Date().toISOString(),
+      }
+      const current = readStorage<InventoryLog[]>("gone_inventory_logs", [])
+      writeStorage("gone_inventory_logs", [newLog, ...current])
+      return newLog
     },
   },
 }

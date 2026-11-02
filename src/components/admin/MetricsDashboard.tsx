@@ -1,6 +1,8 @@
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useStore, type OrderTransaction, type Size } from "../../store"
 import { formatPEN } from "../../utils/accounting"
+import { api } from "../../services/api"
+import type { InventoryLog } from "../../types"
 
 const SIZES: Size[] = ["S", "M", "L", "XL"]
 const money = (value: number) => formatPEN(value)
@@ -27,6 +29,63 @@ export function MetricsDashboard({
     )
   const [customStart, setCustomStart] = useState("")
   const [customEnd, setCustomEnd] = useState("")
+
+  // Estado del Historial de Ingreso de Mercadería
+  const [logs, setLogs] = useState<InventoryLog[]>([])
+  const [isLoadingLogs, setIsLoadingLogs] = useState(false)
+
+  useEffect(() => {
+    let isMounted = true
+    const fetchLogs = async () => {
+      setIsLoadingLogs(true)
+      try {
+        const data = await api.logs.getAll()
+        if (isMounted) {
+          const sorted = [...data].sort(
+            (a, b) =>
+              new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
+          )
+          setLogs(sorted)
+        }
+      } catch (err) {
+        console.error("Error al cargar historial de mercadería:", err)
+      } finally {
+        if (isMounted) setIsLoadingLogs(false)
+      }
+    }
+
+    fetchLogs()
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
+  const handleDeleteLog = async (id: string) => {
+    // Actualización inmediata del estado local para feedback visual instantáneo
+    setLogs((prev) => prev.filter((log) => log.id !== id))
+    try {
+      await api.logs.delete(id)
+    } catch (err) {
+      console.error("Error al eliminar log de mercadería:", err)
+    }
+  }
+
+  const formatLogDate = (isoString: string) => {
+    try {
+      const d = new Date(isoString)
+      if (Number.isNaN(d.getTime())) return isoString
+      return d.toLocaleString("es-PE", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+      })
+    } catch {
+      return isoString
+    }
+  }
 
   const filteredTransactions = useMemo(() => {
     const now = new Date()
@@ -566,6 +625,184 @@ export function MetricsDashboard({
                 <span>
                   Atención: <strong>{item.name}</strong> - Talla {item.size} (Quedan {item.quantity} unidades)
                 </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* SECCIÓN: REGISTRO DE INGRESO DE MERCADERÍA */}
+      <div
+        className="w-full"
+        style={{
+          width: "100%",
+          backgroundColor: "#fff",
+          border: "1px solid #eee",
+          borderRadius: "8px",
+          padding: "1.25rem 1.5rem",
+          marginBottom: "2.5rem",
+          boxShadow: "0 1px 3px rgba(0,0,0,0.03)",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            marginBottom: "0.85rem",
+            paddingBottom: "0.6rem",
+            borderBottom: "1px solid #f0f0f0",
+          }}
+        >
+          <span
+            style={{
+              fontSize: "0.75rem",
+              fontWeight: "bold",
+              color: "#555",
+              letterSpacing: "1px",
+              textTransform: "uppercase",
+            }}
+          >
+            REGISTRO DE INGRESO DE MERCADERÍA
+          </span>
+          <span
+            style={{
+              fontSize: "0.75rem",
+              color: "#888",
+            }}
+          >
+            {logs.length} registro{logs.length === 1 ? "" : "s"}
+          </span>
+        </div>
+
+        {isLoadingLogs ? (
+          <p
+            style={{
+              fontSize: "0.85rem",
+              color: "#888",
+              margin: "0.5rem 0",
+            }}
+          >
+            Cargando historial de mercadería...
+          </p>
+        ) : logs.length === 0 ? (
+          <p
+            style={{
+              fontSize: "0.85rem",
+              color: "#777",
+              margin: "0.5rem 0 0 0",
+            }}
+          >
+            No hay registros de ingreso de mercadería recientes. Los nuevos ingresos desde el catálogo aparecerán aquí.
+          </p>
+        ) : (
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: "0.5rem",
+              maxHeight: "320px",
+              overflowY: "auto",
+            }}
+          >
+            {logs.map((log) => (
+              <div
+                key={log.id}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: "0.75rem",
+                  padding: "0.65rem 0.9rem",
+                  backgroundColor: "#f4f4f5",
+                  border: "1px solid #e4e4e7",
+                  borderRadius: "6px",
+                  fontSize: "0.825rem",
+                  color: "#27272a",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.6rem",
+                    flex: 1,
+                    minWidth: 0,
+                  }}
+                >
+                  <span
+                    style={{
+                      width: "6px",
+                      height: "6px",
+                      borderRadius: "50%",
+                      backgroundColor: "#10b981",
+                      display: "inline-block",
+                      flexShrink: 0,
+                    }}
+                  />
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "0.15rem",
+                      minWidth: 0,
+                      flex: 1,
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontWeight: 600,
+                        color: "#18181b",
+                        wordBreak: "break-word",
+                      }}
+                    >
+                      {log.message}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: "0.7rem",
+                        color: "#71717a",
+                      }}
+                    >
+                      {formatLogDate(log.timestamp)}
+                    </span>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => handleDeleteLog(log.id)}
+                  title="Eliminar registro"
+                  aria-label="Eliminar registro"
+                  className="hover:text-red-600 transition-colors"
+                  style={{
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    padding: "4px 8px",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: "#a1a1aa",
+                    borderRadius: "4px",
+                    flexShrink: 0,
+                  }}
+                >
+                  <svg
+                    style={{ width: "16px", height: "16px" }}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                    />
+                  </svg>
+                </button>
               </div>
             ))}
           </div>
