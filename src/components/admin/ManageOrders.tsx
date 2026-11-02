@@ -231,8 +231,7 @@ export default function ManageOrders({
     try {
       let updatedOrder: OrderTransaction | null = null
       if (propOnStatusChange) {
-        const res = await propOnStatusChange(orderId, newStatus)
-        if (res) updatedOrder = res as any
+        await propOnStatusChange(orderId, newStatus)
       } else {
         const res = await api.orders.updateStatus(orderId, newStatus)
         updateOrderStatus(orderId, newStatus)
