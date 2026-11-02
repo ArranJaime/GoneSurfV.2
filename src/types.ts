@@ -90,6 +90,9 @@ export interface OrderTransaction extends OrderDetailsInput {
   isGuest?: boolean
   userStatus?: string
   cognitoId?: string
+  invoicePdfUrl?: string | null
+  invoiceStatus?: string
+  invoiceError?: string | null
 }
 
 export type Order = OrderTransaction

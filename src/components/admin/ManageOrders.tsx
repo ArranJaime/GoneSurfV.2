@@ -470,13 +470,14 @@ export default function ManageOrders({
               <th style={{ padding: "1rem" }}>TOTAL</th>
               <th style={{ padding: "1rem" }}>MÉTODO DE PAGO</th>
               <th style={{ padding: "1rem" }}>ESTADO ACTUAL</th>
+              <th style={{ padding: "1rem" }}>COMPROBANTE</th>
             </tr>
           </thead>
           <tbody>
             {filteredOrders.length === 0 ? (
               <tr>
                 <td
-                  colSpan={7}
+                  colSpan={8}
                   style={{
                     padding: "3rem",
                     textAlign: "center",
@@ -671,6 +672,76 @@ export default function ManageOrders({
                           </span>
                         )}
                       </div>
+                    </td>
+                    <td style={{ padding: "1rem", whiteSpace: "nowrap" }}>
+                      {t.invoicePdfUrl &&
+                      typeof t.invoicePdfUrl === "string" &&
+                      t.invoicePdfUrl.trim() !== "" ? (
+                        <a
+                          href={t.invoicePdfUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-neutral-900 hover:bg-neutral-800 active:scale-95 rounded transition-all shadow-xs"
+                          style={{
+                            textDecoration: "none",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "6px",
+                            padding: "6px 12px",
+                            fontSize: "0.75rem",
+                            fontWeight: 700,
+                            color: "#fff",
+                            backgroundColor: "#0a0a0a",
+                            borderRadius: "4px",
+                          }}
+                          title="Abrir boleta / factura electrónica de Nubefact (PDF)"
+                        >
+                          <svg
+                            className="w-3.5 h-3.5"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                            xmlns="http://www.w3.org/2000/svg"
+                            style={{ width: "14px", height: "14px" }}
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                            />
+                          </svg>
+                          <span>Ver Boleta</span>
+                        </a>
+                      ) : (
+                        <span
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-neutral-500 bg-neutral-100 border border-neutral-200 rounded"
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "6px",
+                            padding: "4px 8px",
+                            borderRadius: "4px",
+                            backgroundColor: "#f4f4f5",
+                            border: "1px solid #e4e4e7",
+                            color: "#71717a",
+                            fontSize: "0.75rem",
+                            fontWeight: 600,
+                          }}
+                          title="Comprobante electrónico aún no generado o pendiente"
+                        >
+                          <span
+                            style={{
+                              width: "6px",
+                              height: "6px",
+                              borderRadius: "50%",
+                              backgroundColor: "#a1a1aa",
+                              display: "inline-block",
+                            }}
+                          />
+                          <span>Pendiente</span>
+                        </span>
+                      )}
                     </td>
                   </tr>
                 )
